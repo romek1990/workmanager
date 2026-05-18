@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  direction: rtl;
+  font-family: 'Heebo', Arial, sans-serif;
+  background-color: #f8f9fa;
+  color: #1a1a2e;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer;
+  }
+  .btn-primary {
+    @apply bg-blue-600 text-white border-blue-600 hover:bg-blue-700;
+  }
+  .btn-success {
+    @apply bg-green-50 text-green-700 border-green-200 hover:bg-green-100;
+  }
+  .btn-danger {
+    @apply bg-red-50 text-red-700 border-red-200 hover:bg-red-100;
+  }
+  .card {
+    @apply bg-white rounded-xl border border-gray-100 shadow-sm;
+  }
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-success { @apply bg-green-50 text-green-700; }
+  .badge-warning { @apply bg-amber-50 text-amber-700; }
+  .badge-danger  { @apply bg-red-50 text-red-700; }
+  .badge-info    { @apply bg-blue-50 text-blue-700; }
+  .badge-gray    { @apply bg-gray-100 text-gray-600; }
+  .form-control {
+    @apply w-full px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400;
+  }
+  .form-label {
+    @apply block text-xs font-medium text-gray-500 mb-1.5;
+  }
+  .table-th {
+    @apply text-right text-xs font-medium text-gray-500 px-4 py-2.5 bg-gray-50 border-b border-gray-100;
+  }
+  .table-td {
+    @apply px-4 py-3 text-sm border-b border-gray-50;
+  }
+}
