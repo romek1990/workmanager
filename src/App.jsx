@@ -4,7 +4,6 @@ import { AppProvider, useApp } from './context/AppContext'
 import Sidebar from './components/layout/Sidebar'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 
-// Pages
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Employees from './pages/Employees'
@@ -17,12 +16,23 @@ import UserHome from './pages/UserHome'
 import MyShifts from './pages/MyShifts'
 
 function AppRoutes() {
-  const { currentUser, login } = useApp()
+  const { currentUser, loading } = useApp()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-10 h-10 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-sm text-gray-400">טוען...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!currentUser) {
     return (
       <Routes>
-        <Route path="/login" element={<Login onLogin={login} />} />
+        <Route path="/login" element={<Login />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     )
