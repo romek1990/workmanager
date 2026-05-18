@@ -25,7 +25,7 @@ export default function Login({ onLogin }) {
     if (user) {
       onLogin(user)
     } else {
-      setError('אימייל או סיסמא שגויים')
+      setError(err.message || 'שגיאה לא ידועה')
     }
     setLoading(false)
   }
