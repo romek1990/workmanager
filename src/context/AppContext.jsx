@@ -7,8 +7,18 @@ export function AppProvider({ children }) {
   const [employees, setEmployees] = useState(EMPLOYEES)
   const [shifts, setShifts] = useState(SHIFTS_SEED)
   const [bonuses, setBonuses] = useState(BONUSES_SEED)
-  const [currentRole, setCurrentRole] = useState('admin') // 'admin' | 'user'
-  const [currentUserEmail] = useState('roytal@demo.com')  // logged-in employee
+  const [currentUser, setCurrentUser] = useState(null) // { email, role, name }
+
+  const currentRole = currentUser?.role || null
+  const currentUserEmail = currentUser?.email || null
+
+  function login(user) {
+    setCurrentUser(user)
+  }
+
+  function logout() {
+    setCurrentUser(null)
+  }
 
   function addEmployee(emp) {
     setEmployees(prev => [...prev, { ...emp, id: Date.now() }])
@@ -33,8 +43,8 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       employees, shifts, bonuses,
-      currentRole, setCurrentRole,
-      currentUserEmail,
+      currentUser, currentRole, currentUserEmail,
+      login, logout,
       addEmployee, updateEmployee,
       addShift, updateShiftStatus,
       addBonus,

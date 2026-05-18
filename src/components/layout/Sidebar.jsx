@@ -1,6 +1,6 @@
 import React from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, UserCheck, Building2 } from 'lucide-react'
+import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, Building2 } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { Avatar } from '../ui'
 
@@ -19,20 +19,17 @@ const userNav = [
 ]
 
 export default function Sidebar() {
-  const { currentRole, setCurrentRole, employees, currentUserEmail } = useApp()
+  const { currentUser, logout } = useApp()
   const navigate = useNavigate()
-  const nav = currentRole === 'admin' ? adminNav : userNav
-  const currentUser = employees.find(e => e.email === currentUserEmail)
+  const nav = currentUser?.role === 'admin' ? adminNav : userNav
 
-  function switchRole() {
-    const next = currentRole === 'admin' ? 'user' : 'admin'
-    setCurrentRole(next)
-    navigate(next === 'admin' ? '/' : '/my-home')
+  function handleLogout() {
+    logout()
+    navigate('/login')
   }
 
   return (
     <aside className="fixed top-0 right-0 w-56 h-screen bg-white border-l border-gray-100 flex flex-col z-40">
-      {/* Logo */}
       <div className="px-4 py-5 border-b border-gray-100">
         <div className="flex items-center gap-2">
           <Building2 size={20} className="text-blue-600" />
@@ -41,10 +38,9 @@ export default function Sidebar() {
         <p className="text-xs text-gray-400 mt-0.5 mr-7">מערכת ניהול עובדים</p>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 py-3 overflow-y-auto">
         <p className="text-xs font-medium text-gray-400 px-4 mb-1">
-          {currentRole === 'admin' ? 'ניהול' : 'האזור שלי'}
+          {currentUser?.role === 'admin' ? 'ניהול' : 'האזור שלי'}
         </p>
         {nav.map(({ to, label, icon: Icon, end }) => (
           <NavLink
@@ -64,18 +60,20 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* User bar */}
       <div className="border-t border-gray-100 px-3 py-3">
-        <div className="flex items-center gap-2.5 mb-2">
-          <Avatar name={currentRole === 'admin' ? 'דני מנהל' : currentUser?.full_name} size="sm" />
+        <div className="flex items-center gap-2.5 mb-3">
+          <Avatar name={currentUser?.name} size="sm" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium truncate">{currentRole === 'admin' ? 'דני מנהל' : currentUser?.full_name}</p>
-            <p className="text-xs text-gray-400">{currentRole === 'admin' ? 'מנהל מערכת' : 'עובד'}</p>
+            <p className="text-xs font-medium truncate">{currentUser?.name}</p>
+            <p className="text-xs text-gray-400">{currentUser?.role === 'admin' ? 'מנהל מערכת' : 'עובד'}</p>
           </div>
         </div>
-        <button onClick={switchRole} className="w-full text-xs text-center py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 flex items-center justify-center gap-1.5">
-          <UserCheck size={13} />
-          עבור למצב {currentRole === 'admin' ? 'עובד' : 'מנהל'}
+        <button
+          onClick={handleLogout}
+          className="w-full text-xs text-center py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 flex items-center justify-center gap-1.5 transition-colors"
+        >
+          <LogOut size={13} />
+          יציאה מהמערכת
         </button>
       </div>
     </aside>
