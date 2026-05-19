@@ -21,16 +21,31 @@ useEffect(() => {
   }
 }, [])
   
-  async function handleSubmit(e) {
-    e.preventDefault()
-    if (password !== confirm) { setError('הסיסמאות לא תואמות'); return }
-    if (password.length < 6) { setError('לפחות 6 תווים'); return }
-    setLoading(true)
-    const { error } = await supabase.auth.updateUser({ password })
-    if (error) setError(error.message)
-    else setDone(true)
+async function handleSubmit(e) {
+  e.preventDefault()
+  if (password !== confirm) { setError('הסיסמאות לא תואמות'); return }
+  if (password.length < 6) { setError('לפחות 6 תווים'); return }
+  setLoading(true)
+  
+  const hash = window.location.hash
+  const params = new URLSearchParams(hash.substring(1))
+  const access_token = params.get('access_token')
+  const refresh_token = params.get('refresh_token') || ''
+  
+  if (!access_token) {
+    setError('קישור לא תקין — בקש קישור חדש')
     setLoading(false)
+    return
   }
+
+  const { error: sessionError } = await supabase.auth.setSession({ access_token, refresh_token })
+  if (sessionError) { setError(sessionError.message); setLoading(false); return }
+
+  const { error } = await supabase.auth.updateUser({ password })
+  if (error) setError(error.message)
+  else setDone(true)
+  setLoading(false)
+}
 
   if (done) return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center p-4">
