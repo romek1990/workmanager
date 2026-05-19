@@ -105,7 +105,6 @@ export default function WeeklySchedule() {
     setEditingNote(null)
   }
 
-  // בניית תוכן המייל לכל עובד
   function buildAllShiftsText() {
     let text = ''
     DAYS.forEach((dayName, i) => {
@@ -151,8 +150,6 @@ export default function WeeklySchedule() {
     }
     setSending(true)
     const allShiftsText = buildAllShiftsText()
-
-    // מצא עובדים ייחודיים שיש להם משמרות השבוע
     const employeeIds = [...new Set(weekEntries.map(e => e.employee_id))]
     let sent = 0
     let failed = 0
@@ -189,18 +186,13 @@ export default function WeeklySchedule() {
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-lg font-medium">סידור שבועי</h1>
         {currentRole === 'admin' && (
-          <button
-            onClick={handleSendEmails}
-            disabled={sending}
-            className="btn btn-primary flex items-center gap-2"
-          >
+          <button onClick={handleSendEmails} disabled={sending} className="btn btn-primary flex items-center gap-2">
             <Send size={15} />
             {sending ? 'שולח מיילים...' : 'שלח סידור לעובדים'}
           </button>
         )}
       </div>
 
-      {/* בחירת שבוע */}
       <div className="flex items-center gap-3 mb-6">
         <button className="btn" onClick={prevWeek}><ChevronRight size={16} /></button>
         <span className="text-sm font-medium text-gray-700">שבוע {weekDates}</span>
@@ -208,7 +200,6 @@ export default function WeeklySchedule() {
         <button className="btn text-xs" onClick={() => setWeekStart(getWeekStart(new Date()))}>השבוע הנוכחי</button>
       </div>
 
-      {/* טבלת סידור */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -237,11 +228,8 @@ export default function WeeklySchedule() {
                       <div
                         onClick={() => currentRole === 'admin' && startEditNote(date)}
                         className={`text-xs rounded px-1.5 py-0.5 mt-1 font-normal min-h-[20px] transition-colors ${
-                          note
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                            : currentRole === 'admin'
-                            ? 'text-gray-300 hover:text-gray-400 hover:bg-gray-50 cursor-pointer'
-                            : ''
+                          note ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                          : currentRole === 'admin' ? 'text-gray-300 hover:text-gray-400 hover:bg-gray-50 cursor-pointer' : ''
                         }`}
                       >
                         {note ? note.note : currentRole === 'admin' ? '+ הוסף הערה' : ''}
