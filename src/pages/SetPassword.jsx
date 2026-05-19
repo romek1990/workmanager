@@ -11,20 +11,19 @@ export default function SetPassword() {
   const [sessionReady, setSessionReady] = useState(false)
 
   useEffect(() => {
-    async function initSession() {
-      const hash = window.location.hash
-      if (hash) {
-        const params = new URLSearchParams(hash.substring(1))
-        const access_token = params.get('access_token')
-        const refresh_token = params.get('refresh_token') || ''
-        if (access_token) {
-          const { error } = await supabase.auth.setSession({ access_token, refresh_token })
-          if (!error) setSessionReady(true)
-          else setError(error.message)
-        }
+    // Supabase מטפל ב-token מה-URL אוטומטית ומפעיל את האירוע הזה
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+        setSessionReady(true)
       }
-    }
-    initSession()
+    })
+
+    // גם נבדוק אם יש כבר session פעיל
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setSessionReady(true)
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
   async function handleSubmit(e) {
