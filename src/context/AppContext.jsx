@@ -8,6 +8,7 @@ export function AppProvider({ children }) {
   const [shifts, setShifts] = useState([])
   const [bonuses, setBonuses] = useState([])
   const [weeklySchedule, setWeeklySchedule] = useState([])
+  const [dayNotes, setDayNotes] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -37,25 +38,29 @@ export function AppProvider({ children }) {
 
   async function loadAllData(role, userId) {
     if (role === 'admin') {
-      const [emps, shfts, bnss, wkly] = await Promise.all([
+      const [emps, shfts, bnss, wkly, notes] = await Promise.all([
         supabase.from('profiles').select('*').neq('role', 'admin'),
         supabase.from('shifts').select('*').order('date', { ascending: false }),
         supabase.from('bonuses').select('*').order('date', { ascending: false }),
         supabase.from('weekly_schedule').select('*, profiles(full_name)').order('week_start'),
+        supabase.from('day_notes').select('*'),
       ])
       if (emps.data) setEmployees(emps.data)
       if (shfts.data) setShifts(shfts.data)
       if (bnss.data) setBonuses(bnss.data)
       if (wkly.data) setWeeklySchedule(wkly.data)
+      if (notes.data) setDayNotes(notes.data)
     } else {
-      const [shfts, bnss, wkly] = await Promise.all([
+      const [shfts, bnss, wkly, notes] = await Promise.all([
         supabase.from('shifts').select('*').eq('employee_id', userId).order('date', { ascending: false }),
         supabase.from('bonuses').select('*').eq('employee_id', userId).order('date', { ascending: false }),
         supabase.from('weekly_schedule').select('*, profiles(full_name)').eq('employee_id', userId).order('week_start'),
+        supabase.from('day_notes').select('*'),
       ])
       if (shfts.data) setShifts(shfts.data)
       if (bnss.data) setBonuses(bnss.data)
       if (wkly.data) setWeeklySchedule(wkly.data)
+      if (notes.data) setDayNotes(notes.data)
     }
   }
 
@@ -68,7 +73,7 @@ export function AppProvider({ children }) {
   async function logout() {
     await supabase.auth.signOut()
     setCurrentUser(null)
-    setEmployees([]); setShifts([]); setBonuses([]); setWeeklySchedule([])
+    setEmployees([]); setShifts([]); setBonuses([]); setWeeklySchedule([]); setDayNotes([])
   }
 
   async function addEmployee(emp) {
@@ -147,9 +152,26 @@ export function AppProvider({ children }) {
     if (error) throw error
   }
 
+  async function saveDayNote(date, note) {
+    if (!note.trim()) {
+      const { error } = await supabase.from('day_notes').delete().eq('date', date)
+      if (!error) setDayNotes(prev => prev.filter(n => n.date !== date))
+      return
+    }
+    const { data, error } = await supabase
+      .from('day_notes')
+      .upsert({ date, note }, { onConflict: 'date' })
+      .select().single()
+    if (!error && data) setDayNotes(prev => {
+      const exists = prev.find(n => n.date === date)
+      return exists ? prev.map(n => n.date === date ? data : n) : [...prev, data]
+    })
+    if (error) throw error
+  }
+
   return (
     <AppContext.Provider value={{
-      employees, shifts, bonuses, weeklySchedule,
+      employees, shifts, bonuses, weeklySchedule, dayNotes,
       currentUser, currentRole, currentUserEmail,
       loading,
       login, logout,
@@ -157,6 +179,7 @@ export function AppProvider({ children }) {
       addShift, updateShiftStatus,
       addBonus,
       addScheduleEntry, deleteScheduleEntry,
+      saveDayNote,
     }}>
       {children}
     </AppContext.Provider>
