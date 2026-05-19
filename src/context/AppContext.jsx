@@ -7,6 +7,7 @@ export function AppProvider({ children }) {
   const [employees, setEmployees] = useState([])
   const [shifts, setShifts] = useState([])
   const [bonuses, setBonuses] = useState([])
+  const [weeklySchedule, setWeeklySchedule] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -36,21 +37,25 @@ export function AppProvider({ children }) {
 
   async function loadAllData(role, userId) {
     if (role === 'admin') {
-      const [emps, shfts, bnss] = await Promise.all([
+      const [emps, shfts, bnss, wkly] = await Promise.all([
         supabase.from('profiles').select('*').neq('role', 'admin'),
         supabase.from('shifts').select('*').order('date', { ascending: false }),
         supabase.from('bonuses').select('*').order('date', { ascending: false }),
+        supabase.from('weekly_schedule').select('*, profiles(full_name)').order('week_start'),
       ])
       if (emps.data) setEmployees(emps.data)
       if (shfts.data) setShifts(shfts.data)
       if (bnss.data) setBonuses(bnss.data)
+      if (wkly.data) setWeeklySchedule(wkly.data)
     } else {
-      const [shfts, bnss] = await Promise.all([
+      const [shfts, bnss, wkly] = await Promise.all([
         supabase.from('shifts').select('*').eq('employee_id', userId).order('date', { ascending: false }),
         supabase.from('bonuses').select('*').eq('employee_id', userId).order('date', { ascending: false }),
+        supabase.from('weekly_schedule').select('*, profiles(full_name)').eq('employee_id', userId).order('week_start'),
       ])
       if (shfts.data) setShifts(shfts.data)
       if (bnss.data) setBonuses(bnss.data)
+      if (wkly.data) setWeeklySchedule(wkly.data)
     }
   }
 
@@ -63,7 +68,7 @@ export function AppProvider({ children }) {
   async function logout() {
     await supabase.auth.signOut()
     setCurrentUser(null)
-    setEmployees([]); setShifts([]); setBonuses([])
+    setEmployees([]); setShifts([]); setBonuses([]); setWeeklySchedule([])
   }
 
   async function addEmployee(emp) {
@@ -126,15 +131,32 @@ export function AppProvider({ children }) {
     if (error) throw error
   }
 
+  async function addScheduleEntry(entry) {
+    const { data, error } = await supabase
+      .from('weekly_schedule')
+      .insert(entry)
+      .select('*, profiles(full_name)')
+      .single()
+    if (!error && data) setWeeklySchedule(prev => [...prev, data])
+    if (error) throw error
+  }
+
+  async function deleteScheduleEntry(id) {
+    const { error } = await supabase.from('weekly_schedule').delete().eq('id', id)
+    if (!error) setWeeklySchedule(prev => prev.filter(e => e.id !== id))
+    if (error) throw error
+  }
+
   return (
     <AppContext.Provider value={{
-      employees, shifts, bonuses,
+      employees, shifts, bonuses, weeklySchedule,
       currentUser, currentRole, currentUserEmail,
       loading,
       login, logout,
       addEmployee, updateEmployee,
       addShift, updateShiftStatus,
       addBonus,
+      addScheduleEntry, deleteScheduleEntry,
     }}>
       {children}
     </AppContext.Provider>
