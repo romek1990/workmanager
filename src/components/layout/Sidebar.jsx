@@ -1,6 +1,6 @@
 import React from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, Building2 } from 'lucide-react'
+import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, Building2, CalendarDays } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { Avatar } from '../ui'
 
@@ -8,6 +8,7 @@ const adminNav = [
   { to: '/', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
   { to: '/employees', label: 'עובדים', icon: Users },
   { to: '/shifts', label: 'משמרות', icon: CalendarClock },
+  { to: '/weekly-schedule', label: 'סידור שבועי', icon: CalendarDays },
   { to: '/bonuses', label: 'בונוסים', icon: Gift },
   { to: '/reports', label: 'דוחות', icon: BarChart2 },
   { to: '/messages', label: 'הודעות', icon: Mail },
@@ -37,7 +38,6 @@ export default function Sidebar() {
         </div>
         <p className="text-xs text-gray-400 mt-0.5 mr-7">מערכת ניהול עובדים</p>
       </div>
-
       <nav className="flex-1 py-3 overflow-y-auto">
         <p className="text-xs font-medium text-gray-400 px-4 mb-1">
           {currentUser?.role === 'admin' ? 'ניהול' : 'האזור שלי'}
@@ -59,7 +59,6 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
-
       <div className="border-t border-gray-100 px-3 py-3">
         <div className="flex items-center gap-2.5 mb-3">
           <Avatar name={currentUser?.name} size="sm" />
