@@ -3,7 +3,6 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { AppProvider, useApp } from './context/AppContext'
 import Sidebar from './components/layout/Sidebar'
 import ProtectedRoute from './components/layout/ProtectedRoute'
-
 import Login from './pages/Login'
 import SetPassword from './pages/SetPassword'
 import Dashboard from './pages/Dashboard'
@@ -15,10 +14,10 @@ import Reports from './pages/Reports'
 import Messages from './pages/Messages'
 import UserHome from './pages/UserHome'
 import MyShifts from './pages/MyShifts'
+import WeeklySchedule from './pages/WeeklySchedule'
 
 function AppRoutes() {
   const { currentUser, loading } = useApp()
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -29,7 +28,6 @@ function AppRoutes() {
       </div>
     )
   }
-
   if (!currentUser) {
     return (
       <Routes>
@@ -40,7 +38,7 @@ function AppRoutes() {
     )
   }
 
-return (
+  return (
     <div className="flex min-h-screen">
       <Sidebar />
       <main className="mr-56 flex-1 min-h-screen">
@@ -50,6 +48,7 @@ return (
           <Route path="/employees" element={<ProtectedRoute requiredRole="admin"><Employees /></ProtectedRoute>} />
           <Route path="/employees/:id" element={<ProtectedRoute requiredRole="admin"><EmployeeProfile /></ProtectedRoute>} />
           <Route path="/shifts" element={<ProtectedRoute requiredRole="admin"><Shifts /></ProtectedRoute>} />
+          <Route path="/weekly-schedule" element={<ProtectedRoute requiredRole="admin"><WeeklySchedule /></ProtectedRoute>} />
           <Route path="/bonuses" element={<ProtectedRoute requiredRole="admin"><Bonuses /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute requiredRole="admin"><Reports /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute requiredRole="admin"><Messages /></ProtectedRoute>} />
