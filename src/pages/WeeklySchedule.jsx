@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, ChevronLeft, ChevronRight, MoonStar } from 'lucide-react'
+import { Plus, Trash2, ChevronLeft, ChevronRight, MoonStar, Send } from 'lucide-react'
+import emailjs from '@emailjs/browser'
 import { useApp } from '../context/AppContext'
 import { Modal, AlertModal } from '../components/ui'
+
+const EMAILJS_SERVICE = 'service_atutffw'
+const EMAILJS_TEMPLATE = 'template_w5xwy41'
+const EMAILJS_PUBLIC_KEY = 'O6dGxcOoOfwbY1b2g'
 
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
 
@@ -45,11 +50,17 @@ export default function WeeklySchedule() {
   const [form, setForm] = useState(defaultForm)
   const [alert, setAlert] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [editingNote, setEditingNote] = useState(null) // תאריך שנערך כרגע
+  const [sending, setSending] = useState(false)
+  const [editingNote, setEditingNote] = useState(null)
   const [noteInput, setNoteInput] = useState('')
+
+  useEffect(() => {
+    emailjs.init(EMAILJS_PUBLIC_KEY)
+  }, [])
 
   const activeEmps = employees.filter(e => e.status === 'active')
   const weekEntries = weeklySchedule.filter(e => e.week_start === weekStart)
+  const weekDates = `${formatDate(weekStart)} — ${formatDate(addDays(weekStart, 6))}`
 
   function prevWeek() { setWeekStart(addDays(weekStart, -7)) }
   function nextWeek() { setWeekStart(addDays(weekStart, 7)) }
@@ -90,26 +101,109 @@ export default function WeeklySchedule() {
   }
 
   async function handleSaveNote(date) {
-    try {
-      await saveDayNote(date, noteInput)
-    } catch (e) { }
+    try { await saveDayNote(date, noteInput) } catch (e) {}
     setEditingNote(null)
   }
 
-  function set(k, v) { setForm(p => ({ ...p, [k]: v })) }
+  // בניית תוכן המייל לכל עובד
+  function buildAllShiftsText() {
+    let text = ''
+    DAYS.forEach((dayName, i) => {
+      const date = addDays(weekStart, i)
+      const dayEntries = weekEntries.filter(e => e.day_of_week === i)
+      const note = dayNotes.find(n => n.date === date)
+      if (dayEntries.length === 0) return
+      text += `<b>${dayName} ${formatDate(date)}${note ? ` — ${note.note}` : ''}</b><br>`
+      dayEntries.forEach(entry => {
+        const empName = entry.profiles?.full_name || activeEmps.find(e => e.id === entry.employee_id)?.full_name || ''
+        const night = isMidnightCross(entry.start_time, entry.end_time)
+        text += `&nbsp;&nbsp;• ${empName}: ${entry.start_time.slice(0,5)}–${entry.end_time.slice(0,5)}${night ? ' 🌙' : ''} (${calcHours(entry.start_time, entry.end_time)})`
+        if (entry.notes) text += ` — ${entry.notes}`
+        text += '<br>'
+      })
+      text += '<br>'
+    })
+    return text || 'אין משמרות השבוע'
+  }
 
+  function buildMyShiftsText(employeeId) {
+    const myEntries = weekEntries.filter(e => e.employee_id === employeeId)
+    if (myEntries.length === 0) return 'אין לך משמרות השבוע'
+    let text = ''
+    myEntries
+      .sort((a, b) => a.day_of_week - b.day_of_week)
+      .forEach(entry => {
+        const night = isMidnightCross(entry.start_time, entry.end_time)
+        const date = addDays(weekStart, entry.day_of_week)
+        const note = dayNotes.find(n => n.date === date)
+        text += `<b>${DAYS[entry.day_of_week]} ${formatDate(date)}${note ? ` — ${note.note}` : ''}</b><br>`
+        text += `&nbsp;&nbsp;${entry.start_time.slice(0,5)}–${entry.end_time.slice(0,5)}${night ? ' 🌙' : ''} (${calcHours(entry.start_time, entry.end_time)})`
+        if (entry.notes) text += ` — ${entry.notes}`
+        text += '<br><br>'
+      })
+    return text
+  }
+
+  async function handleSendEmails() {
+    if (weekEntries.length === 0) {
+      setAlert({ title: 'אין משמרות', message: 'אין משמרות לשלוח לשבוע זה' })
+      return
+    }
+    setSending(true)
+    const allShiftsText = buildAllShiftsText()
+
+    // מצא עובדים ייחודיים שיש להם משמרות השבוע
+    const employeeIds = [...new Set(weekEntries.map(e => e.employee_id))]
+    let sent = 0
+    let failed = 0
+
+    for (const empId of employeeIds) {
+      const emp = activeEmps.find(e => e.id === empId)
+      if (!emp?.email) { failed++; continue }
+      try {
+        await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
+          to_email: emp.email,
+          employee_name: emp.full_name,
+          week_dates: weekDates,
+          my_shifts: buildMyShiftsText(empId),
+          all_shifts: allShiftsText,
+        })
+        sent++
+      } catch (e) {
+        failed++
+      }
+    }
+
+    setSending(false)
+    setAlert({
+      title: 'נשלח!',
+      message: `נשלחו ${sent} מיילים בהצלחה${failed > 0 ? ` (${failed} נכשלו)` : ''}`
+    })
+  }
+
+  function set(k, v) { setForm(p => ({ ...p, [k]: v })) }
   const crosses = isMidnightCross(form.start_time, form.end_time)
 
   return (
     <div className="p-6">
-      <h1 className="text-lg font-medium mb-5">סידור שבועי</h1>
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-lg font-medium">סידור שבועי</h1>
+        {currentRole === 'admin' && (
+          <button
+            onClick={handleSendEmails}
+            disabled={sending}
+            className="btn btn-primary flex items-center gap-2"
+          >
+            <Send size={15} />
+            {sending ? 'שולח מיילים...' : 'שלח סידור לעובדים'}
+          </button>
+        )}
+      </div>
 
       {/* בחירת שבוע */}
       <div className="flex items-center gap-3 mb-6">
         <button className="btn" onClick={prevWeek}><ChevronRight size={16} /></button>
-        <span className="text-sm font-medium text-gray-700">
-          שבוע {formatDate(weekStart)} — {formatDate(addDays(weekStart, 6))}
-        </span>
+        <span className="text-sm font-medium text-gray-700">שבוע {weekDates}</span>
         <button className="btn" onClick={nextWeek}><ChevronLeft size={16} /></button>
         <button className="btn text-xs" onClick={() => setWeekStart(getWeekStart(new Date()))}>השבוע הנוכחי</button>
       </div>
@@ -126,8 +220,6 @@ export default function WeeklySchedule() {
                   <th key={i} className="px-3 py-2 text-center font-medium text-gray-600 min-w-[140px]">
                     <div>{day}</div>
                     <div className="text-xs text-gray-400 font-normal mb-1">{formatDate(date)}</div>
-
-                    {/* הערת יום */}
                     {editingNote === date ? (
                       <div className="flex gap-1 mt-1">
                         <input
