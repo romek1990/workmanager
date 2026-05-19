@@ -66,22 +66,22 @@ export function AppProvider({ children }) {
     setEmployees([]); setShifts([]); setBonuses([])
   }
 
-  async function addEmployee(emp) {
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+ async function addEmployee(emp) {
+  // צור את המשתמש דרך REST API ישירות
+  const response = await fetch(`https://nwetajywazzpxkdknqsf.supabase.co/auth/v1/admin/users`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53ZXRhanl3YXp6cHhrZGtucXNmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTA4NDI3MCwiZXhwIjoyMDk0NjYwMjcwfQ.your-service-role-key',
+      'Authorization': `Bearer service-role-key-here`
+    },
+    body: JSON.stringify({
       email: emp.email,
-      password: Math.random().toString(36).slice(-8) + 'Aa1!',
-      options: {
-        data: { full_name: emp.full_name, role: 'user' },
-        emailRedirectTo: window.location.origin + '/login',
-      }
+      email_confirm: true,
+      user_metadata: { full_name: emp.full_name }
     })
-    if (authError) throw authError
-    if (authData.user) {
-      const { data, error } = await supabase.from('profiles').upsert({ id: authData.user.id, ...emp, role: 'user' }).select().single()
-      if (!error && data) setEmployees(prev => [...prev, data])
-      if (error) throw error
-    }
-  }
+  })
+}
 
   async function updateEmployee(id, patch) {
     const { data, error } = await supabase.from('profiles').update(patch).eq('id', id).select().single()
