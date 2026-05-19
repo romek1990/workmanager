@@ -1,0 +1,165 @@
+import React, { useState } from 'react'
+import { Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useApp } from '../context/AppContext'
+import { Modal, AlertModal } from '../components/ui'
+
+const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
+
+function getWeekStart(date) {
+  const d = new Date(date)
+  const day = d.getDay()
+  d.setDate(d.getDate() - day)
+  return d.toISOString().split('T')[0]
+}
+
+function addDays(dateStr, n) {
+  const d = new Date(dateStr)
+  d.setDate(d.getDate() + n)
+  return d.toISOString().split('T')[0]
+}
+
+function formatDate(dateStr) {
+  return new Date(dateStr).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })
+}
+
+const defaultForm = { employee_id: '', day_of_week: 0, start_time: '08:00', end_time: '16:00', notes: '' }
+
+export default function WeeklySchedule() {
+  const { employees, weeklySchedule, addScheduleEntry, deleteScheduleEntry } = useApp()
+  const [weekStart, setWeekStart] = useState(getWeekStart(new Date()))
+  const [modal, setModal] = useState(false)
+  const [form, setForm] = useState(defaultForm)
+  const [alert, setAlert] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  const activeEmps = employees.filter(e => e.status === 'active')
+
+  const weekEntries = weeklySchedule.filter(e => e.week_start === weekStart)
+
+  function prevWeek() { setWeekStart(addDays(weekStart, -7)) }
+  function nextWeek() { setWeekStart(addDays(weekStart, 7)) }
+
+  function openAdd(day) {
+    setForm({ ...defaultForm, day_of_week: day })
+    setModal(true)
+  }
+
+  async function handleAdd() {
+    if (!form.employee_id) return
+    setLoading(true)
+    try {
+      await addScheduleEntry({ ...form, week_start: weekStart })
+      setModal(false)
+      setForm(defaultForm)
+      setAlert({ title: 'נוסף בהצלחה', message: 'המשמרת נוספה לסידור השבועי' })
+    } catch (e) {
+      setAlert({ title: 'שגיאה', message: e.message })
+    }
+    setLoading(false)
+  }
+
+  async function handleDelete(id) {
+    await deleteScheduleEntry(id)
+  }
+
+  function set(k, v) { setForm(p => ({ ...p, [k]: v })) }
+
+  return (
+    <div className="p-6">
+      <h1 className="text-lg font-medium mb-5">סידור שבועי</h1>
+
+      {/* בחירת שבוע */}
+      <div className="flex items-center gap-3 mb-6">
+        <button className="btn" onClick={prevWeek}><ChevronRight size={16} /></button>
+        <span className="text-sm font-medium text-gray-700">
+          שבוע {formatDate(weekStart)} — {formatDate(addDays(weekStart, 6))}
+        </span>
+        <button className="btn" onClick={nextWeek}><ChevronLeft size={16} /></button>
+        <button className="btn text-xs" onClick={() => setWeekStart(getWeekStart(new Date()))}>השבוע הנוכחי</button>
+      </div>
+
+      {/* טבלת סידור */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100">
+              {DAYS.map((day, i) => (
+                <th key={i} className="px-3 py-3 text-center font-medium text-gray-600 min-w-[130px]">
+                  <div>{day}</div>
+                  <div className="text-xs text-gray-400 font-normal">{formatDate(addDays(weekStart, i))}</div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              {DAYS.map((_, dayIdx) => {
+                const dayEntries = weekEntries.filter(e => e.day_of_week === dayIdx)
+                return (
+                  <td key={dayIdx} className="align-top px-2 py-2 border-l border-gray-50 min-h-[120px]">
+                    <div className="flex flex-col gap-1.5">
+                      {dayEntries.map(entry => (
+                        <div key={entry.id} className="bg-blue-50 border border-blue-100 rounded-lg px-2 py-1.5 text-xs">
+                          <div className="flex items-start justify-between gap-1">
+                            <div>
+                              <div className="font-medium text-blue-800">
+                                {entry.profiles?.full_name || activeEmps.find(e => e.id === entry.employee_id)?.full_name}
+                              </div>
+                              <div className="text-blue-600">{entry.start_time.slice(0,5)}–{entry.end_time.slice(0,5)}</div>
+                              {entry.notes && <div className="text-gray-400 mt-0.5">{entry.notes}</div>}
+                            </div>
+                            <button onClick={() => handleDelete(entry.id)} className="text-red-300 hover:text-red-500 mt-0.5">
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => openAdd(dayIdx)}
+                        className="flex items-center justify-center gap-1 text-xs text-gray-400 hover:text-blue-500 border border-dashed border-gray-200 hover:border-blue-300 rounded-lg py-1.5 transition-colors"
+                      >
+                        <Plus size={12} /> הוסף
+                      </button>
+                    </div>
+                  </td>
+                )
+              })}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <Modal open={modal} onClose={() => setModal(false)} title="הוספת משמרת לסידור"
+        footer={<>
+          <button className="btn" onClick={() => setModal(false)}>ביטול</button>
+          <button className="btn btn-primary" onClick={handleAdd} disabled={loading}>
+            {loading ? 'שומר...' : 'הוסף'}
+          </button>
+        </>}>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <label className="form-label">עובד</label>
+            <select className="form-control" value={form.employee_id} onChange={e => set('employee_id', e.target.value)}>
+              <option value="">בחר עובד</option>
+              {activeEmps.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="form-label">שעת התחלה</label>
+            <input type="time" className="form-control" value={form.start_time} onChange={e => set('start_time', e.target.value)} />
+          </div>
+          <div>
+            <label className="form-label">שעת סיום</label>
+            <input type="time" className="form-control" value={form.end_time} onChange={e => set('end_time', e.target.value)} />
+          </div>
+          <div className="col-span-2">
+            <label className="form-label">הערות</label>
+            <input className="form-control" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="אופציונלי" />
+          </div>
+        </div>
+      </Modal>
+
+      <AlertModal open={!!alert} onClose={() => setAlert(null)} title={alert?.title} message={alert?.message} />
+    </div>
+  )
+}
