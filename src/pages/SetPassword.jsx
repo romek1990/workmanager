@@ -8,7 +8,19 @@ export default function SetPassword() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
-
+  
+useEffect(() => {
+  const hash = window.location.hash
+  if (hash) {
+    const params = new URLSearchParams(hash.substring(1))
+    const access_token = params.get('access_token')
+    const refresh_token = params.get('refresh_token')
+    if (access_token) {
+      supabase.auth.setSession({ access_token, refresh_token: refresh_token || '' })
+    }
+  }
+}, [])
+  
   async function handleSubmit(e) {
     e.preventDefault()
     if (password !== confirm) { setError('הסיסמאות לא תואמות'); return }
