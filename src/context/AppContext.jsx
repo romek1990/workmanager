@@ -66,21 +66,50 @@ export function AppProvider({ children }) {
     setEmployees([]); setShifts([]); setBonuses([])
   }
 
- async function addEmployee(emp) {
-  // צור את המשתמש דרך REST API ישירות
-  const response = await fetch(`https://nwetajywazzpxkdknqsf.supabase.co/auth/v1/admin/users`, {
+async function addEmployee(emp) {
+  const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53ZXRhanl3YXp6cHhrZGtucXNmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTA4NDI3MCwiZXhwIjoyMDk0NjYwMjcwfQ.nXv9_VDNViQcT9s1xfg1UzROz-wJuo9uM0v4KGie3OQ'
+  
+  const res = await fetch('https://nwetajywazzpxkdknqsf.supabase.co/auth/v1/admin/users', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53ZXRhanl3YXp6cHhrZGtucXNmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTA4NDI3MCwiZXhwIjoyMDk0NjYwMjcwfQ.your-service-role-key',
-      'Authorization': `Bearer service-role-key-here`
+      'apikey': SERVICE_ROLE_KEY,
+      'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
     },
     body: JSON.stringify({
       email: emp.email,
       email_confirm: true,
-      user_metadata: { full_name: emp.full_name }
+      user_metadata: { full_name: emp.full_name, role: 'user' },
     })
   })
+
+  const authData = await res.json()
+  if (!res.ok) throw new Error(authData.message || 'שגיאה ביצירת משתמש')
+
+  if (authData.id) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert({ id: authData.id, ...emp, role: 'user' })
+      .select().single()
+    if (!error && data) setEmployees(prev => [...prev, data])
+    if (error) throw error
+
+    await fetch(`https://nwetajywazzpxkdknqsf.supabase.co/auth/v1/admin/users/${authData.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SERVICE_ROLE_KEY,
+        'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify({
+        email_redirect_to: window.location.origin + '/set-password',
+      })
+    })
+
+    await supabase.auth.resetPasswordForEmail(emp.email, {
+      redirectTo: window.location.origin + '/set-password',
+    })
+  }
 }
 
   async function updateEmployee(id, patch) {
