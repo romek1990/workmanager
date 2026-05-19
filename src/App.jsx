@@ -5,6 +5,7 @@ import Sidebar from './components/layout/Sidebar'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 
 import Login from './pages/Login'
+import SetPassword from './pages/SetPassword'
 import Dashboard from './pages/Dashboard'
 import Employees from './pages/Employees'
 import EmployeeProfile from './pages/EmployeeProfile'
@@ -33,6 +34,7 @@ function AppRoutes() {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/set-password" element={<SetPassword />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     )
