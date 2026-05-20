@@ -329,4 +329,6 @@ export default function WeeklySchedule() {
       <AlertModal open={!!alert} onClose={() => setAlert(null)} title={alert?.title} message={alert?.message} />
     </div>
   )
+  
+
 }
