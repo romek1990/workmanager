@@ -55,7 +55,7 @@ export default function WeeklySchedule() {
   const [noteInput, setNoteInput] = useState('')
 
   useEffect(() => {
-    emailjs.init(EMAILJS_PUBLIC_KEY)
+    emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY, blockHeadless: false })
   }, [])
 
   const activeEmps = employees.filter(e => e.status === 'active')
@@ -158,13 +158,18 @@ export default function WeeklySchedule() {
       const emp = activeEmps.find(e => e.id === empId)
       if (!emp?.email) { failed++; continue }
       try {
-        await emailjs.send(EMAILJS_SERVICE, EMAILJS_TEMPLATE, {
-          to_email: emp.email,
-          employee_name: emp.full_name,
-          week_dates: weekDates,
-          my_shifts: buildMyShiftsText(empId),
-          all_shifts: allShiftsText,
-        })
+        await emailjs.send(
+          EMAILJS_SERVICE,
+          EMAILJS_TEMPLATE,
+          {
+            to_email: emp.email,
+            employee_name: emp.full_name,
+            week_dates: weekDates,
+            my_shifts: buildMyShiftsText(empId),
+            all_shifts: allShiftsText,
+          },
+          { publicKey: EMAILJS_PUBLIC_KEY }
+        )
         sent++
       } catch (e) {
         failed++
@@ -329,6 +334,4 @@ export default function WeeklySchedule() {
       <AlertModal open={!!alert} onClose={() => setAlert(null)} title={alert?.title} message={alert?.message} />
     </div>
   )
-  
-
 }
