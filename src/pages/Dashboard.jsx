@@ -25,7 +25,7 @@ export default function Dashboard() {
 
       <CardSection title="משמרות ממתינות לאישור">
         <Table
-          headers={['עובד', 'תאריך', 'שעות', 'סוג', 'פעולות']}
+          headers={['עובד', 'תאריך', 'שעות', 'סוג', 'הערות', 'פעולות']}
           emptyMessage="אין משמרות ממתינות 🎉"
         >
           {pending.map(s => (
@@ -33,8 +33,7 @@ export default function Dashboard() {
               <td className="table-td font-medium">{s.employee_name}</td>
               <td className="table-td text-gray-500">{s.date}</td>
               <td className="table-td">{s.total_hours}</td>
-              <td className="table-td"><ShiftTypeBadge type={s.shift_type} /></td>
-              <td className="table-td">
+              <td className="table-td text-sm text-gray-400">{s.notes || '—'}</td>
                 <div className="flex gap-2">
                   <button className="btn btn-success py-1 px-3 text-xs" onClick={() => updateShiftStatus(s.id, 'approved')}>אשר</button>
                   <button className="btn btn-danger py-1 px-3 text-xs" onClick={() => updateShiftStatus(s.id, 'rejected')}>דחה</button>
