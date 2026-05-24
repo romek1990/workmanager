@@ -19,7 +19,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <StatCard label="עובדים פעילים" value={activeEmps} sub={`${employees.length - activeEmps} לא פעילים`} icon={Users} iconColor="text-blue-500" />
         <StatCard label="שעות החודש" value={totalHours} sub="משמרות מאושרות" icon={Clock} iconColor="text-amber-500" />
-        <StatCard label="סה״כ בונוסים" value={fmtMoney(totalBonus)} sub="החודש" icon={Banknote} iconColor="text-green-500" />
+        <StatCard label='סה"כ בונוסים' value={fmtMoney(totalBonus)} sub="החודש" icon={Banknote} iconColor="text-green-500" />
         <StatCard label="ממתינות לאישור" value={pending.length} sub="משמרות" icon={AlertCircle} iconColor="text-red-500" />
       </div>
 
