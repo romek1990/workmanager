@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, Building2, CalendarDays } from 'lucide-react'
+import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, Building2, CalendarDays, Menu, X } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { Avatar } from '../ui'
 
@@ -23,21 +23,29 @@ export default function Sidebar() {
   const { currentUser, logout } = useApp()
   const navigate = useNavigate()
   const nav = currentUser?.role === 'admin' ? adminNav : userNav
+  const [open, setOpen] = useState(false)
 
   function handleLogout() {
     logout()
     navigate('/login')
   }
 
-  return (
-    <aside className="fixed top-0 right-0 w-56 h-screen bg-white border-l border-gray-100 flex flex-col z-40">
+  const sidebarContent = (
+    <>
       <div className="px-4 py-5 border-b border-gray-100">
-        <div className="flex items-center gap-2">
-          <Building2 size={20} className="text-blue-600" />
-          <span className="font-semibold text-gray-900">WorkManager</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Building2 size={20} className="text-blue-600" />
+            <span className="font-semibold text-gray-900">WorkManager</span>
+          </div>
+          {/* כפתור סגירה במובייל */}
+          <button onClick={() => setOpen(false)} className="md:hidden text-gray-400 hover:text-gray-600">
+            <X size={20} />
+          </button>
         </div>
         <p className="text-xs text-gray-400 mt-0.5 mr-7">מערכת ניהול עובדים</p>
       </div>
+
       <nav className="flex-1 py-3 overflow-y-auto">
         <p className="text-xs font-medium text-gray-400 px-4 mb-1">
           {currentUser?.role === 'admin' ? 'ניהול' : 'האזור שלי'}
@@ -47,6 +55,7 @@ export default function Sidebar() {
             key={to}
             to={to}
             end={end}
+            onClick={() => setOpen(false)}
             className={({ isActive }) =>
               `flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors border-r-2 ` +
               (isActive
@@ -59,6 +68,7 @@ export default function Sidebar() {
           </NavLink>
         ))}
       </nav>
+
       <div className="border-t border-gray-100 px-3 py-3">
         <div className="flex items-center gap-2.5 mb-3">
           <Avatar name={currentUser?.name} size="sm" />
@@ -75,6 +85,40 @@ export default function Sidebar() {
           יציאה מהמערכת
         </button>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* כפתור המבורגר — מובייל בלבד */}
+      <button
+        onClick={() => setOpen(true)}
+        className="md:hidden fixed top-4 right-4 z-50 bg-white border border-gray-200 rounded-lg p-2 shadow-sm"
+      >
+        <Menu size={20} className="text-gray-600" />
+      </button>
+
+      {/* רקע כהה כשהתפריט פתוח */}
+      {open && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/30 z-40"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
+      {/* תפריט מובייל — נפתח/נסגר */}
+      <aside className={`
+        fixed top-0 right-0 h-screen bg-white border-l border-gray-100 flex flex-col z-50
+        transition-transform duration-300
+        w-56
+        ${open ? 'translate-x-0' : 'translate-x-full'}
+        md:translate-x-0
+      `}>
+        {sidebarContent}
+      </aside>
+
+      {/* רווח לדסקטופ */}
+      <div className="hidden md:block w-56 shrink-0" />
+    </>
   )
 }
