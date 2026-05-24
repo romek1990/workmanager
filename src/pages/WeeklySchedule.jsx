@@ -106,24 +106,23 @@ export default function WeeklySchedule() {
   }
 
 function buildAllShiftsText() {
-    let text = ''
-    DAYS.forEach((dayName, i) => {
-      const date = addDays(weekStart, i)
-      const dayEntries = weekEntries.filter(e => e.day_of_week === i)
-      const note = dayNotes.find(n => n.date === date)
-      if (dayEntries.length === 0) return
-      text += `${dayName} ${formatDate(date)}${note ? ` — ${note.note}` : ''}:\n`
-      dayEntries.forEach(entry => {
-        const empName = entry.profiles?.full_name || activeEmps.find(e => e.id === entry.employee_id)?.full_name || ''
-        const night = isMidnightCross(entry.start_time, entry.end_time)
-        text += `  • ${empName}: ${entry.start_time.slice(0,5)}–${entry.end_time.slice(0,5)}${night ? ' 🌙' : ''} (${calcHours(entry.start_time, entry.end_time)})`
-        if (entry.notes) text += ` — ${entry.notes}`
-        text += '\n'
-      })
-      text += '\n'
+  let text = ''
+  DAYS.forEach((dayName, i) => {
+    const date = addDays(weekStart, i)
+    const dayEntries = weekEntries.filter(e => e.day_of_week === i)
+    const note = dayNotes.find(n => n.date === date)
+    if (dayEntries.length === 0) return
+    dayEntries.forEach(entry => {
+      const empName = entry.profiles?.full_name || activeEmps.find(e => e.id === entry.employee_id)?.full_name || ''
+      const night = isMidnightCross(entry.start_time, entry.end_time)
+      const dayLabel = `${dayName} ${formatDate(date)}${note ? ` (${note.note})` : ''}`
+      const hours = `${entry.start_time.slice(0,5)}–${entry.end_time.slice(0,5)}${night ? ' 🌙' : ''}`
+      const total = calcHours(entry.start_time, entry.end_time)
+      text += `${dayLabel} | ${hours} | ${empName} | ${total}${entry.notes ? ` | ${entry.notes}` : ''}\n`
     })
-    return text || 'אין משמרות השבוע'
-  }
+  })
+  return text || 'אין משמרות השבוע'
+}
 
   function buildMyShiftsText(employeeId) {
     const myEntries = weekEntries.filter(e => e.employee_id === employeeId)
