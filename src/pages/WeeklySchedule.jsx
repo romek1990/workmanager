@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, ChevronLeft, ChevronRight, MoonStar, Send } from 'lucide-react'
+import { Plus, Trash2, ChevronLeft, ChevronRight, MoonStar, Send, Pencil } from 'lucide-react'
 import emailjs from '@emailjs/browser'
 import { useApp } from '../context/AppContext'
 import { Modal, AlertModal } from '../components/ui'
@@ -44,7 +44,7 @@ function calcHours(start, end) {
 const defaultForm = { employee_id: '', day_of_week: 0, start_time: '08:00', end_time: '16:00', notes: '' }
 
 export default function WeeklySchedule() {
-  const { employees, weeklySchedule, addScheduleEntry, deleteScheduleEntry, dayNotes, saveDayNote, currentRole } = useApp()
+  const { employees, weeklySchedule, addScheduleEntry, deleteScheduleEntry, updateScheduleEntry, dayNotes, saveDayNote, currentRole } = useApp()
   const [weekStart, setWeekStart] = useState(getWeekStart(new Date()))
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState(defaultForm)
@@ -53,6 +53,9 @@ export default function WeeklySchedule() {
   const [sending, setSending] = useState(false)
   const [editingNote, setEditingNote] = useState(null)
   const [noteInput, setNoteInput] = useState('')
+  const [editModal, setEditModal] = useState(false)
+  const [editEntry, setEditEntry] = useState(null)
+  const [editForm, setEditForm] = useState({ employee_id: '', start_time: '', end_time: '', notes: '' })
 
   useEffect(() => {
     emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY, blockHeadless: false })
@@ -68,6 +71,17 @@ export default function WeeklySchedule() {
   function openAdd(day) {
     setForm({ ...defaultForm, day_of_week: day })
     setModal(true)
+  }
+
+  function openEdit(entry) {
+    setEditEntry(entry)
+    setEditForm({
+      employee_id: entry.employee_id,
+      start_time: entry.start_time.slice(0, 5),
+      end_time: entry.end_time.slice(0, 5),
+      notes: entry.notes || ''
+    })
+    setEditModal(true)
   }
 
   async function handleAdd() {
@@ -90,6 +104,25 @@ export default function WeeklySchedule() {
     setLoading(false)
   }
 
+  async function handleEdit() {
+    if (!editEntry) return
+    setLoading(true)
+    try {
+      await updateScheduleEntry(editEntry.id, {
+        employee_id: editForm.employee_id,
+        start_time: editForm.start_time,
+        end_time: editForm.end_time,
+        notes: editForm.notes,
+      })
+      setEditModal(false)
+      setEditEntry(null)
+      setAlert({ title: 'עודכן בהצלחה', message: 'המשמרת עודכנה' })
+    } catch (e) {
+      setAlert({ title: 'שגיאה', message: e.message })
+    }
+    setLoading(false)
+  }
+
   async function handleDelete(id) {
     await deleteScheduleEntry(id)
   }
@@ -105,51 +138,51 @@ export default function WeeklySchedule() {
     setEditingNote(null)
   }
 
-function buildAllShiftsText() {
-  const COLORS = [
-    { bg: '#eff6ff', border: '#bfdbfe', header: '#dbeafe', text: '#1e40af' },
-    { bg: '#f0fdf4', border: '#bbf7d0', header: '#dcfce7', text: '#166534' },
-    { bg: '#fdf4ff', border: '#e9d5ff', header: '#f3e8ff', text: '#7e22ce' },
-    { bg: '#fff7ed', border: '#fed7aa', header: '#ffedd5', text: '#9a3412' },
-    { bg: '#fef2f2', border: '#fecaca', header: '#fee2e2', text: '#991b1b' },
-    { bg: '#f0f9ff', border: '#bae6fd', header: '#e0f2fe', text: '#075985' },
-    { bg: '#fefce8', border: '#fde68a', header: '#fef9c3', text: '#854d0e' },
-  ]
-  let headers = ''
-  let cells = ''
-  DAYS.forEach((dayName, i) => {
-    const date = addDays(weekStart, i)
-    const dayEntries = weekEntries.filter(e => e.day_of_week === i)
-    const note = dayNotes.find(n => n.date === date)
-    const c = COLORS[i]
-    headers += `<th style="padding:3px 2px;border:2px solid ${c.border};background:${c.header};text-align:center;min-width:70px;width:14%;line-height:1.3;">
-      <div style="font-weight:bold;font-size:11px;color:${c.text};">${dayName}</div>
-      <div style="font-size:10px;color:${c.text};opacity:0.8;">${formatDate(date)}</div>
-      ${note ? `<div style="font-size:9px;color:#d97706;">${note.note}</div>` : ''}
-    </th>`
-    let cellContent = ''
-    if (dayEntries.length === 0) {
-      cellContent = '<div style="color:#d1d5db;font-size:11px;text-align:center;padding:4px;">—</div>'
-    } else {
-      dayEntries.forEach(entry => {
-        const empName = entry.profiles?.full_name || activeEmps.find(e => e.id === entry.employee_id)?.full_name || ''
-        const night = isMidnightCross(entry.start_time, entry.end_time)
-        const entryBg = night ? '#eef2ff' : c.bg
-        const entryColor = night ? '#4338ca' : c.text
-        cellContent += `<div style="background:${entryBg};border:1.5px solid ${c.border};border-radius:5px;padding:4px;margin-bottom:3px;font-size:11px;">
-          <div style="font-weight:bold;color:${entryColor};">${empName}</div>
-          <div style="color:${entryColor};">${entry.start_time.slice(0,5)}–${entry.end_time.slice(0,5)}${night ? ' 🌙' : ''}</div>
-          <div style="color:#6b7280;font-size:10px;">${calcHours(entry.start_time, entry.end_time)}${entry.notes ? ` | ${entry.notes}` : ''}</div>
-        </div>`
-      })
-    }
-    cells += `<td style="padding:3px;border:2px solid ${c.border};vertical-align:top;background:#fafafa;">${cellContent}</td>`
-  })
-  return `<table dir="rtl" style="width:100%;border-collapse:collapse;font-size:12px;font-family:Arial;border:2px solid #e5e7eb;">
-    <tr>${headers}</tr>
-    <tr>${cells}</tr>
-  </table>`
-}
+  function buildAllShiftsText() {
+    const COLORS = [
+      { bg: '#eff6ff', border: '#bfdbfe', header: '#dbeafe', text: '#1e40af' },
+      { bg: '#f0fdf4', border: '#bbf7d0', header: '#dcfce7', text: '#166534' },
+      { bg: '#fdf4ff', border: '#e9d5ff', header: '#f3e8ff', text: '#7e22ce' },
+      { bg: '#fff7ed', border: '#fed7aa', header: '#ffedd5', text: '#9a3412' },
+      { bg: '#fef2f2', border: '#fecaca', header: '#fee2e2', text: '#991b1b' },
+      { bg: '#f0f9ff', border: '#bae6fd', header: '#e0f2fe', text: '#075985' },
+      { bg: '#fefce8', border: '#fde68a', header: '#fef9c3', text: '#854d0e' },
+    ]
+    let headers = ''
+    let cells = ''
+    DAYS.forEach((dayName, i) => {
+      const date = addDays(weekStart, i)
+      const dayEntries = weekEntries.filter(e => e.day_of_week === i)
+      const note = dayNotes.find(n => n.date === date)
+      const c = COLORS[i]
+      headers += `<th style="padding:3px 2px;border:2px solid ${c.border};background:${c.header};text-align:center;min-width:70px;width:14%;line-height:1.3;">
+        <div style="font-weight:bold;font-size:11px;color:${c.text};">${dayName}</div>
+        <div style="font-size:10px;color:${c.text};opacity:0.8;">${formatDate(date)}</div>
+        ${note ? `<div style="font-size:9px;color:#d97706;">${note.note}</div>` : ''}
+      </th>`
+      let cellContent = ''
+      if (dayEntries.length === 0) {
+        cellContent = '<div style="color:#d1d5db;font-size:11px;text-align:center;padding:4px;">—</div>'
+      } else {
+        dayEntries.forEach(entry => {
+          const empName = entry.profiles?.full_name || activeEmps.find(e => e.id === entry.employee_id)?.full_name || ''
+          const night = isMidnightCross(entry.start_time, entry.end_time)
+          const entryBg = night ? '#eef2ff' : c.bg
+          const entryColor = night ? '#4338ca' : c.text
+          cellContent += `<div style="background:${entryBg};border:1.5px solid ${c.border};border-radius:5px;padding:4px;margin-bottom:3px;font-size:11px;">
+            <div style="font-weight:bold;color:${entryColor};">${empName}</div>
+            <div style="color:${entryColor};">${entry.start_time.slice(0,5)}–${entry.end_time.slice(0,5)}${night ? ' 🌙' : ''}</div>
+            <div style="color:#6b7280;font-size:10px;">${calcHours(entry.start_time, entry.end_time)}${entry.notes ? ` | ${entry.notes}` : ''}</div>
+          </div>`
+        })
+      }
+      cells += `<td style="padding:3px;border:2px solid ${c.border};vertical-align:top;background:#fafafa;">${cellContent}</td>`
+    })
+    return `<table dir="rtl" style="width:100%;border-collapse:collapse;font-size:12px;font-family:Arial;border:2px solid #e5e7eb;">
+      <tr>${headers}</tr>
+      <tr>${cells}</tr>
+    </table>`
+  }
 
   function buildMyShiftsText(employeeId) {
     const myEntries = weekEntries.filter(e => e.employee_id === employeeId)
@@ -179,38 +212,25 @@ function buildAllShiftsText() {
     const employeeIds = [...new Set(weekEntries.map(e => e.employee_id))]
     let sent = 0
     let failed = 0
-
     for (const empId of employeeIds) {
       const emp = activeEmps.find(e => e.id === empId)
       if (!emp?.email) { failed++; continue }
       try {
         await emailjs.send(
-          EMAILJS_SERVICE,
-          EMAILJS_TEMPLATE,
-          {
-            to_email: emp.email,
-            employee_name: emp.full_name,
-            week_dates: weekDates,
-            my_shifts: buildMyShiftsText(empId),
-            all_shifts: allShiftsText,
-          },
+          EMAILJS_SERVICE, EMAILJS_TEMPLATE,
+          { to_email: emp.email, employee_name: emp.full_name, week_dates: weekDates, my_shifts: buildMyShiftsText(empId), all_shifts: allShiftsText },
           { publicKey: EMAILJS_PUBLIC_KEY }
         )
         sent++
-      } catch (e) {
-        failed++
-      }
+      } catch (e) { failed++ }
     }
-
     setSending(false)
-    setAlert({
-      title: 'נשלח!',
-      message: `נשלחו ${sent} מיילים בהצלחה${failed > 0 ? ` (${failed} נכשלו)` : ''}`
-    })
+    setAlert({ title: 'נשלח!', message: `נשלחו ${sent} מיילים בהצלחה${failed > 0 ? ` (${failed} נכשלו)` : ''}` })
   }
 
   function set(k, v) { setForm(p => ({ ...p, [k]: v })) }
   const crosses = isMidnightCross(form.start_time, form.end_time)
+  const editCrosses = isMidnightCross(editForm.start_time, editForm.end_time)
 
   return (
     <div className="p-6">
@@ -244,25 +264,18 @@ function buildAllShiftsText() {
                     <div className="text-xs text-gray-400 font-normal mb-1">{formatDate(date)}</div>
                     {editingNote === date ? (
                       <div className="flex gap-1 mt-1">
-                        <input
-                          autoFocus
-                          className="flex-1 text-xs border border-gray-200 rounded px-1.5 py-0.5 outline-none focus:border-blue-400 font-normal"
-                          value={noteInput}
-                          onChange={e => setNoteInput(e.target.value)}
+                        <input autoFocus className="flex-1 text-xs border border-gray-200 rounded px-1.5 py-0.5 outline-none focus:border-blue-400 font-normal"
+                          value={noteInput} onChange={e => setNoteInput(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') handleSaveNote(date); if (e.key === 'Escape') setEditingNote(null) }}
-                          placeholder="הערה..."
-                          maxLength={30}
-                        />
+                          placeholder="הערה..." maxLength={30} />
                         <button onClick={() => handleSaveNote(date)} className="text-xs text-blue-500 font-normal hover:text-blue-700">✓</button>
                       </div>
                     ) : (
-                      <div
-                        onClick={() => currentRole === 'admin' && startEditNote(date)}
+                      <div onClick={() => currentRole === 'admin' && startEditNote(date)}
                         className={`text-xs rounded px-1.5 py-0.5 mt-1 font-normal min-h-[20px] transition-colors ${
                           note ? 'bg-amber-50 text-amber-700 border border-amber-200'
                           : currentRole === 'admin' ? 'text-gray-300 hover:text-gray-400 hover:bg-gray-50 cursor-pointer' : ''
-                        }`}
-                      >
+                        }`}>
                         {note ? note.note : currentRole === 'admin' ? '+ הוסף הערה' : ''}
                       </div>
                     )}
@@ -296,19 +309,22 @@ function buildAllShiftsText() {
                                 {entry.notes && <div className="text-gray-400 mt-0.5">{entry.notes}</div>}
                               </div>
                               {currentRole === 'admin' && (
-                                <button onClick={() => handleDelete(entry.id)} className="text-red-300 hover:text-red-500 mt-0.5">
-                                  <Trash2 size={12} />
-                                </button>
+                                <div className="flex flex-col gap-1">
+                                  <button onClick={() => openEdit(entry)} className="text-blue-300 hover:text-blue-500">
+                                    <Pencil size={11} />
+                                  </button>
+                                  <button onClick={() => handleDelete(entry.id)} className="text-red-300 hover:text-red-500">
+                                    <Trash2 size={11} />
+                                  </button>
+                                </div>
                               )}
                             </div>
                           </div>
                         )
                       })}
                       {currentRole === 'admin' && (
-                        <button
-                          onClick={() => openAdd(dayIdx)}
-                          className="flex items-center justify-center gap-1 text-xs text-gray-400 hover:text-blue-500 border border-dashed border-gray-200 hover:border-blue-300 rounded-lg py-1.5 transition-colors"
-                        >
+                        <button onClick={() => openAdd(dayIdx)}
+                          className="flex items-center justify-center gap-1 text-xs text-gray-400 hover:text-blue-500 border border-dashed border-gray-200 hover:border-blue-300 rounded-lg py-1.5 transition-colors">
                           <Plus size={12} /> הוסף
                         </button>
                       )}
@@ -321,6 +337,7 @@ function buildAllShiftsText() {
         </table>
       </div>
 
+      {/* מודל הוספה */}
       <Modal open={modal} onClose={() => setModal(false)} title="הוספת משמרת לסידור"
         footer={<>
           <button className="btn" onClick={() => setModal(false)}>ביטול</button>
@@ -353,6 +370,43 @@ function buildAllShiftsText() {
           <div className="col-span-2">
             <label className="form-label">הערות</label>
             <input className="form-control" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="אופציונלי" />
+          </div>
+        </div>
+      </Modal>
+
+      {/* מודל עריכה */}
+      <Modal open={editModal} onClose={() => setEditModal(false)} title="עריכת משמרת"
+        footer={<>
+          <button className="btn" onClick={() => setEditModal(false)}>ביטול</button>
+          <button className="btn btn-primary" onClick={handleEdit} disabled={loading}>
+            {loading ? 'שומר...' : 'שמור שינויים'}
+          </button>
+        </>}>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <label className="form-label">עובד</label>
+            <select className="form-control" value={editForm.employee_id} onChange={e => setEditForm(p => ({ ...p, employee_id: e.target.value }))}>
+              <option value="">בחר עובד</option>
+              {activeEmps.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="form-label">שעת התחלה</label>
+            <input type="time" className="form-control" value={editForm.start_time} onChange={e => setEditForm(p => ({ ...p, start_time: e.target.value }))} />
+          </div>
+          <div>
+            <label className="form-label">שעת סיום</label>
+            <input type="time" className="form-control" value={editForm.end_time} onChange={e => setEditForm(p => ({ ...p, end_time: e.target.value }))} />
+          </div>
+          {editCrosses && (
+            <div className="col-span-2 flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2 text-xs text-indigo-700">
+              <MoonStar size={14} />
+              משמרת לילה — מסתיימת ביום למחרת בשעה {editForm.end_time}
+            </div>
+          )}
+          <div className="col-span-2">
+            <label className="form-label">הערות</label>
+            <input className="form-control" value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} placeholder="אופציונלי" />
           </div>
         </div>
       </Modal>
