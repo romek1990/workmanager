@@ -66,7 +66,7 @@ export default function UserHome() {
 
   return (
     <div className="p-6 pt-14 md:pt-6">
-      <h1 className="text-lg font-medium mb-5">שלום, {emp?.full_name} 👋</h1>
+      <h1 className="text-lg font-medium mb-5">שלום, {emp?.full_name || currentUser?.name} 👋</h1>
 
       {/* Clock card */}
       <div className="card p-8 text-center mb-5">
