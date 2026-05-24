@@ -105,7 +105,17 @@ export default function WeeklySchedule() {
     setEditingNote(null)
   }
 
-function buildAllShiftsText() {
+  function buildAllShiftsText() {
+  const COLORS = [
+    { bg: '#eff6ff', border: '#bfdbfe', header: '#dbeafe', text: '#1e40af' },
+    { bg: '#f0fdf4', border: '#bbf7d0', header: '#dcfce7', text: '#166534' },
+    { bg: '#fdf4ff', border: '#e9d5ff', header: '#f3e8ff', text: '#7e22ce' },
+    { bg: '#fff7ed', border: '#fed7aa', header: '#ffedd5', text: '#9a3412' },
+    { bg: '#fef2f2', border: '#fecaca', header: '#fee2e2', text: '#991b1b' },
+    { bg: '#f0f9ff', border: '#bae6fd', header: '#e0f2fe', text: '#075985' },
+    { bg: '#fefce8', border: '#fde68a', header: '#fef9c3', text: '#854d0e' },
+  ]
+
   let headers = ''
   let cells = ''
 
@@ -113,34 +123,35 @@ function buildAllShiftsText() {
     const date = addDays(weekStart, i)
     const dayEntries = weekEntries.filter(e => e.day_of_week === i)
     const note = dayNotes.find(n => n.date === date)
+    const c = COLORS[i]
 
-    headers += `<th style="padding:8px;border:1px solid #d1d5db;background:#e5e7eb;text-align:center;min-width:80px;">
-      <div style="font-weight:bold;">${dayName}</div>
-      <div style="font-size:11px;color:#6b7280;">${formatDate(date)}</div>
-      ${note ? `<div style="font-size:10px;color:#d97706;margin-top:2px;">${note.note}</div>` : ''}
+    headers += `<th style="padding:6px 4px;border:2px solid ${c.border};background:${c.header};text-align:center;min-width:70px;width:14%;">
+      <div style="font-weight:bold;font-size:12px;color:${c.text};">${dayName}</div>
+      <div style="font-size:10px;color:${c.text};opacity:0.8;">${formatDate(date)}</div>
+      ${note ? `<div style="font-size:9px;color:#d97706;margin-top:1px;">${note.note}</div>` : ''}
     </th>`
 
     let cellContent = ''
     if (dayEntries.length === 0) {
-      cellContent = '<div style="color:#d1d5db;font-size:12px;text-align:center;">—</div>'
+      cellContent = '<div style="color:#d1d5db;font-size:11px;text-align:center;padding:8px;">—</div>'
     } else {
       dayEntries.forEach(entry => {
         const empName = entry.profiles?.full_name || activeEmps.find(e => e.id === entry.employee_id)?.full_name || ''
         const night = isMidnightCross(entry.start_time, entry.end_time)
-        const bg = night ? '#eef2ff' : '#eff6ff'
-        const color = night ? '#4338ca' : '#1e40af'
-        cellContent += `<div style="background:${bg};border-radius:6px;padding:6px;margin-bottom:4px;font-size:12px;">
-          <div style="font-weight:bold;color:${color};">${empName}</div>
-          <div style="color:${color};">${entry.start_time.slice(0,5)}–${entry.end_time.slice(0,5)}${night ? ' 🌙' : ''}</div>
-          <div style="color:#6b7280;">${calcHours(entry.start_time, entry.end_time)}${entry.notes ? ` — ${entry.notes}` : ''}</div>
+        const entryBg = night ? '#eef2ff' : c.bg
+        const entryColor = night ? '#4338ca' : c.text
+        cellContent += `<div style="background:${entryBg};border:1.5px solid ${c.border};border-radius:5px;padding:5px;margin-bottom:4px;font-size:11px;">
+          <div style="font-weight:bold;color:${entryColor};">${empName}</div>
+          <div style="color:${entryColor};">${entry.start_time.slice(0,5)}–${entry.end_time.slice(0,5)}${night ? ' 🌙' : ''}</div>
+          <div style="color:#6b7280;font-size:10px;">${calcHours(entry.start_time, entry.end_time)}${entry.notes ? ` | ${entry.notes}` : ''}</div>
         </div>`
       })
     }
 
-    cells += `<td style="padding:6px;border:1px solid #e5e7eb;vertical-align:top;">${cellContent}</td>`
+    cells += `<td style="padding:4px;border:2px solid ${c.border};vertical-align:top;background:#fafafa;">${cellContent}</td>`
   })
 
-  return `<table dir="rtl" style="width:100%;border-collapse:collapse;font-size:13px;font-family:Arial;">
+  return `<table dir="rtl" style="width:100%;border-collapse:collapse;font-size:12px;font-family:Arial;border:2px solid #e5e7eb;">
     <tr>${headers}</tr>
     <tr>${cells}</tr>
   </table>`
