@@ -64,6 +64,17 @@ export function AppProvider({ children }) {
     }
   }
 
+async function updateScheduleEntry(id, patch) {
+  const { error } = await supabase
+    .from('weekly_schedule')
+    .update(patch)
+    .eq('id', id)
+  if (!error) setWeeklySchedule(prev =>
+    prev.map(e => e.id === id ? { ...e, ...patch } : e)
+  )
+  if (error) throw error
+}
+  
   async function login(email, password) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
