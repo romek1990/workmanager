@@ -106,22 +106,44 @@ export default function WeeklySchedule() {
   }
 
 function buildAllShiftsText() {
-  let text = ''
+  let headers = ''
+  let cells = ''
+
   DAYS.forEach((dayName, i) => {
     const date = addDays(weekStart, i)
     const dayEntries = weekEntries.filter(e => e.day_of_week === i)
     const note = dayNotes.find(n => n.date === date)
-    if (dayEntries.length === 0) return
-    dayEntries.forEach(entry => {
-      const empName = entry.profiles?.full_name || activeEmps.find(e => e.id === entry.employee_id)?.full_name || ''
-      const night = isMidnightCross(entry.start_time, entry.end_time)
-      const dayLabel = `${dayName} ${formatDate(date)}${note ? ` (${note.note})` : ''}`
-      const hours = `${entry.start_time.slice(0,5)}–${entry.end_time.slice(0,5)}${night ? ' 🌙' : ''}`
-      const total = calcHours(entry.start_time, entry.end_time)
-      text += `${dayLabel} | ${hours} | ${empName} | ${total}${entry.notes ? ` | ${entry.notes}` : ''}\n`
-    })
+
+    headers += `<th style="padding:8px;border:1px solid #d1d5db;background:#e5e7eb;text-align:center;min-width:80px;">
+      <div style="font-weight:bold;">${dayName}</div>
+      <div style="font-size:11px;color:#6b7280;">${formatDate(date)}</div>
+      ${note ? `<div style="font-size:10px;color:#d97706;margin-top:2px;">${note.note}</div>` : ''}
+    </th>`
+
+    let cellContent = ''
+    if (dayEntries.length === 0) {
+      cellContent = '<div style="color:#d1d5db;font-size:12px;text-align:center;">—</div>'
+    } else {
+      dayEntries.forEach(entry => {
+        const empName = entry.profiles?.full_name || activeEmps.find(e => e.id === entry.employee_id)?.full_name || ''
+        const night = isMidnightCross(entry.start_time, entry.end_time)
+        const bg = night ? '#eef2ff' : '#eff6ff'
+        const color = night ? '#4338ca' : '#1e40af'
+        cellContent += `<div style="background:${bg};border-radius:6px;padding:6px;margin-bottom:4px;font-size:12px;">
+          <div style="font-weight:bold;color:${color};">${empName}</div>
+          <div style="color:${color};">${entry.start_time.slice(0,5)}–${entry.end_time.slice(0,5)}${night ? ' 🌙' : ''}</div>
+          <div style="color:#6b7280;">${calcHours(entry.start_time, entry.end_time)}${entry.notes ? ` — ${entry.notes}` : ''}</div>
+        </div>`
+      })
+    }
+
+    cells += `<td style="padding:6px;border:1px solid #e5e7eb;vertical-align:top;">${cellContent}</td>`
   })
-  return text || 'אין משמרות השבוע'
+
+  return `<table dir="rtl" style="width:100%;border-collapse:collapse;font-size:13px;font-family:Arial;">
+    <tr>${headers}</tr>
+    <tr>${cells}</tr>
+  </table>`
 }
 
   function buildMyShiftsText(employeeId) {
