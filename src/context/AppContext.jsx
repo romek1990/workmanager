@@ -50,18 +50,20 @@ export function AppProvider({ children }) {
       if (bnss.data) setBonuses(bnss.data)
       if (wkly.data) setWeeklySchedule(wkly.data)
       if (notes.data) setDayNotes(notes.data)
-    } else {
-      const [shfts, bnss, wkly, notes] = await Promise.all([
-        supabase.from('shifts').select('*').eq('employee_id', userId).order('date', { ascending: false }),
-        supabase.from('bonuses').select('*').eq('employee_id', userId).order('date', { ascending: false }),
-        supabase.from('weekly_schedule').select('*, profiles(full_name)').eq('employee_id', userId).order('week_start'),
-        supabase.from('day_notes').select('*'),
-      ])
-      if (shfts.data) setShifts(shfts.data)
-      if (bnss.data) setBonuses(bnss.data)
-      if (wkly.data) setWeeklySchedule(wkly.data)
-      if (notes.data) setDayNotes(notes.data)
-    }
+} else {
+  const [shfts, bnss, wkly, notes, profile] = await Promise.all([
+    supabase.from('shifts').select('*').eq('employee_id', userId).order('date', { ascending: false }),
+    supabase.from('bonuses').select('*').eq('employee_id', userId).order('date', { ascending: false }),
+    supabase.from('weekly_schedule').select('*, profiles(full_name)').eq('employee_id', userId).order('week_start'),
+    supabase.from('day_notes').select('*'),
+    supabase.from('profiles').select('*').eq('id', userId).single(),
+  ])
+  if (shfts.data) setShifts(shfts.data)
+  if (bnss.data) setBonuses(bnss.data)
+  if (wkly.data) setWeeklySchedule(wkly.data)
+  if (notes.data) setDayNotes(notes.data)
+  if (profile.data) setEmployees([profile.data])
+}
   }
 
 async function updateScheduleEntry(id, patch) {
