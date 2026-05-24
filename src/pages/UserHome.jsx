@@ -50,9 +50,10 @@ export default function UserHome() {
       const shiftType = day === 6 ? 'saturday' : day === 5 ? 'friday' : 'regular'
 
       addShift({
-        employee_email: currentUserEmail,
-        employee_name: emp?.full_name || '',
-        date: shiftStart.toISOString().slice(0, 10),
+  employee_email: currentUserEmail,
+  employee_name: emp?.full_name || currentUser?.name || '',
+  employee_id: currentUser?.id,
+  date: shiftStart.toISOString().slice(0, 10),
         start_time: startStr,
         end_time: endStr,
         total_hours: Math.max(hrs, 0.5),
