@@ -105,7 +105,7 @@ export default function WeeklySchedule() {
     setEditingNote(null)
   }
 
-  function buildAllShiftsText() {
+function buildAllShiftsText() {
   const COLORS = [
     { bg: '#eff6ff', border: '#bfdbfe', header: '#dbeafe', text: '#1e40af' },
     { bg: '#f0fdf4', border: '#bbf7d0', header: '#dcfce7', text: '#166534' },
@@ -115,42 +115,36 @@ export default function WeeklySchedule() {
     { bg: '#f0f9ff', border: '#bae6fd', header: '#e0f2fe', text: '#075985' },
     { bg: '#fefce8', border: '#fde68a', header: '#fef9c3', text: '#854d0e' },
   ]
-
   let headers = ''
   let cells = ''
-
   DAYS.forEach((dayName, i) => {
     const date = addDays(weekStart, i)
     const dayEntries = weekEntries.filter(e => e.day_of_week === i)
     const note = dayNotes.find(n => n.date === date)
     const c = COLORS[i]
-
-    headers += `<th style="padding:4px 4px;border:2px solid ${c.border};background:${c.header};text-align:center;min-width:70px;width:14%;height:40px;">
-      <div style="font-weight:bold;font-size:12px;color:${c.text};">${dayName}</div>
+    headers += `<th style="padding:3px 2px;border:2px solid ${c.border};background:${c.header};text-align:center;min-width:70px;width:14%;line-height:1.3;">
+      <div style="font-weight:bold;font-size:11px;color:${c.text};">${dayName}</div>
       <div style="font-size:10px;color:${c.text};opacity:0.8;">${formatDate(date)}</div>
-      ${note ? `<div style="font-size:9px;color:#d97706;margin-top:1px;">${note.note}</div>` : ''}
+      ${note ? `<div style="font-size:9px;color:#d97706;">${note.note}</div>` : ''}
     </th>`
-
     let cellContent = ''
     if (dayEntries.length === 0) {
-      cellContent = '<div style="color:#d1d5db;font-size:11px;text-align:center;padding:8px;">—</div>'
+      cellContent = '<div style="color:#d1d5db;font-size:11px;text-align:center;padding:4px;">—</div>'
     } else {
       dayEntries.forEach(entry => {
         const empName = entry.profiles?.full_name || activeEmps.find(e => e.id === entry.employee_id)?.full_name || ''
         const night = isMidnightCross(entry.start_time, entry.end_time)
         const entryBg = night ? '#eef2ff' : c.bg
         const entryColor = night ? '#4338ca' : c.text
-        cellContent += `<div style="background:${entryBg};border:1.5px solid ${c.border};border-radius:5px;padding:5px;margin-bottom:4px;font-size:11px;">
+        cellContent += `<div style="background:${entryBg};border:1.5px solid ${c.border};border-radius:5px;padding:4px;margin-bottom:3px;font-size:11px;">
           <div style="font-weight:bold;color:${entryColor};">${empName}</div>
           <div style="color:${entryColor};">${entry.start_time.slice(0,5)}–${entry.end_time.slice(0,5)}${night ? ' 🌙' : ''}</div>
           <div style="color:#6b7280;font-size:10px;">${calcHours(entry.start_time, entry.end_time)}${entry.notes ? ` | ${entry.notes}` : ''}</div>
         </div>`
       })
     }
-
-    cells += `<td style="padding:4px;border:2px solid ${c.border};vertical-align:top;background:#fafafa;height:1px;">${cellContent}</td>`
+    cells += `<td style="padding:3px;border:2px solid ${c.border};vertical-align:top;background:#fafafa;">${cellContent}</td>`
   })
-
   return `<table dir="rtl" style="width:100%;border-collapse:collapse;font-size:12px;font-family:Arial;border:2px solid #e5e7eb;">
     <tr>${headers}</tr>
     <tr>${cells}</tr>
