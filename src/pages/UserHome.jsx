@@ -34,7 +34,7 @@ export default function UserHome() {
   const totalHours = approvedShifts.reduce((a, s) => a + s.total_hours, 0)
   const totalPay = emp?.employee_type === 'global'
     ? emp.monthly_salary
-    : approvedShifts.reduce((a, s) => a + calcShiftPay(s, emp), 0)
+    : approvedShifts.reduce((a, s) => a + (calcShiftPay(s, emp) || 0), 0)
   const pendingCount = myShifts.filter(s => s.status === 'pending').length
 
   function toggleShift() {
@@ -147,11 +147,12 @@ export default function UserHome() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        <StatCard label="שעות החודש" value={totalHours} sub="מאושרות" icon={Clock} iconColor="text-amber-500" />
-        <StatCard label="שכר משוער" value={fmtMoney(totalPay)} sub="לפני ניכויים" icon={Banknote} iconColor="text-green-500" />
-        <StatCard label="משמרות החודש" value={myShifts.length} sub={`${pendingCount} ממתינות`} icon={CalendarDays} iconColor="text-blue-500" />
-      </div>
+    <div className="grid grid-cols-2 gap-3 mb-5">
+  <StatCard label="שעות החודש" value={totalHours} sub="מאושרות" icon={Clock} iconColor="text-amber-500" />
+  <StatCard label="שכר משוער" value={fmtMoney(totalPay)} sub="לפני ניכויים" icon={Banknote} iconColor="text-green-500" />
+  <StatCard label="סך הכל משמרות שדווחו" value={myShifts.length} sub={`${pendingCount} ממתינות`} icon={CalendarDays} iconColor="text-blue-500" />
+  <StatCard label="משמרות שאושרו" value={approvedShifts.length} sub="החודש" icon={CalendarDays} iconColor="text-green-500" />
+</div>
 
       {/* Recent shifts */}
       <CardSection title="משמרות אחרונות">
