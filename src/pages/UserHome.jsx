@@ -7,7 +7,7 @@ import { calcShiftPay, fmtMoney } from '../utils/helpers'
 const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
 
 export default function UserHome() {
-  const { employees, shifts, bonuses, currentUserEmail, addShift } = useApp()
+  const { employees, shifts, bonuses, currentUserEmail, currentUser, addShift } = useApp()
   const emp = employees.find(e => e.email === currentUserEmail)
   const [now, setNow] = useState(new Date())
   const [active, setActive] = useState(false)
