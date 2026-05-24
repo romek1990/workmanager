@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext'
 import { Modal, AlertModal } from '../components/ui'
 
 const EMAILJS_SERVICE = 'service_atutffw'
-const EMAILJS_TEMPLATE = 'template_w5xwy41'
+const EMAILJS_TEMPLATE = 'template_sx0nowk'
 const EMAILJS_PUBLIC_KEY = 'O6dGxcOoOfwbY1b2g'
 
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
