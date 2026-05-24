@@ -148,7 +148,7 @@ export default function WeeklySchedule() {
       })
     }
 
-    cells += `<td style="padding:4px;border:2px solid ${c.border};vertical-align:top;background:#fafafa;">${cellContent}</td>`
+    cells += `<td style="padding:4px;border:2px solid ${c.border};vertical-align:top;background:#fafafa;height:1px;">${cellContent}</td>`
   })
 
   return `<table dir="rtl" style="width:100%;border-collapse:collapse;font-size:12px;font-family:Arial;border:2px solid #e5e7eb;">
