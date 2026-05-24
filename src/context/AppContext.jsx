@@ -189,7 +189,7 @@ async function updateScheduleEntry(id, patch) {
       addEmployee, updateEmployee,
       addShift, updateShiftStatus,
       addBonus,
-      addScheduleEntry, deleteScheduleEntry,
+      addScheduleEntry, deleteScheduleEntry, updateScheduleEntry,
       saveDayNote,
     }}>
       {children}
