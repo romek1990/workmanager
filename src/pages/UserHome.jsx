@@ -29,7 +29,7 @@ export default function UserHome() {
     return () => clearInterval(t)
   }, [])
 
-  const myShifts = shifts.filter(s => s.employee_email === currentUserEmail)
+  const myShifts = shifts.filter(s => s.employee_email === currentUserEmail || s.employee_id === currentUser?.id)
   const approvedShifts = myShifts.filter(s => s.status === 'approved')
   const totalHours = approvedShifts.reduce((a, s) => a + s.total_hours, 0)
   const totalPay = emp?.employee_type === 'global'
