@@ -105,22 +105,22 @@ export default function WeeklySchedule() {
     setEditingNote(null)
   }
 
-  function buildAllShiftsText() {
+function buildAllShiftsText() {
     let text = ''
     DAYS.forEach((dayName, i) => {
       const date = addDays(weekStart, i)
       const dayEntries = weekEntries.filter(e => e.day_of_week === i)
       const note = dayNotes.find(n => n.date === date)
       if (dayEntries.length === 0) return
-      text += `<b>${dayName} ${formatDate(date)}${note ? ` — ${note.note}` : ''}</b><br>`
+      text += `${dayName} ${formatDate(date)}${note ? ` — ${note.note}` : ''}:\n`
       dayEntries.forEach(entry => {
         const empName = entry.profiles?.full_name || activeEmps.find(e => e.id === entry.employee_id)?.full_name || ''
         const night = isMidnightCross(entry.start_time, entry.end_time)
-        text += `&nbsp;&nbsp;• ${empName}: ${entry.start_time.slice(0,5)}–${entry.end_time.slice(0,5)}${night ? ' 🌙' : ''} (${calcHours(entry.start_time, entry.end_time)})`
+        text += `  • ${empName}: ${entry.start_time.slice(0,5)}–${entry.end_time.slice(0,5)}${night ? ' 🌙' : ''} (${calcHours(entry.start_time, entry.end_time)})`
         if (entry.notes) text += ` — ${entry.notes}`
-        text += '<br>'
+        text += '\n'
       })
-      text += '<br>'
+      text += '\n'
     })
     return text || 'אין משמרות השבוע'
   }
@@ -135,10 +135,10 @@ export default function WeeklySchedule() {
         const night = isMidnightCross(entry.start_time, entry.end_time)
         const date = addDays(weekStart, entry.day_of_week)
         const note = dayNotes.find(n => n.date === date)
-        text += `<b>${DAYS[entry.day_of_week]} ${formatDate(date)}${note ? ` — ${note.note}` : ''}</b><br>`
-        text += `&nbsp;&nbsp;${entry.start_time.slice(0,5)}–${entry.end_time.slice(0,5)}${night ? ' 🌙' : ''} (${calcHours(entry.start_time, entry.end_time)})`
+        text += `${DAYS[entry.day_of_week]} ${formatDate(date)}${note ? ` — ${note.note}` : ''}:\n`
+        text += `  ${entry.start_time.slice(0,5)}–${entry.end_time.slice(0,5)}${night ? ' 🌙' : ''} (${calcHours(entry.start_time, entry.end_time)})`
         if (entry.notes) text += ` — ${entry.notes}`
-        text += '<br><br>'
+        text += '\n\n'
       })
     return text
   }
