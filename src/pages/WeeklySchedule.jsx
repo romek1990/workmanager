@@ -125,7 +125,7 @@ export default function WeeklySchedule() {
     const note = dayNotes.find(n => n.date === date)
     const c = COLORS[i]
 
-    headers += `<th style="padding:6px 4px;border:2px solid ${c.border};background:${c.header};text-align:center;min-width:70px;width:14%;">
+    headers += `<th style="padding:4px 4px;border:2px solid ${c.border};background:${c.header};text-align:center;min-width:70px;width:14%;height:40px;">
       <div style="font-weight:bold;font-size:12px;color:${c.text};">${dayName}</div>
       <div style="font-size:10px;color:${c.text};opacity:0.8;">${formatDate(date)}</div>
       ${note ? `<div style="font-size:9px;color:#d97706;margin-top:1px;">${note.note}</div>` : ''}
