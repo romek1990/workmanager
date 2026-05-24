@@ -81,9 +81,10 @@ export default function UserHome() {
       const hrs = Math.round((mins / 60) * 10) / 10
 
       await addShift({
-        employee_email: currentUserEmail,
-        employee_name: emp?.full_name || '',
-        date: manualForm.date,
+  employee_email: currentUserEmail,
+  employee_name: emp?.full_name || currentUser?.name || '',
+  employee_id: currentUser?.id,
+  date: manualForm.date,
         start_time: manualForm.start_time,
         end_time: manualForm.end_time,
         total_hours: hrs,
