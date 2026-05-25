@@ -9,11 +9,13 @@ export function AppProvider({ children }) {
   const [bonuses, setBonuses] = useState([])
   const [weeklySchedule, setWeeklySchedule] = useState([])
   const [dayNotes, setDayNotes] = useState([])
+  const [notifications, setNotifications] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
   const currentRole = currentUser?.role || null
   const currentUserEmail = currentUser?.email || null
+  const unreadCount = notifications.filter(n => !n.read).length
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -33,8 +35,39 @@ export function AppProvider({ children }) {
       setCurrentUser({ ...data, name: data.full_name })
       await logActivity(authUser.id, data.full_name, authUser.email, 'התחברות', 'התחבר למערכת')
       await loadAllData(data.role, authUser.id)
+      if (data.role === 'admin') await loadNotifications(authUser.id)
     }
     setLoading(false)
+  }
+
+  async function loadNotifications(userId) {
+    const { data } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(20)
+    if (data) setNotifications(data)
+  }
+
+  async function addNotification(userId, title, message, type = 'info') {
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert({ user_id: userId, title, message, type })
+      .select().single()
+    if (!error && data) setNotifications(prev => [data, ...prev])
+  }
+
+  async function markNotificationRead(id) {
+    const { error } = await supabase.from('notifications').update({ read: true }).eq('id', id)
+    if (!error) setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+  }
+
+  async function markAllNotificationsRead() {
+    const unreadIds = notifications.filter(n => !n.read).map(n => n.id)
+    if (unreadIds.length === 0) return
+    await supabase.from('notifications').update({ read: true }).in('id', unreadIds)
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
   }
 
   async function logActivity(userId, userName, userEmail, action, details) {
@@ -91,7 +124,7 @@ export function AppProvider({ children }) {
     }
     await supabase.auth.signOut()
     setCurrentUser(null)
-    setEmployees([]); setShifts([]); setBonuses([]); setWeeklySchedule([]); setDayNotes([])
+    setEmployees([]); setShifts([]); setBonuses([]); setWeeklySchedule([]); setDayNotes([]); setNotifications([])
   }
 
   async function addEmployee(emp) {
@@ -124,7 +157,6 @@ export function AppProvider({ children }) {
         await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'הוספת עובד', `הוסיף עובד חדש: ${emp.full_name} (${emp.email})`)
       }
       if (error) throw error
-
       await supabase.auth.resetPasswordForEmail(emp.email, {
         redirectTo: 'https://workmanager-seven.vercel.app/set-password',
       })
@@ -146,6 +178,20 @@ export function AppProvider({ children }) {
     if (!error && data) {
       setShifts(prev => [data, ...prev])
       await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'הוספת משמרת', `הוסיף משמרת לעובד ${shift.employee_name} בתאריך ${shift.date}`)
+
+      // שליחת התראה לכל המנהלים
+      const admins = await supabase.from('profiles').select('id').eq('role', 'admin')
+      if (admins.data) {
+        for (const admin of admins.data) {
+          const isManual = shift.is_manual
+          await addNotification(
+            admin.id,
+            isManual ? '📋 משמרת ידנית חדשה' : '⏰ משמרת חדשה',
+            `${shift.employee_name} ${isManual ? 'הזין משמרת ידנית' : 'סיים משמרת'} בתאריך ${shift.date} — ממתין לאישור`,
+            isManual ? 'warning' : 'info'
+          )
+        }
+      }
     }
     if (error) throw error
   }
@@ -181,11 +227,7 @@ export function AppProvider({ children }) {
   }
 
   async function addScheduleEntry(entry) {
-    const { data, error } = await supabase
-      .from('weekly_schedule')
-      .insert(entry)
-      .select('*, profiles(full_name)')
-      .single()
+    const { data, error } = await supabase.from('weekly_schedule').insert(entry).select('*, profiles(full_name)').single()
     if (!error && data) {
       setWeeklySchedule(prev => [...prev, data])
       await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'הוספת משמרת לסידור', `הוסיף משמרת לסידור שבועי`)
@@ -220,10 +262,7 @@ export function AppProvider({ children }) {
       }
       return
     }
-    const { data, error } = await supabase
-      .from('day_notes')
-      .upsert({ date, note }, { onConflict: 'date' })
-      .select().single()
+    const { data, error } = await supabase.from('day_notes').upsert({ date, note }, { onConflict: 'date' }).select().single()
     if (!error && data) {
       setDayNotes(prev => {
         const exists = prev.find(n => n.date === date)
@@ -237,6 +276,7 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       employees, shifts, bonuses, weeklySchedule, dayNotes,
+      notifications, unreadCount,
       currentUser, currentRole, currentUserEmail,
       loading,
       login, logout,
@@ -246,6 +286,7 @@ export function AppProvider({ children }) {
       addScheduleEntry, deleteScheduleEntry, updateScheduleEntry,
       saveDayNote,
       logActivity,
+      addNotification, markNotificationRead, markAllNotificationsRead,
     }}>
       {children}
     </AppContext.Provider>
