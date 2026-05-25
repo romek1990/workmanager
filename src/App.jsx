@@ -15,6 +15,7 @@ import Messages from './pages/Messages'
 import UserHome from './pages/UserHome'
 import MyShifts from './pages/MyShifts'
 import WeeklySchedule from './pages/WeeklySchedule'
+import ActivityLogs from './pages/ActivityLogs'
 
 function AppRoutes() {
   const { currentUser, loading } = useApp()
@@ -37,7 +38,6 @@ function AppRoutes() {
       </Routes>
     )
   }
-
   return (
     <div className="flex min-h-screen">
       <Sidebar />
@@ -52,6 +52,7 @@ function AppRoutes() {
           <Route path="/bonuses" element={<ProtectedRoute requiredRole="admin"><Bonuses /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute requiredRole="admin"><Reports /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute requiredRole="admin"><Messages /></ProtectedRoute>} />
+          <Route path="/activity-logs" element={<ProtectedRoute requiredRole="admin"><ActivityLogs /></ProtectedRoute>} />
           <Route path="/my-home" element={<ProtectedRoute><UserHome /></ProtectedRoute>} />
           <Route path="/my-shifts" element={<ProtectedRoute><MyShifts /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to={currentUser.role === 'admin' ? '/' : '/my-home'} replace />} />
