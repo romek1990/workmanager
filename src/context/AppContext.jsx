@@ -197,15 +197,23 @@ export function AppProvider({ children }) {
   }
 
   async function updateShiftStatus(id, status) {
-    const { error } = await supabase.from('shifts').update({ status }).eq('id', id)
-    if (!error) {
-      setShifts(prev => prev.map(s => s.id === id ? { ...s, status } : s))
-      const shift = shifts.find(s => s.id === id)
-      const statusHe = status === 'approved' ? 'אישר' : 'דחה'
-      await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, `${statusHe} משמרת`, `${statusHe} משמרת של ${shift?.employee_name} בתאריך ${shift?.date}`)
+  const { error } = await supabase.from('shifts').update({ status }).eq('id', id)
+  if (!error) {
+    setShifts(prev => prev.map(s => s.id === id ? { ...s, status } : s))
+    const shift = shifts.find(s => s.id === id)
+    const statusHe = status === 'approved' ? 'אישר' : 'דחה'
+    await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, `${statusHe} משמרת`, `${statusHe} משמרת של ${shift?.employee_name} בתאריך ${shift?.date}`)
+
+    // ✅ סמן את ההתראה הרלוונטית כנקראת אוטומטית
+    const relatedNotif = notifications.find(n =>
+      !n.read && n.message?.includes(shift?.employee_name) && n.message?.includes(shift?.date)
+    )
+    if (relatedNotif) {
+      await markNotificationRead(relatedNotif.id)
     }
-    if (error) throw error
   }
+  if (error) throw error
+}
 
   async function addBonus(bonus) {
     const emp = employees.find(e => e.email === bonus.employee_email)
