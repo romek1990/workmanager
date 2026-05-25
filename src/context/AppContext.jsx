@@ -50,33 +50,22 @@ export function AppProvider({ children }) {
       if (bnss.data) setBonuses(bnss.data)
       if (wkly.data) setWeeklySchedule(wkly.data)
       if (notes.data) setDayNotes(notes.data)
-} else {
-  const [shfts, bnss, wkly, notes, profile] = await Promise.all([
-    supabase.from('shifts').select('*').eq('employee_id', userId).order('date', { ascending: false }),
-    supabase.from('bonuses').select('*').eq('employee_id', userId).order('date', { ascending: false }),
-    supabase.from('weekly_schedule').select('*, profiles(full_name)').eq('employee_id', userId).order('week_start'),
-    supabase.from('day_notes').select('*'),
-    supabase.from('profiles').select('*').eq('id', userId).single(),
-  ])
-  if (shfts.data) setShifts(shfts.data)
-  if (bnss.data) setBonuses(bnss.data)
-  if (wkly.data) setWeeklySchedule(wkly.data)
-  if (notes.data) setDayNotes(notes.data)
-  if (profile.data) setEmployees([profile.data])
-}
+    } else {
+      const [shfts, bnss, wkly, notes, profile] = await Promise.all([
+        supabase.from('shifts').select('*').eq('employee_id', userId).order('date', { ascending: false }),
+        supabase.from('bonuses').select('*').eq('employee_id', userId).order('date', { ascending: false }),
+        supabase.from('weekly_schedule').select('*, profiles(full_name)').eq('employee_id', userId).order('week_start'),
+        supabase.from('day_notes').select('*'),
+        supabase.from('profiles').select('*').eq('id', userId).single(),
+      ])
+      if (shfts.data) setShifts(shfts.data)
+      if (bnss.data) setBonuses(bnss.data)
+      if (wkly.data) setWeeklySchedule(wkly.data)
+      if (notes.data) setDayNotes(notes.data)
+      if (profile.data) setEmployees([profile.data])
+    }
   }
 
-async function updateScheduleEntry(id, patch) {
-  const { error } = await supabase
-    .from('weekly_schedule')
-    .update(patch)
-    .eq('id', id)
-  if (!error) setWeeklySchedule(prev =>
-    prev.map(e => e.id === id ? { ...e, ...patch } : e)
-  )
-  if (error) throw error
-}
-  
   async function login(email, password) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
@@ -149,6 +138,12 @@ async function updateScheduleEntry(id, patch) {
     if (error) throw error
   }
 
+  async function updateBonus(id, patch) {
+    const { error } = await supabase.from('bonuses').update(patch).eq('id', id)
+    if (!error) setBonuses(prev => prev.map(b => b.id === id ? { ...b, ...patch } : b))
+    if (error) throw error
+  }
+
   async function addScheduleEntry(entry) {
     const { data, error } = await supabase
       .from('weekly_schedule')
@@ -162,6 +157,17 @@ async function updateScheduleEntry(id, patch) {
   async function deleteScheduleEntry(id) {
     const { error } = await supabase.from('weekly_schedule').delete().eq('id', id)
     if (!error) setWeeklySchedule(prev => prev.filter(e => e.id !== id))
+    if (error) throw error
+  }
+
+  async function updateScheduleEntry(id, patch) {
+    const { error } = await supabase
+      .from('weekly_schedule')
+      .update(patch)
+      .eq('id', id)
+    if (!error) setWeeklySchedule(prev =>
+      prev.map(e => e.id === id ? { ...e, ...patch } : e)
+    )
     if (error) throw error
   }
 
@@ -190,7 +196,7 @@ async function updateScheduleEntry(id, patch) {
       login, logout,
       addEmployee, updateEmployee,
       addShift, updateShiftStatus,
-      addBonus,
+      addBonus, updateBonus,
       addScheduleEntry, deleteScheduleEntry, updateScheduleEntry,
       saveDayNote,
     }}>
