@@ -11,7 +11,7 @@ export default function EmployeeProfile() {
   const navigate = useNavigate()
   const { employees, shifts, bonuses, updateEmployee } = useApp()
 
-  const emp = employees.find(e => e.id === Number(id))
+  const emp = employees.find(e => e.id === id)
   const [editModal, setEditModal] = useState(false)
   const [form, setForm] = useState(null)
   const [alert, setAlert] = useState(null)
