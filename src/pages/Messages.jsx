@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Send, Users } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { Avatar } from '../components/ui'
+import emailjs from '@emailjs/browser'
 
 // ─────────────────────────────────────────────────────────────
 // 📧 EMAIL INTEGRATION
@@ -58,7 +59,10 @@ export default function Messages() {
     setStatus('sending')
     try {
       await Promise.all(
-        [...selected].map(to => sendEmail({ to, subject, body }))
+        [...selected].map(to => {
+  const emp = employees.find(e => e.email === to)
+  return sendEmail({ to, employeeName: emp?.full_name || to, subject, body })
+})
       )
       setStatus('done')
       setSubject('')
