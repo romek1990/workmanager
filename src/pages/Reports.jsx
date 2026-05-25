@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { Table, CardSection } from '../components/ui'
 import { calcShiftPay, fmtMoney, monthStart, monthEnd } from '../utils/helpers'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+
 
 function getPreset(type) {
   const now = new Date()
@@ -221,16 +220,7 @@ function exportEmployeePDF(row) {
   win.document.close()
 }
 
-  const finalY = doc.lastAutoTable.finalY + 10
-  doc.setFontSize(11)
-  doc.text(`Total Hours: ${row.hrs.total}`, 14, finalY)
-  doc.text(`Gross Salary: ${Math.round(row.pay).toLocaleString()} ILS`, 14, finalY + 7)
-  doc.text(`Bonus: ${row.bonus.toLocaleString()} ILS`, 14, finalY + 14)
-  doc.setFontSize(13)
-  doc.text(`Total Payment: ${Math.round(row.total).toLocaleString()} ILS`, 14, finalY + 24)
 
-  doc.save(`${row.emp.full_name}-${from}-${to}.pdf`)
-}
 
  
 
