@@ -31,9 +31,22 @@ export function AppProvider({ children }) {
     const { data } = await supabase.from('profiles').select('*').eq('id', authUser.id).single()
     if (data) {
       setCurrentUser({ ...data, name: data.full_name })
+      await logActivity(authUser.id, data.full_name, authUser.email, 'התחברות', 'התחבר למערכת')
       await loadAllData(data.role, authUser.id)
     }
     setLoading(false)
+  }
+
+  async function logActivity(userId, userName, userEmail, action, details) {
+    try {
+      await supabase.from('activity_logs').insert({
+        user_id: userId,
+        user_name: userName,
+        user_email: userEmail,
+        action,
+        details,
+      })
+    } catch (e) {}
   }
 
   async function loadAllData(role, userId) {
@@ -73,6 +86,9 @@ export function AppProvider({ children }) {
   }
 
   async function logout() {
+    if (currentUser) {
+      await logActivity(currentUser.id, currentUser.name, currentUser.email, 'יציאה', 'יצא מהמערכת')
+    }
     await supabase.auth.signOut()
     setCurrentUser(null)
     setEmployees([]); setShifts([]); setBonuses([]); setWeeklySchedule([]); setDayNotes([])
@@ -103,7 +119,10 @@ export function AppProvider({ children }) {
         .from('profiles')
         .upsert({ id: authData.id, ...emp, role: 'user' })
         .select().single()
-      if (!error && data) setEmployees(prev => [...prev, data])
+      if (!error && data) {
+        setEmployees(prev => [...prev, data])
+        await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'הוספת עובד', `הוסיף עובד חדש: ${emp.full_name} (${emp.email})`)
+      }
       if (error) throw error
 
       await supabase.auth.resetPasswordForEmail(emp.email, {
@@ -114,33 +133,50 @@ export function AppProvider({ children }) {
 
   async function updateEmployee(id, patch) {
     const { data, error } = await supabase.from('profiles').update(patch).eq('id', id).select().single()
-    if (!error && data) setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...data } : e))
+    if (!error && data) {
+      setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...data } : e))
+      await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'עריכת עובד', `עדכן פרטי עובד: ${data.full_name}`)
+    }
     if (error) throw error
   }
 
   async function addShift(shift) {
     const emp = employees.find(e => e.email === shift.employee_email)
     const { data, error } = await supabase.from('shifts').insert({ ...shift, employee_id: emp?.id, status: 'pending' }).select().single()
-    if (!error && data) setShifts(prev => [data, ...prev])
+    if (!error && data) {
+      setShifts(prev => [data, ...prev])
+      await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'הוספת משמרת', `הוסיף משמרת לעובד ${shift.employee_name} בתאריך ${shift.date}`)
+    }
     if (error) throw error
   }
 
   async function updateShiftStatus(id, status) {
     const { error } = await supabase.from('shifts').update({ status }).eq('id', id)
-    if (!error) setShifts(prev => prev.map(s => s.id === id ? { ...s, status } : s))
+    if (!error) {
+      setShifts(prev => prev.map(s => s.id === id ? { ...s, status } : s))
+      const shift = shifts.find(s => s.id === id)
+      const statusHe = status === 'approved' ? 'אישר' : 'דחה'
+      await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, `${statusHe} משמרת`, `${statusHe} משמרת של ${shift?.employee_name} בתאריך ${shift?.date}`)
+    }
     if (error) throw error
   }
 
   async function addBonus(bonus) {
     const emp = employees.find(e => e.email === bonus.employee_email)
     const { data, error } = await supabase.from('bonuses').insert({ ...bonus, employee_id: emp?.id }).select().single()
-    if (!error && data) setBonuses(prev => [data, ...prev])
+    if (!error && data) {
+      setBonuses(prev => [data, ...prev])
+      await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'הוספת בונוס', `הוסיף בונוס של ₪${bonus.amount} לעובד ${bonus.employee_name}`)
+    }
     if (error) throw error
   }
 
   async function updateBonus(id, patch) {
     const { error } = await supabase.from('bonuses').update(patch).eq('id', id)
-    if (!error) setBonuses(prev => prev.map(b => b.id === id ? { ...b, ...patch } : b))
+    if (!error) {
+      setBonuses(prev => prev.map(b => b.id === id ? { ...b, ...patch } : b))
+      await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'עריכת בונוס', `עדכן בונוס — סכום חדש: ₪${patch.amount}`)
+    }
     if (error) throw error
   }
 
@@ -150,41 +186,51 @@ export function AppProvider({ children }) {
       .insert(entry)
       .select('*, profiles(full_name)')
       .single()
-    if (!error && data) setWeeklySchedule(prev => [...prev, data])
+    if (!error && data) {
+      setWeeklySchedule(prev => [...prev, data])
+      await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'הוספת משמרת לסידור', `הוסיף משמרת לסידור שבועי`)
+    }
     if (error) throw error
   }
 
   async function deleteScheduleEntry(id) {
     const { error } = await supabase.from('weekly_schedule').delete().eq('id', id)
-    if (!error) setWeeklySchedule(prev => prev.filter(e => e.id !== id))
+    if (!error) {
+      setWeeklySchedule(prev => prev.filter(e => e.id !== id))
+      await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'מחיקת משמרת מסידור', `מחק משמרת מהסידור השבועי`)
+    }
     if (error) throw error
   }
 
   async function updateScheduleEntry(id, patch) {
-    const { error } = await supabase
-      .from('weekly_schedule')
-      .update(patch)
-      .eq('id', id)
-    if (!error) setWeeklySchedule(prev =>
-      prev.map(e => e.id === id ? { ...e, ...patch } : e)
-    )
+    const { error } = await supabase.from('weekly_schedule').update(patch).eq('id', id)
+    if (!error) {
+      setWeeklySchedule(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e))
+      await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'עריכת משמרת בסידור', `עדכן משמרת בסידור השבועי`)
+    }
     if (error) throw error
   }
 
   async function saveDayNote(date, note) {
     if (!note.trim()) {
       const { error } = await supabase.from('day_notes').delete().eq('date', date)
-      if (!error) setDayNotes(prev => prev.filter(n => n.date !== date))
+      if (!error) {
+        setDayNotes(prev => prev.filter(n => n.date !== date))
+        await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'מחיקת הערת יום', `מחק הערה לתאריך ${date}`)
+      }
       return
     }
     const { data, error } = await supabase
       .from('day_notes')
       .upsert({ date, note }, { onConflict: 'date' })
       .select().single()
-    if (!error && data) setDayNotes(prev => {
-      const exists = prev.find(n => n.date === date)
-      return exists ? prev.map(n => n.date === date ? data : n) : [...prev, data]
-    })
+    if (!error && data) {
+      setDayNotes(prev => {
+        const exists = prev.find(n => n.date === date)
+        return exists ? prev.map(n => n.date === date ? data : n) : [...prev, data]
+      })
+      await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'הערת יום', `הוסיף/עדכן הערה לתאריך ${date}: ${note}`)
+    }
     if (error) throw error
   }
 
@@ -199,6 +245,7 @@ export function AppProvider({ children }) {
       addBonus, updateBonus,
       addScheduleEntry, deleteScheduleEntry, updateScheduleEntry,
       saveDayNote,
+      logActivity,
     }}>
       {children}
     </AppContext.Provider>
