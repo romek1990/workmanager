@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, Building2, CalendarDays, Menu, X, Shield } from 'lucide-react'
+import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, Building2, CalendarDays, Menu, X, Shield, Bell } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { Avatar } from '../ui'
 
@@ -25,9 +25,11 @@ const userNav = [
 ]
 
 export default function Sidebar() {
-  const { currentUser, logout } = useApp()
+  const { currentUser, logout, notifications, unreadCount, markNotificationRead, markAllNotificationsRead } = useApp()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const [bellOpen, setBellOpen] = useState(false)
+  const bellRef = useRef(null)
 
   const nav = currentUser?.role === 'admin'
     ? (currentUser?.email === 'romanyam50@gmail.com' ? superAdminNav : baseAdminNav)
@@ -38,6 +40,33 @@ export default function Sidebar() {
     navigate('/login')
   }
 
+  useEffect(() => {
+    function handleClick(e) {
+      if (bellRef.current && !bellRef.current.contains(e.target)) {
+        setBellOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  function getNotifColor(type) {
+    const map = {
+      warning: 'bg-amber-50 border-amber-200',
+      info: 'bg-blue-50 border-blue-200',
+      success: 'bg-green-50 border-green-200',
+      error: 'bg-red-50 border-red-200',
+    }
+    return map[type] || 'bg-gray-50 border-gray-200'
+  }
+
+  function formatTime(dateStr) {
+    return new Date(dateStr).toLocaleString('he-IL', {
+      day: 'numeric', month: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    })
+  }
+
   const sidebarContent = (
     <>
       <div className="px-4 py-5 border-b border-gray-100">
@@ -46,9 +75,63 @@ export default function Sidebar() {
             <Building2 size={20} className="text-blue-600" />
             <span className="font-semibold text-gray-900">WorkManager</span>
           </div>
-          <button onClick={() => setOpen(false)} className="md:hidden text-gray-400 hover:text-gray-600">
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* פעמון התראות */}
+            {currentUser?.role === 'admin' && (
+              <div ref={bellRef} className="relative">
+                <button
+                  onClick={() => setBellOpen(p => !p)}
+                  className="relative p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <Bell size={18} className="text-gray-500" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* דרופדאון התראות */}
+                {bellOpen && (
+                  <div className="absolute top-8 right-0 w-80 bg-white rounded-xl shadow-lg border border-gray-100 z-50 overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                      <span className="text-sm font-medium">התראות</span>
+                      {unreadCount > 0 && (
+                        <button onClick={markAllNotificationsRead} className="text-xs text-blue-500 hover:text-blue-700">
+                          סמן הכל כנקרא
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-80 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="px-4 py-6 text-center text-sm text-gray-400">אין התראות</div>
+                      ) : (
+                        notifications.map(n => (
+                          <div
+                            key={n.id}
+                            onClick={() => markNotificationRead(n.id)}
+                            className={`px-4 py-3 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors ${!n.read ? 'bg-blue-50/50' : ''}`}
+                          >
+                            <div className="flex items-start gap-2">
+                              {!n.read && <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 shrink-0" />}
+                              <div className={!n.read ? '' : 'mr-4'}>
+                                <p className="text-xs font-medium text-gray-800">{n.title}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">{n.message}</p>
+                                <p className="text-[10px] text-gray-400 mt-1">{formatTime(n.created_at)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            <button onClick={() => setOpen(false)} className="md:hidden text-gray-400 hover:text-gray-600">
+              <X size={20} />
+            </button>
+          </div>
         </div>
         <p className="text-xs text-gray-400 mt-0.5 mr-7">מערכת ניהול עובדים</p>
       </div>
@@ -105,16 +188,12 @@ export default function Sidebar() {
       </button>
 
       {open && (
-        <div
-          className="md:hidden fixed inset-0 bg-black/30 z-40"
-          onClick={() => setOpen(false)}
-        />
+        <div className="md:hidden fixed inset-0 bg-black/30 z-40" onClick={() => setOpen(false)} />
       )}
 
       <aside className={`
         fixed top-0 right-0 h-screen bg-white border-l border-gray-100 flex flex-col z-50
-        transition-transform duration-300
-        w-56
+        transition-transform duration-300 w-56
         ${open ? 'translate-x-0' : 'translate-x-full'}
         md:translate-x-0
       `}>
