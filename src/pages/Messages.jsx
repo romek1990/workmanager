@@ -17,11 +17,21 @@ import { Avatar } from '../components/ui'
 //
 // Option C – Nodemailer (requires a backend/serverless function)
 // ─────────────────────────────────────────────────────────────
+import emailjs from '@emailjs/browser'
+
 async function sendEmail({ to, subject, body }) {
-  // TODO: replace with real API call
-  console.log('Sending email to:', to, subject, body)
-  await new Promise(r => setTimeout(r, 800)) // simulate network
-  return { success: true }
+  return emailjs.send(
+    'service_atutffw',
+    'template_sx0nowk',
+    {
+      to_email: to,
+      employee_name: to,
+      week_dates: subject,
+      my_shifts: body,
+      all_shifts: '',
+    },
+    { publicKey: 'O6dGxcOoOfwbY1b2g' }
+  )
 }
 
 export default function Messages() {
