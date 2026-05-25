@@ -19,16 +19,15 @@ import { Avatar } from '../components/ui'
 // ─────────────────────────────────────────────────────────────
 import emailjs from '@emailjs/browser'
 
-async function sendEmail({ to, subject, body }) {
+async function sendEmail({ to, employeeName, subject, body }) {
   return emailjs.send(
     'service_atutffw',
-    'template_sx0nowk',
+    'template_er61rbp',
     {
       to_email: to,
-      employee_name: to,
-      week_dates: subject,
-      my_shifts: body,
-      all_shifts: '',
+      employee_name: employeeName,
+      subject: subject,
+      body: body,
     },
     { publicKey: 'O6dGxcOoOfwbY1b2g' }
   )
