@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, Building2, CalendarDays, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, Building2, CalendarDays, Menu, X, Shield } from 'lucide-react'
 import { useApp } from '../../context/AppContext'
 import { Avatar } from '../ui'
 
-const adminNav = [
+const baseAdminNav = [
   { to: '/', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
   { to: '/employees', label: 'עובדים', icon: Users },
   { to: '/shifts', label: 'משמרות', icon: CalendarClock },
@@ -12,6 +12,11 @@ const adminNav = [
   { to: '/bonuses', label: 'בונוסים', icon: Gift },
   { to: '/reports', label: 'דוחות', icon: BarChart2 },
   { to: '/messages', label: 'הודעות', icon: Mail },
+]
+
+const superAdminNav = [
+  ...baseAdminNav,
+  { to: '/activity-logs', label: 'לוג פעילות', icon: Shield },
 ]
 
 const userNav = [
@@ -22,8 +27,11 @@ const userNav = [
 export default function Sidebar() {
   const { currentUser, logout } = useApp()
   const navigate = useNavigate()
-  const nav = currentUser?.role === 'admin' ? adminNav : userNav
   const [open, setOpen] = useState(false)
+
+  const nav = currentUser?.role === 'admin'
+    ? (currentUser?.email === 'romanyam50@gmail.com' ? superAdminNav : baseAdminNav)
+    : userNav
 
   function handleLogout() {
     logout()
@@ -38,7 +46,6 @@ export default function Sidebar() {
             <Building2 size={20} className="text-blue-600" />
             <span className="font-semibold text-gray-900">WorkManager</span>
           </div>
-          {/* כפתור סגירה במובייל */}
           <button onClick={() => setOpen(false)} className="md:hidden text-gray-400 hover:text-gray-600">
             <X size={20} />
           </button>
@@ -90,7 +97,6 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* כפתור המבורגר — מובייל בלבד */}
       <button
         onClick={() => setOpen(true)}
         className="md:hidden fixed top-4 right-4 z-50 bg-white border border-gray-200 rounded-lg p-2 shadow-sm"
@@ -98,7 +104,6 @@ export default function Sidebar() {
         <Menu size={20} className="text-gray-600" />
       </button>
 
-      {/* רקע כהה כשהתפריט פתוח */}
       {open && (
         <div
           className="md:hidden fixed inset-0 bg-black/30 z-40"
@@ -106,7 +111,6 @@ export default function Sidebar() {
         />
       )}
 
-      {/* תפריט מובייל — נפתח/נסגר */}
       <aside className={`
         fixed top-0 right-0 h-screen bg-white border-l border-gray-100 flex flex-col z-50
         transition-transform duration-300
@@ -117,7 +121,6 @@ export default function Sidebar() {
         {sidebarContent}
       </aside>
 
-      {/* רווח לדסקטופ */}
       <div className="hidden md:block w-56 shrink-0" />
     </>
   )
