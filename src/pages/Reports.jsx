@@ -75,65 +75,151 @@ export default function Reports() {
   }
 
 function exportPDF() {
-  const doc = new jsPDF({ orientation: 'landscape' })
+  const win = window.open('', '_blank')
+  win.document.write(`
+    <html dir="rtl">
+    <head>
+      <meta charset="UTF-8">
+      <title>דוח חודשי - WorkManager</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 30px; direction: rtl; }
+        h1 { color: #1e40af; font-size: 20px; margin-bottom: 5px; }
+        p { color: #6b7280; font-size: 13px; margin: 3px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+        th { background: #2563eb; color: white; padding: 8px 12px; text-align: right; }
+        td { padding: 7px 12px; border-bottom: 1px solid #e5e7eb; text-align: right; }
+        tr:nth-child(even) { background: #f5f7ff; }
+        .total-row { background: #1e40af !important; color: white; font-weight: bold; }
+        .total-row td { color: white; }
+        .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
+        .summary-card { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; }
+        .summary-card .label { font-size: 11px; color: #6b7280; }
+        .summary-card .value { font-size: 18px; font-weight: bold; color: #111827; margin-top: 4px; }
+        @media print { button { display: none; } }
+      </style>
+    </head>
+    <body>
+      <h1>📊 WorkManager — דוח חודשי</h1>
+      <p>תקופה: ${from} — ${to}</p>
+      <p>הופק בתאריך: ${new Date().toLocaleDateString('he-IL')}</p>
 
-  doc.setFontSize(16)
-  doc.text(`WorkManager - Monthly Report`, 14, 15)
-  doc.setFontSize(11)
-  doc.text(`Period: ${from} - ${to}`, 14, 23)
+      <div class="summary">
+        <div class="summary-card"><div class="label">סה"כ שעות</div><div class="value">${totals.hrs}</div></div>
+        <div class="summary-card"><div class="label">עלות שכר</div><div class="value">${fmtMoney(totals.pay)}</div></div>
+        <div class="summary-card"><div class="label">בונוסים</div><div class="value">${fmtMoney(totals.bonus)}</div></div>
+        <div class="summary-card"><div class="label">סה"כ לתשלום</div><div class="value">${fmtMoney(totals.total)}</div></div>
+      </div>
 
-  autoTable(doc, {
-    startY: 30,
-    head: [['Employee', 'Regular', 'Friday', 'Saturday', 'Night', 'Total Hrs', 'Salary', 'Bonus', 'Total']],
-    body: [
-      ...rows.map(r => [
-        r.emp.full_name,
-        r.hrs.regular || 0,
-        r.hrs.friday || 0,
-        r.hrs.saturday || 0,
-        r.hrs.night || 0,
-        r.hrs.total,
-        `${Math.round(r.pay).toLocaleString()} ILS`,
-        `${r.bonus.toLocaleString()} ILS`,
-        `${Math.round(r.total).toLocaleString()} ILS`,
-      ]),
-      [
-        'Total', '', '', '', '',
-        totals.hrs,
-        `${Math.round(totals.pay).toLocaleString()} ILS`,
-        `${totals.bonus.toLocaleString()} ILS`,
-        `${Math.round(totals.total).toLocaleString()} ILS`,
-      ]
-    ],
-    styles: { fontSize: 9, halign: 'center' },
-    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: [245, 247, 255] },
-  })
+      <table>
+        <thead>
+          <tr>
+            <th>עובד</th>
+            <th>שע' רגיל</th>
+            <th>שע' שישי</th>
+            <th>שע' שבת</th>
+            <th>שע' לילה</th>
+            <th>סה"כ שעות</th>
+            <th>שכר גולמי</th>
+            <th>בונוסים</th>
+            <th>סה"כ לתשלום</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td>${r.emp.full_name}</td>
+              <td>${r.hrs.regular || 0}</td>
+              <td>${r.hrs.friday || 0}</td>
+              <td>${r.hrs.saturday || 0}</td>
+              <td>${r.hrs.night || 0}</td>
+              <td><strong>${r.hrs.total}</strong></td>
+              <td>${fmtMoney(r.pay)}</td>
+              <td>${fmtMoney(r.bonus)}</td>
+              <td><strong>${fmtMoney(r.total)}</strong></td>
+            </tr>
+          `).join('')}
+          <tr class="total-row">
+            <td><strong>סה"כ</strong></td>
+            <td colspan="4"></td>
+            <td><strong>${totals.hrs}</strong></td>
+            <td><strong>${fmtMoney(totals.pay)}</strong></td>
+            <td><strong>${fmtMoney(totals.bonus)}</strong></td>
+            <td><strong>${fmtMoney(totals.total)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
 
-  doc.save(`workmanager-report-${from}-${to}.pdf`)
+      <script>window.onload = () => window.print()</script>
+    </body>
+    </html>
+  `)
+  win.document.close()
 }
 
 function exportEmployeePDF(row) {
-  const doc = new jsPDF()
-  doc.setFontSize(16)
-  doc.text(`Employee Report: ${row.emp.full_name}`, 14, 15)
-  doc.setFontSize(11)
-  doc.text(`Period: ${from} - ${to}`, 14, 23)
-  doc.text(`Type: ${row.emp.employee_type === 'hourly' ? 'Hourly' : 'Global'}`, 14, 30)
+  const win = window.open('', '_blank')
+  win.document.write(`
+    <html dir="rtl">
+    <head>
+      <meta charset="UTF-8">
+      <title>דוח עובד - ${row.emp.full_name}</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 30px; direction: rtl; }
+        h1 { color: #1e40af; font-size: 20px; margin-bottom: 5px; }
+        p { color: #6b7280; font-size: 13px; margin: 3px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+        th { background: #2563eb; color: white; padding: 8px 12px; text-align: right; }
+        td { padding: 7px 12px; border-bottom: 1px solid #e5e7eb; text-align: right; }
+        tr:nth-child(even) { background: #f5f7ff; }
+        .totals { margin-top: 25px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; }
+        .totals p { font-size: 14px; margin: 6px 0; color: #374151; }
+        .totals .grand { font-size: 18px; font-weight: bold; color: #1e40af; margin-top: 10px; }
+        @media print { button { display: none; } }
+      </style>
+    </head>
+    <body>
+      <h1>📋 דוח עובד — ${row.emp.full_name}</h1>
+      <p>תקופה: ${from} — ${to}</p>
+      <p>סוג העסקה: ${row.emp.employee_type === 'hourly' ? 'שעתי' : 'גלובלי'}</p>
+      ${row.emp.employee_type === 'hourly' ? `<p>תעריף שעתי: ₪${row.emp.hourly_rate}/שעה</p>` : ''}
+      <p>הופק בתאריך: ${new Date().toLocaleDateString('he-IL')}</p>
 
-  autoTable(doc, {
-    startY: 38,
-    head: [['Date', 'Shift Type', 'Hours', 'Pay']],
-    body: row.shifts.map(s => [
-      s.date,
-      SHIFT_TYPE_HE[s.shift_type] || s.shift_type,
-      s.total_hours,
-      `${Math.round(calcShiftPay(s, row.emp)).toLocaleString()} ILS`,
-    ]),
-    styles: { fontSize: 9, halign: 'center' },
-    headStyles: { fillColor: [37, 99, 235], textColor: 255 },
-    alternateRowStyles: { fillColor: [245, 247, 255] },
-  })
+      <table>
+        <thead>
+          <tr>
+            <th>תאריך</th>
+            <th>סוג משמרת</th>
+            <th>שעות</th>
+            <th>שכר</th>
+            <th>הערות</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${row.shifts.map(s => `
+            <tr>
+              <td>${s.date}</td>
+              <td>${SHIFT_TYPE_HE[s.shift_type] || s.shift_type}</td>
+              <td>${s.total_hours}</td>
+              <td>${fmtMoney(calcShiftPay(s, row.emp))}</td>
+              <td>${s.notes || '—'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+
+      <div class="totals">
+        <p>סה"כ שעות: <strong>${row.hrs.total}</strong></p>
+        <p>שכר גולמי: <strong>${fmtMoney(row.pay)}</strong></p>
+        <p>בונוסים: <strong>${fmtMoney(row.bonus)}</strong></p>
+        <p class="grand">💰 סה"כ לתשלום: ${fmtMoney(row.total)}</p>
+      </div>
+
+      <script>window.onload = () => window.print()</script>
+    </body>
+    </html>
+  `)
+  win.document.close()
+}
 
   const finalY = doc.lastAutoTable.finalY + 10
   doc.setFontSize(11)
