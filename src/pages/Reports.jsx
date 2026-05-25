@@ -74,79 +74,79 @@ export default function Reports() {
     a.click()
   }
 
-  function exportPDF() {
-    const doc = new jsPDF({ orientation: 'landscape' })
+function exportPDF() {
+  const doc = new jsPDF({ orientation: 'landscape' })
 
-    doc.setFontSize(16)
-    doc.text(`WorkManager - דוח חודשי`, 14, 15)
-    doc.setFontSize(11)
-    doc.text(`תקופה: ${from} - ${to}`, 14, 23)
+  doc.setFontSize(16)
+  doc.text(`WorkManager - Monthly Report`, 14, 15)
+  doc.setFontSize(11)
+  doc.text(`Period: ${from} - ${to}`, 14, 23)
 
-    autoTable(doc, {
-      startY: 30,
-      head: [['עובד', "שע' רגיל", "שע' שישי", "שע' שבת", "שע' לילה", "סה\"כ שעות", 'שכר גולמי', 'בונוסים', 'סה"כ לתשלום']],
-      body: [
-        ...rows.map(r => [
-          r.emp.full_name,
-          r.hrs.regular || 0,
-          r.hrs.friday || 0,
-          r.hrs.saturday || 0,
-          r.hrs.night || 0,
-          r.hrs.total,
-          `${Math.round(r.pay).toLocaleString()} ₪`,
-          `${r.bonus.toLocaleString()} ₪`,
-          `${Math.round(r.total).toLocaleString()} ₪`,
-        ]),
-        [
-          'סה"כ',
-          '', '', '', '',
-          totals.hrs,
-          `${Math.round(totals.pay).toLocaleString()} ₪`,
-          `${totals.bonus.toLocaleString()} ₪`,
-          `${Math.round(totals.total).toLocaleString()} ₪`,
-        ]
-      ],
-      styles: { font: 'helvetica', fontSize: 9, halign: 'center' },
-      headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
-      alternateRowStyles: { fillColor: [245, 247, 255] },
-      footStyles: { fillColor: [30, 64, 175], textColor: 255, fontStyle: 'bold' },
-    })
-
-    doc.save(`workmanager-report-${from}-${to}.pdf`)
-  }
-
-  function exportEmployeePDF(row) {
-    const doc = new jsPDF()
-    doc.setFontSize(16)
-    doc.text(`דוח עובד: ${row.emp.full_name}`, 14, 15)
-    doc.setFontSize(11)
-    doc.text(`תקופה: ${from} - ${to}`, 14, 23)
-    doc.text(`סוג העסקה: ${row.emp.employee_type === 'hourly' ? 'שעתי' : 'גלובלי'}`, 14, 30)
-
-    autoTable(doc, {
-      startY: 38,
-      head: [['תאריך', 'סוג משמרת', 'שעות', 'שכר']],
-      body: row.shifts.map(s => [
-        s.date,
-        SHIFT_TYPE_HE[s.shift_type] || s.shift_type,
-        s.total_hours,
-        `${Math.round(calcShiftPay(s, row.emp)).toLocaleString()} ₪`,
+  autoTable(doc, {
+    startY: 30,
+    head: [['Employee', 'Regular', 'Friday', 'Saturday', 'Night', 'Total Hrs', 'Salary', 'Bonus', 'Total']],
+    body: [
+      ...rows.map(r => [
+        r.emp.full_name,
+        r.hrs.regular || 0,
+        r.hrs.friday || 0,
+        r.hrs.saturday || 0,
+        r.hrs.night || 0,
+        r.hrs.total,
+        `${Math.round(r.pay).toLocaleString()} ILS`,
+        `${r.bonus.toLocaleString()} ILS`,
+        `${Math.round(r.total).toLocaleString()} ILS`,
       ]),
-      styles: { fontSize: 9, halign: 'center' },
-      headStyles: { fillColor: [37, 99, 235], textColor: 255 },
-      alternateRowStyles: { fillColor: [245, 247, 255] },
-    })
+      [
+        'Total', '', '', '', '',
+        totals.hrs,
+        `${Math.round(totals.pay).toLocaleString()} ILS`,
+        `${totals.bonus.toLocaleString()} ILS`,
+        `${Math.round(totals.total).toLocaleString()} ILS`,
+      ]
+    ],
+    styles: { fontSize: 9, halign: 'center' },
+    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [245, 247, 255] },
+  })
 
-    const finalY = doc.lastAutoTable.finalY + 10
-    doc.setFontSize(11)
-    doc.text(`סה"כ שעות: ${row.hrs.total}`, 14, finalY)
-    doc.text(`שכר גולמי: ${Math.round(row.pay).toLocaleString()} ₪`, 14, finalY + 7)
-    doc.text(`בונוסים: ${row.bonus.toLocaleString()} ₪`, 14, finalY + 14)
-    doc.setFontSize(13)
-    doc.text(`סה"כ לתשלום: ${Math.round(row.total).toLocaleString()} ₪`, 14, finalY + 24)
+  doc.save(`workmanager-report-${from}-${to}.pdf`)
+}
 
-    doc.save(`${row.emp.full_name}-${from}-${to}.pdf`)
-  }
+function exportEmployeePDF(row) {
+  const doc = new jsPDF()
+  doc.setFontSize(16)
+  doc.text(`Employee Report: ${row.emp.full_name}`, 14, 15)
+  doc.setFontSize(11)
+  doc.text(`Period: ${from} - ${to}`, 14, 23)
+  doc.text(`Type: ${row.emp.employee_type === 'hourly' ? 'Hourly' : 'Global'}`, 14, 30)
+
+  autoTable(doc, {
+    startY: 38,
+    head: [['Date', 'Shift Type', 'Hours', 'Pay']],
+    body: row.shifts.map(s => [
+      s.date,
+      SHIFT_TYPE_HE[s.shift_type] || s.shift_type,
+      s.total_hours,
+      `${Math.round(calcShiftPay(s, row.emp)).toLocaleString()} ILS`,
+    ]),
+    styles: { fontSize: 9, halign: 'center' },
+    headStyles: { fillColor: [37, 99, 235], textColor: 255 },
+    alternateRowStyles: { fillColor: [245, 247, 255] },
+  })
+
+  const finalY = doc.lastAutoTable.finalY + 10
+  doc.setFontSize(11)
+  doc.text(`Total Hours: ${row.hrs.total}`, 14, finalY)
+  doc.text(`Gross Salary: ${Math.round(row.pay).toLocaleString()} ILS`, 14, finalY + 7)
+  doc.text(`Bonus: ${row.bonus.toLocaleString()} ILS`, 14, finalY + 14)
+  doc.setFontSize(13)
+  doc.text(`Total Payment: ${Math.round(row.total).toLocaleString()} ILS`, 14, finalY + 24)
+
+  doc.save(`${row.emp.full_name}-${from}-${to}.pdf`)
+}
+
+ 
 
   return (
     <div className="p-6">
