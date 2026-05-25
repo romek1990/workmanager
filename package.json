@@ -14,7 +14,9 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.27.0",
     "lucide-react": "^0.454.0",
-    "@emailjs/browser": "^4.3.3"
+    "@emailjs/browser": "^4.3.3",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.8.2"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",
