@@ -4,22 +4,6 @@ import { useApp } from '../context/AppContext'
 import { Avatar } from '../components/ui'
 import emailjs from '@emailjs/browser'
 
-// ─────────────────────────────────────────────────────────────
-// 📧 EMAIL INTEGRATION
-// Replace sendEmail() below with your provider:
-//
-// Option A – Resend (recommended, free tier):
-//   npm install resend
-//   https://resend.com/docs
-//
-// Option B – SendGrid:
-//   npm install @sendgrid/mail
-//   https://docs.sendgrid.com
-//
-// Option C – Nodemailer (requires a backend/serverless function)
-// ─────────────────────────────────────────────────────────────
-import emailjs from '@emailjs/browser'
-
 async function sendEmail({ to, employeeName, subject, body }) {
   return emailjs.send(
     'service_atutffw',
@@ -39,7 +23,7 @@ export default function Messages() {
   const [selected, setSelected] = useState(new Set())
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
-  const [status, setStatus] = useState(null) // null | 'sending' | 'done' | 'error'
+  const [status, setStatus] = useState(null)
 
   function toggle(email) {
     setSelected(prev => {
@@ -60,9 +44,9 @@ export default function Messages() {
     try {
       await Promise.all(
         [...selected].map(to => {
-  const emp = employees.find(e => e.email === to)
-  return sendEmail({ to, employeeName: emp?.full_name || to, subject, body })
-})
+          const emp = employees.find(e => e.email === to)
+          return sendEmail({ to, employeeName: emp?.full_name || to, subject, body })
+        })
       )
       setStatus('done')
       setSubject('')
@@ -79,7 +63,6 @@ export default function Messages() {
       <h1 className="text-lg font-medium mb-5">הודעות</h1>
 
       <div className="grid grid-cols-5 gap-5">
-        {/* Employee list */}
         <div className="col-span-2">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-gray-700">בחר עובדים</span>
@@ -107,7 +90,6 @@ export default function Messages() {
           </div>
         </div>
 
-        {/* Compose */}
         <div className="col-span-3">
           <div className="card p-5 h-full flex flex-col">
             <h3 className="text-sm font-medium mb-4">כתיבת הודעה</h3>
