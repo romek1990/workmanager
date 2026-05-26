@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Play, Square, Clock, Banknote, CalendarDays, Plus } from 'lucide-react'
+import { Play, Square, Clock, Banknote, CalendarDays, Plus, MoonStar, CalendarCheck } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { ShiftTypeBadge, StatusBadge, StatCard, CardSection, Table, AlertModal, Modal } from '../components/ui'
 import { calcShiftPay, fmtMoney, calcHours, todayISO } from '../utils/helpers'
@@ -13,8 +13,39 @@ const defaultManualForm = {
   notes: ''
 }
 
+function getWeekStart(date) {
+  const d = new Date(date)
+  const day = d.getDay()
+  d.setDate(d.getDate() - day)
+  return d.toISOString().split('T')[0]
+}
+
+function addDays(dateStr, n) {
+  const d = new Date(dateStr)
+  d.setDate(d.getDate() + n)
+  return d.toISOString().split('T')[0]
+}
+
+function formatDate(dateStr) {
+  return new Date(dateStr).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' })
+}
+
+function isMidnightCross(start, end) {
+  return end <= start
+}
+
+function calcHoursStr(start, end) {
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  let mins = (eh * 60 + em) - (sh * 60 + sm)
+  if (mins <= 0) mins += 24 * 60
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return m === 0 ? `${h}ש'` : `${h}ש' ${m}ד'`
+}
+
 export default function UserHome() {
-  const { employees, shifts, bonuses, currentUserEmail, currentUser, addShift } = useApp()
+  const { employees, shifts, bonuses, weeklySchedule, dayNotes, currentUserEmail, currentUser, addShift } = useApp()
   const emp = employees.find(e => e.email === currentUserEmail)
   const [now, setNow] = useState(new Date())
   const [active, setActive] = useState(false)
@@ -37,6 +68,13 @@ export default function UserHome() {
     : approvedShifts.reduce((a, s) => a + (calcShiftPay(s, emp) || 0), 0)
   const pendingCount = myShifts.filter(s => s.status === 'pending').length
 
+  // סידור שבועי
+  const weekStart = getWeekStart(new Date())
+  const myWeekEntries = weeklySchedule.filter(e =>
+    e.week_start === weekStart && e.employee_id === currentUser?.id
+  )
+  const todayDayOfWeek = new Date().getDay()
+
   function toggleShift() {
     if (!active) {
       setActive(true)
@@ -50,10 +88,10 @@ export default function UserHome() {
       const shiftType = day === 6 ? 'saturday' : day === 5 ? 'friday' : 'regular'
 
       addShift({
-  employee_email: currentUserEmail,
-  employee_name: emp?.full_name || currentUser?.name || '',
-  employee_id: currentUser?.id,
-  date: shiftStart.toISOString().slice(0, 10),
+        employee_email: currentUserEmail,
+        employee_name: emp?.full_name || currentUser?.name || '',
+        employee_id: currentUser?.id,
+        date: shiftStart.toISOString().slice(0, 10),
         start_time: startStr,
         end_time: endStr,
         total_hours: Math.max(hrs, 0.5),
@@ -81,10 +119,10 @@ export default function UserHome() {
       const hrs = Math.round((mins / 60) * 10) / 10
 
       await addShift({
-  employee_email: currentUserEmail,
-  employee_name: emp?.full_name || currentUser?.name || '',
-  employee_id: currentUser?.id,
-  date: manualForm.date,
+        employee_email: currentUserEmail,
+        employee_name: emp?.full_name || currentUser?.name || '',
+        employee_id: currentUser?.id,
+        date: manualForm.date,
         start_time: manualForm.start_time,
         end_time: manualForm.end_time,
         total_hours: hrs,
@@ -147,12 +185,83 @@ export default function UserHome() {
       </div>
 
       {/* Stats */}
-    <div className="grid grid-cols-2 gap-3 mb-5">
-  <StatCard label="שעות החודש" value={totalHours} sub="מאושרות" icon={Clock} iconColor="text-amber-500" />
-  <StatCard label="שכר משוער" value={fmtMoney(totalPay)} sub="לפני ניכויים" icon={Banknote} iconColor="text-green-500" />
-  <StatCard label="סך הכל משמרות שדווחו" value={myShifts.length} sub={`${pendingCount} ממתינות`} icon={CalendarDays} iconColor="text-blue-500" />
-  <StatCard label="משמרות שאושרו" value={approvedShifts.length} sub="החודש" icon={CalendarDays} iconColor="text-green-500" />
-</div>
+      <div className="grid grid-cols-2 gap-3 mb-5">
+        <StatCard label="שעות החודש" value={totalHours} sub="מאושרות" icon={Clock} iconColor="text-amber-500" />
+        <StatCard label="שכר משוער" value={fmtMoney(totalPay)} sub="לפני ניכויים" icon={Banknote} iconColor="text-green-500" />
+        <StatCard label="סך הכל משמרות שדווחו" value={myShifts.length} sub={`${pendingCount} ממתינות`} icon={CalendarDays} iconColor="text-blue-500" />
+        <StatCard label="משמרות שאושרו" value={approvedShifts.length} sub="החודש" icon={CalendarDays} iconColor="text-green-500" />
+      </div>
+
+      {/* סידור שבועי */}
+      <div className="card p-4 mb-5">
+        <div className="flex items-center gap-2 mb-4">
+          <CalendarCheck size={18} className="text-blue-600" />
+          <h2 className="text-sm font-medium text-gray-800">הסידור שלי השבוע</h2>
+          <span className="text-xs text-gray-400">
+            {formatDate(weekStart)} — {formatDate(addDays(weekStart, 6))}
+          </span>
+        </div>
+
+        {myWeekEntries.length === 0 ? (
+          <div className="text-center py-6 text-sm text-gray-400">
+            אין משמרות מתוכננות לשבוע זה
+          </div>
+        ) : (
+          <div className="grid grid-cols-7 gap-1">
+            {DAY_NAMES.map((dayName, i) => {
+              const entry = myWeekEntries.find(e => e.day_of_week === i)
+              const date = addDays(weekStart, i)
+              const note = dayNotes.find(n => n.date === date)
+              const isToday = i === todayDayOfWeek
+              const night = entry ? isMidnightCross(entry.start_time, entry.end_time) : false
+
+              return (
+                <div
+                  key={i}
+                  className={`rounded-xl p-2 text-center text-xs flex flex-col gap-1 border transition-all ${
+                    isToday
+                      ? 'border-blue-300 bg-blue-50 shadow-sm'
+                      : entry
+                        ? night
+                          ? 'border-indigo-100 bg-indigo-50'
+                          : 'border-green-100 bg-green-50'
+                        : 'border-gray-100 bg-gray-50'
+                  }`}
+                >
+                  {/* שם היום */}
+                  <div className={`font-semibold ${isToday ? 'text-blue-700' : 'text-gray-600'}`}>
+                    {dayName}
+                  </div>
+                  {/* תאריך */}
+                  <div className={`text-[10px] ${isToday ? 'text-blue-500' : 'text-gray-400'}`}>
+                    {formatDate(date)}
+                  </div>
+
+                  {entry ? (
+                    <>
+                      <div className={`font-medium text-[11px] ${night ? 'text-indigo-700' : 'text-green-700'}`}>
+                        {night && <MoonStar size={9} className="inline ml-0.5" />}
+                        {entry.start_time.slice(0, 5)}–{entry.end_time.slice(0, 5)}
+                      </div>
+                      <div className={`text-[10px] ${night ? 'text-indigo-500' : 'text-green-500'}`}>
+                        {calcHoursStr(entry.start_time, entry.end_time)}
+                      </div>
+                      {entry.notes && (
+                        <div className="text-[9px] text-gray-400 truncate">{entry.notes}</div>
+                      )}
+                      {note && (
+                        <div className="text-[9px] text-amber-600 bg-amber-50 rounded px-1 truncate">{note.note}</div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-[10px] text-gray-300 mt-1">חופש</div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Recent shifts */}
       <CardSection title="משמרות אחרונות">
