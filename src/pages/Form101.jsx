@@ -58,7 +58,7 @@ export default function Form101() {
       .select('*')
       .eq('employee_id', currentUser.id)
       .eq('year', currentYear)
-      .single()
+      .maybeSingle()
     if (data) {
       setExistingForm(data)
       setForm({
@@ -181,10 +181,8 @@ export default function Form101() {
         submitted_at: new Date().toISOString(),
       }
 
-      // ✅ שימוש בפונקציה מה-AppContext
       await submitForm101(payload)
 
-      // התראה למנהלים
       const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin')
       if (admins) {
         for (const admin of admins) {
