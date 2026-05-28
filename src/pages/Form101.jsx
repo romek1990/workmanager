@@ -1,33 +1,49 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { AlertModal } from '../components/ui'
-import { CheckCircle, Upload, FileText, Clock } from 'lucide-react'
+import { CheckCircle, Upload, FileText, Clock, Plus, Trash2 } from 'lucide-react'
+import SignatureCanvas from 'react-signature-canvas'
 
-const MARITAL_OPTIONS = ['רווק/ה', 'נשוי/אה', 'גרוש/ה', 'אלמן/ה']
-const BANK_OPTIONS = ['בנק הפועלים', 'בנק לאומי', 'בנק דיסקונט', 'בנק מזרחי טפחות', 'בנק אוצר החייל', 'בנק ירושלים', 'בנק הבינלאומי', 'בנק יהב', 'אחר']
+const MARITAL_OPTIONS = ['רווק/ה', 'נשוי/אה', 'גרוש/ה', 'אלמן/ה', 'פרוד/ה']
+const INCOME_TYPES = ['משכורת חודש', 'משכורת בעד משרה נוספת', 'משכורת חלקית', 'שכר עבודה (עובד יומי)', 'קצבה', 'מלגה']
 
 const defaultForm = {
+  // פרטי עובד
+  first_name: '',
+  last_name: '',
   id_number: '',
   birth_date: '',
   gender: 'זכר',
   address: '',
+  house_number: '',
   city: '',
   zip_code: '',
   phone: '',
+  mobile_phone: '',
+  email: '',
   marital_status: 'רווק/ה',
-  children_count: 0,
-  bank_name: '',
-  bank_branch: '',
-  bank_account: '',
-  is_primary_employer: true,
-  tax_credits: '',
-  notes: '',
+  is_israel_resident: true,
+  is_kibbutz_member: false,
+  health_fund: '',
+  // ילדים
+  children: [],
+  // פרטי הכנסה
+  income_types: [],
+  work_start_date: '',
+  has_other_income: false,
+  // פטורים
+  exemptions: [],
+  // תיאום מס
+  tax_coordination: false,
+  // חתימה
+  signature: '',
 }
 
 export default function Form101() {
-  const { currentUser, currentUserEmail, employees, addNotification } = useApp()
+  const { currentUser, currentUserEmail, employees } = useApp()
   const emp = employees.find(e => e.email === currentUserEmail)
+  const sigRef = useRef(null)
 
   const [form, setForm] = useState(defaultForm)
   const [idFront, setIdFront] = useState(null)
@@ -39,9 +55,7 @@ export default function Form101() {
   const [alert, setAlert] = useState(null)
   const currentYear = new Date().getFullYear()
 
-  useEffect(() => {
-    loadExistingForm()
-  }, [currentUser])
+  useEffect(() => { loadExistingForm() }, [currentUser])
 
   async function loadExistingForm() {
     if (!currentUser?.id) return
@@ -54,22 +68,32 @@ export default function Form101() {
     if (data) {
       setExistingForm(data)
       setForm({
+        first_name: data.first_name || '',
+        last_name: data.last_name || '',
         id_number: data.id_number || '',
         birth_date: data.birth_date || '',
         gender: data.gender || 'זכר',
         address: data.address || '',
+        house_number: data.house_number || '',
         city: data.city || '',
         zip_code: data.zip_code || '',
         phone: data.phone || '',
+        mobile_phone: data.mobile_phone || '',
+        email: data.email || currentUserEmail || '',
         marital_status: data.marital_status || 'רווק/ה',
-        children_count: data.children_count || 0,
-        bank_name: data.bank_name || '',
-        bank_branch: data.bank_branch || '',
-        bank_account: data.bank_account || '',
-        is_primary_employer: data.is_primary_employer ?? true,
-        tax_credits: data.tax_credits || '',
-        notes: data.notes || '',
+        is_israel_resident: data.is_israel_resident ?? true,
+        is_kibbutz_member: data.is_kibbutz_member ?? false,
+        health_fund: data.health_fund || '',
+        children: data.children || [],
+        income_types: data.income_types || [],
+        work_start_date: data.work_start_date || '',
+        has_other_income: data.has_other_income ?? false,
+        exemptions: data.exemptions || [],
+        tax_coordination: data.tax_coordination ?? false,
+        signature: data.signature || '',
       })
+    } else {
+      setForm(p => ({ ...p, email: currentUserEmail || '' }))
     }
   }
 
@@ -84,23 +108,69 @@ export default function Form101() {
   async function uploadFile(file, side) {
     const ext = file.name.split('.').pop()
     const path = `${currentUser.id}/id_${side}_${currentYear}.${ext}`
-    const { error } = await supabase.storage
-      .from('id-documents')
-      .upload(path, file, { upsert: true })
+    const { error } = await supabase.storage.from('id-documents').upload(path, file, { upsert: true })
     if (error) throw error
     return path
   }
 
+  function addChild() {
+    setForm(p => ({ ...p, children: [...p.children, { name: '', id_number: '', birth_date: '', in_custody: false, receives_allowance: false }] }))
+  }
+
+  function updateChild(i, k, v) {
+    setForm(p => {
+      const children = [...p.children]
+      children[i] = { ...children[i], [k]: v }
+      return { ...p, children }
+    })
+  }
+
+  function removeChild(i) {
+    setForm(p => ({ ...p, children: p.children.filter((_, idx) => idx !== i) }))
+  }
+
+  function toggleIncomeType(type) {
+    setForm(p => ({
+      ...p,
+      income_types: p.income_types.includes(type)
+        ? p.income_types.filter(t => t !== type)
+        : [...p.income_types, type]
+    }))
+  }
+
+  function toggleExemption(num) {
+    setForm(p => ({
+      ...p,
+      exemptions: p.exemptions.includes(num)
+        ? p.exemptions.filter(e => e !== num)
+        : [...p.exemptions, num]
+    }))
+  }
+
   async function handleSubmit() {
-    if (!form.id_number || !form.birth_date || !form.bank_account) {
-      setAlert({ title: 'שגיאה', message: 'יש למלא ת.ז, תאריך לידה ומספר חשבון בנק' })
+    if (!form.id_number || !form.birth_date || !form.mobile_phone || !form.email || !form.city || !form.address) {
+      setAlert({ title: 'שגיאה', message: 'יש למלא את כל השדות החובה המסומנים בכוכבית' })
       return
     }
+    if (form.income_types.length === 0) {
+      setAlert({ title: 'שגיאה', message: 'יש לסמן לפחות סוג הכנסה אחד' })
+      return
+    }
+
+    // שמור חתימה
+    let signature = form.signature
+    if (sigRef.current && !sigRef.current.isEmpty()) {
+      signature = sigRef.current.toDataURL()
+    }
+    if (!signature) {
+      setAlert({ title: 'שגיאה', message: 'יש לחתום על הטופס' })
+      return
+    }
+
     setLoading(true)
     try {
       let idFrontUrl = existingForm?.id_front_url || null
       let idBackUrl = existingForm?.id_back_url || null
-
       if (idFront) idFrontUrl = await uploadFile(idFront, 'front')
       if (idBack) idBackUrl = await uploadFile(idBack, 'back')
 
@@ -109,6 +179,7 @@ export default function Form101() {
         employee_name: emp?.full_name || currentUser.name,
         employee_email: currentUserEmail,
         ...form,
+        signature,
         id_front_url: idFrontUrl,
         id_back_url: idBackUrl,
         status: 'pending',
@@ -135,12 +206,7 @@ export default function Form101() {
         }
       }
 
-      // סמן התראת עובד כנקראת
-      await supabase.from('notifications')
-        .update({ read: true })
-        .eq('user_id', currentUser.id)
-        .ilike('title', '%101%')
-
+      await supabase.from('notifications').update({ read: true }).eq('user_id', currentUser.id).ilike('title', '%101%')
       setAlert({ title: 'נשלח בהצלחה!', message: 'הטופס נשלח לאישור המנהל' })
       await loadExistingForm()
     } catch (e) {
@@ -153,190 +219,228 @@ export default function Form101() {
 
   const isApproved = existingForm?.status === 'approved'
   const isPending = existingForm?.status === 'pending'
+  const disabled = isApproved
+
+  const EXEMPTION_OPTIONS = [
+    { num: 1, label: 'אני תושב/ת ישראל' },
+    { num: 2, label: 'אני נכה 100% / עיוור/ת לצמיתות' },
+    { num: 3, label: 'אני תושב/ת קבוע/ה בישוב מזכה' },
+    { num: 4, label: 'אני עולה חדש/ה' },
+    { num: 5, label: 'בגין בן/בת זוגי המתגורר/ת עימי ואין לו/לה הכנסות' },
+    { num: 6, label: 'אני הורה במשפחה חד הורית החי בנפרד' },
+    { num: 7, label: 'בגין ילדיי שבחזקתי' },
+    { num: 8, label: 'בגין ילדיי שאינם בחזקתי' },
+    { num: 9, label: 'אני הורה יחיד לילדיי שבחזקתי' },
+    { num: 11, label: 'אני הורה לילדים עם מוגבלות' },
+    { num: 14, label: 'אני חייל/ת משוחרר/ת / שירתתי בשירות לאומי' },
+    { num: 16, label: 'שירתתי כלוחם/לוחמת מילואים' },
+  ]
 
   return (
-    <div className="p-6 pt-14 md:pt-6 max-w-2xl mx-auto">
+    <div className="p-6 pt-14 md:pt-6 max-w-3xl mx-auto">
+      {/* כותרת */}
       <div className="flex items-center gap-3 mb-6">
         <FileText size={22} className="text-blue-600" />
         <div>
           <h1 className="text-lg font-medium">טופס 101</h1>
           <p className="text-xs text-gray-400">הצהרת עובד למס הכנסה — שנת {currentYear}</p>
         </div>
-        {isApproved && (
-          <span className="mr-auto flex items-center gap-1.5 text-xs text-green-600 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full">
-            <CheckCircle size={13} /> אושר
-          </span>
-        )}
-        {isPending && (
-          <span className="mr-auto flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
-            <Clock size={13} /> ממתין לאישור
-          </span>
-        )}
+        {isApproved && <span className="mr-auto flex items-center gap-1.5 text-xs text-green-600 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full"><CheckCircle size={13} />אושר</span>}
+        {isPending && <span className="mr-auto flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full"><Clock size={13} />ממתין לאישור</span>}
       </div>
 
-      <div className="space-y-5">
-        {/* פרטים אישיים */}
-        <div className="card p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-100">פרטים אישיים</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2 md:col-span-1">
-              <label className="form-label">שם מלא</label>
-              <input className="form-control bg-gray-50" value={emp?.full_name || ''} disabled />
-            </div>
-            <div className="col-span-2 md:col-span-1">
-              <label className="form-label">מספר ת.ז *</label>
-              <input className="form-control" value={form.id_number} onChange={e => set('id_number', e.target.value)}
-                placeholder="000000000" disabled={isApproved} />
+      <div className="space-y-4">
+
+        {/* א. פרטי המעסיק */}
+        <Section title="א. פרטי המעסיק">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="שם המעסיק" value="WorkManager" disabled />
+            <Field label="מספר תיק ניכויים" value="" disabled />
+          </div>
+        </Section>
+
+        {/* ב. פרטי העובד */}
+        <Section title="ב. פרטי העובד/ת">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="form-label">שם פרטי <Required /></label>
+              <input className="form-control" value={form.first_name} onChange={e => set('first_name', e.target.value)} disabled={disabled} placeholder="ע״פ הרשום בת.ז" />
             </div>
             <div>
-              <label className="form-label">תאריך לידה *</label>
-              <input type="date" className="form-control" value={form.birth_date}
-                onChange={e => set('birth_date', e.target.value)} disabled={isApproved} />
+              <label className="form-label">שם משפחה <Required /></label>
+              <input className="form-control" value={form.last_name} onChange={e => set('last_name', e.target.value)} disabled={disabled} placeholder="ע״פ הרשום בת.ז" />
             </div>
             <div>
-              <label className="form-label">מגדר</label>
-              <select className="form-control" value={form.gender} onChange={e => set('gender', e.target.value)} disabled={isApproved}>
-                <option>זכר</option>
-                <option>נקבה</option>
-              </select>
-            </div>
-            <div className="col-span-2">
-              <label className="form-label">כתובת מגורים</label>
-              <input className="form-control" value={form.address} onChange={e => set('address', e.target.value)}
-                placeholder="רחוב ומספר בית" disabled={isApproved} />
+              <label className="form-label">מספר ת.ז <Required /></label>
+              <input className="form-control" value={form.id_number} onChange={e => set('id_number', e.target.value)} disabled={disabled} placeholder="9 ספרות" maxLength={9} />
             </div>
             <div>
-              <label className="form-label">עיר</label>
-              <input className="form-control" value={form.city} onChange={e => set('city', e.target.value)}
-                placeholder="עיר" disabled={isApproved} />
+              <label className="form-label">תאריך לידה <Required /></label>
+              <input type="date" className="form-control" value={form.birth_date} onChange={e => set('birth_date', e.target.value)} disabled={disabled} />
+            </div>
+            <div>
+              <label className="form-label">רחוב <Required /></label>
+              <input className="form-control" value={form.address} onChange={e => set('address', e.target.value)} disabled={disabled} placeholder="שם הרחוב" />
+            </div>
+            <div>
+              <label className="form-label">מספר בית <Required /></label>
+              <input className="form-control" value={form.house_number} onChange={e => set('house_number', e.target.value)} disabled={disabled} />
+            </div>
+            <div>
+              <label className="form-label">ישוב <Required /></label>
+              <input className="form-control" value={form.city} onChange={e => set('city', e.target.value)} disabled={disabled} />
             </div>
             <div>
               <label className="form-label">מיקוד</label>
-              <input className="form-control" value={form.zip_code} onChange={e => set('zip_code', e.target.value)}
-                placeholder="1234567" disabled={isApproved} />
+              <input className="form-control" value={form.zip_code} onChange={e => set('zip_code', e.target.value)} disabled={disabled} />
             </div>
             <div>
-              <label className="form-label">טלפון</label>
-              <input className="form-control" value={form.phone} onChange={e => set('phone', e.target.value)}
-                placeholder="050-0000000" disabled={isApproved} />
+              <label className="form-label">טלפון נייד <Required /></label>
+              <input className="form-control" value={form.mobile_phone} onChange={e => set('mobile_phone', e.target.value)} disabled={disabled} placeholder="050-0000000" />
+            </div>
+            <div>
+              <label className="form-label">טלפון נוסף</label>
+              <input className="form-control" value={form.phone} onChange={e => set('phone', e.target.value)} disabled={disabled} />
+            </div>
+            <div className="col-span-2">
+              <label className="form-label">כתובת דואר אלקטרוני <Required /></label>
+              <input type="email" className="form-control" value={form.email} onChange={e => set('email', e.target.value)} disabled={disabled} />
             </div>
           </div>
-        </div>
 
-        {/* מצב משפחתי */}
-        <div className="card p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-100">מצב משפחתי</h2>
-          <div className="grid grid-cols-2 gap-4">
+          {/* רדיו בוטונים */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <RadioGroup label="מין" required value={form.gender} onChange={v => set('gender', v)} options={['זכר', 'נקבה']} disabled={disabled} />
             <div>
-              <label className="form-label">מצב משפחתי</label>
-              <select className="form-control" value={form.marital_status} onChange={e => set('marital_status', e.target.value)} disabled={isApproved}>
+              <label className="form-label">מצב משפחתי <Required /></label>
+              <select className="form-control" value={form.marital_status} onChange={e => set('marital_status', e.target.value)} disabled={disabled}>
                 {MARITAL_OPTIONS.map(o => <option key={o}>{o}</option>)}
               </select>
             </div>
-            <div>
-              <label className="form-label">מספר ילדים</label>
-              <input type="number" min="0" max="20" className="form-control" value={form.children_count}
-                onChange={e => set('children_count', parseInt(e.target.value) || 0)} disabled={isApproved} />
+            <RadioGroup label="תושב ישראל" required value={form.is_israel_resident ? 'כן' : 'לא'} onChange={v => set('is_israel_resident', v === 'כן')} options={['כן', 'לא']} disabled={disabled} />
+            <RadioGroup label="חבר קיבוץ/מושב שיתופי" required value={form.is_kibbutz_member ? 'כן' : 'לא'} onChange={v => set('is_kibbutz_member', v === 'כן')} options={['כן', 'לא']} disabled={disabled} />
+          </div>
+
+          <div className="mt-3">
+            <label className="form-label">קופת חולים <Required /></label>
+            <select className="form-control" value={form.health_fund} onChange={e => set('health_fund', e.target.value)} disabled={disabled}>
+              <option value="">בחר קופת חולים</option>
+              {['כללית', 'מכבי', 'מאוחדת', 'לאומית'].map(o => <option key={o}>{o}</option>)}
+            </select>
+          </div>
+
+          {/* העלאת ת.ז */}
+          <div className="mt-4">
+            <label className="form-label text-sm font-medium">צילום תעודת זהות וספח <Required /></label>
+            <div className="grid grid-cols-2 gap-3 mt-2">
+              <UploadBox label="צד קדמי" preview={idFrontPreview} existing={existingForm?.id_front_url} onChange={e => handleFileChange(e, 'front')} disabled={disabled} />
+              <UploadBox label="ספח (צד אחורי)" preview={idBackPreview} existing={existingForm?.id_back_url} onChange={e => handleFileChange(e, 'back')} disabled={disabled} />
             </div>
           </div>
-        </div>
+        </Section>
 
-        {/* פרטי בנק */}
-        <div className="card p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-100">פרטי בנק</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="form-label">שם הבנק</label>
-              <select className="form-control" value={form.bank_name} onChange={e => set('bank_name', e.target.value)} disabled={isApproved}>
-                <option value="">בחר בנק</option>
-                {BANK_OPTIONS.map(o => <option key={o}>{o}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="form-label">מספר סניף</label>
-              <input className="form-control" value={form.bank_branch} onChange={e => set('bank_branch', e.target.value)}
-                placeholder="000" disabled={isApproved} />
-            </div>
-            <div>
-              <label className="form-label">מספר חשבון *</label>
-              <input className="form-control" value={form.bank_account} onChange={e => set('bank_account', e.target.value)}
-                placeholder="000000000" disabled={isApproved} />
-            </div>
-          </div>
-        </div>
-
-        {/* מס הכנסה */}
-        <div className="card p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-100">מס הכנסה</h2>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <input type="checkbox" id="primary" checked={form.is_primary_employer}
-                onChange={e => set('is_primary_employer', e.target.checked)} disabled={isApproved}
-                className="w-4 h-4 rounded border-gray-300" />
-              <label htmlFor="primary" className="text-sm text-gray-700">מעסיק עיקרי (ניכוי מס רגיל)</label>
-            </div>
-            {!form.is_primary_employer && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
-                ⚠️ מעסיק משני — ינוכה מס מקסימלי (47%)
+        {/* ג. פרטים על ילדים */}
+        <Section title="ג. פרטים על ילדים (מתחת לגיל 19)">
+          {form.children.map((child, i) => (
+            <div key={i} className="bg-gray-50 rounded-xl p-3 mb-3 border border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-gray-600">ילד {i + 1}</span>
+                {!disabled && <button onClick={() => removeChild(i)} className="text-red-400 hover:text-red-600"><Trash2 size={13} /></button>}
               </div>
-            )}
-            <div>
-              <label className="form-label">נקודות זיכוי מיוחדות (אופציונלי)</label>
-              <input className="form-control" value={form.tax_credits}
-                onChange={e => set('tax_credits', e.target.value)}
-                placeholder="לדוגמה: תושב זכאי, נכות..." disabled={isApproved} />
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="form-label">שם <Required /></label>
+                  <input className="form-control text-sm" value={child.name} onChange={e => updateChild(i, 'name', e.target.value)} disabled={disabled} />
+                </div>
+                <div>
+                  <label className="form-label">מספר ת.ז <Required /></label>
+                  <input className="form-control text-sm" value={child.id_number} onChange={e => updateChild(i, 'id_number', e.target.value)} disabled={disabled} />
+                </div>
+                <div>
+                  <label className="form-label">תאריך לידה <Required /></label>
+                  <input type="date" className="form-control text-sm" value={child.birth_date} onChange={e => updateChild(i, 'birth_date', e.target.value)} disabled={disabled} />
+                </div>
+              </div>
+              <div className="flex gap-4 mt-2">
+                <Checkbox label="הילד נמצא בחזקתי" checked={child.in_custody} onChange={v => updateChild(i, 'in_custody', v)} disabled={disabled} />
+                <Checkbox label="אני מקבל/ת קצבת ילדים מב״ל" checked={child.receives_allowance} onChange={v => updateChild(i, 'receives_allowance', v)} disabled={disabled} />
+              </div>
+            </div>
+          ))}
+          {!disabled && (
+            <button onClick={addChild} className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 border border-dashed border-blue-200 rounded-lg px-3 py-2 w-full justify-center">
+              <Plus size={13} /> הוסף ילד
+            </button>
+          )}
+        </Section>
+
+        {/* ד. פרטים על הכנסות ממעסיק זה */}
+        <Section title="ד. פרטים על הכנסותי ממעסיק זה">
+          <div>
+            <label className="form-label">אני מקבל/ת <Required /></label>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1">
+              {INCOME_TYPES.map(type => (
+                <Checkbox key={type} label={type} checked={form.income_types.includes(type)} onChange={() => !disabled && toggleIncomeType(type)} disabled={disabled} />
+              ))}
             </div>
           </div>
-        </div>
-
-        {/* העלאת ת.ז */}
-        <div className="card p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-100">צילום תעודת זהות</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="form-label">צד קדמי *</label>
-              {!isApproved && (
-                <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl p-4 cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors">
-                  <Upload size={20} className="text-gray-400 mb-1" />
-                  <span className="text-xs text-gray-400">לחץ להעלאה</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={e => handleFileChange(e, 'front')} />
-                </label>
-              )}
-              {(idFrontPreview || existingForm?.id_front_url) && (
-                <div className="mt-2 text-xs text-green-600 flex items-center gap-1">
-                  <CheckCircle size={12} /> {idFrontPreview ? 'קובץ נבחר' : 'קובץ קיים'}
-                </div>
-              )}
-            </div>
-            <div>
-              <label className="form-label">ספח (צד אחורי) *</label>
-              {!isApproved && (
-                <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl p-4 cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors">
-                  <Upload size={20} className="text-gray-400 mb-1" />
-                  <span className="text-xs text-gray-400">לחץ להעלאה</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={e => handleFileChange(e, 'back')} />
-                </label>
-              )}
-              {(idBackPreview || existingForm?.id_back_url) && (
-                <div className="mt-2 text-xs text-green-600 flex items-center gap-1">
-                  <CheckCircle size={12} /> {idBackPreview ? 'קובץ נבחר' : 'קובץ קיים'}
-                </div>
-              )}
-            </div>
+          <div className="mt-3">
+            <label className="form-label">תאריך תחילת העבודה בשנת המס <Required /></label>
+            <input type="date" className="form-control" value={form.work_start_date} onChange={e => set('work_start_date', e.target.value)} disabled={disabled} />
           </div>
-        </div>
+        </Section>
 
-        {/* הערות */}
-        <div className="card p-5">
-          <label className="form-label">הערות נוספות (אופציונלי)</label>
-          <textarea className="form-control" rows={3} value={form.notes}
-            onChange={e => set('notes', e.target.value)}
-            placeholder="כל מידע נוסף רלוונטי..." disabled={isApproved} />
-        </div>
+        {/* ה. הכנסות אחרות */}
+        <Section title="ה. פרטים על הכנסות אחרות">
+          <RadioGroup
+            label="יש לך הכנסות אחרות?"
+            required
+            value={form.has_other_income ? 'יש לי הכנסות נוספות' : 'אין לי הכנסות אחרות'}
+            onChange={v => set('has_other_income', v === 'יש לי הכנסות נוספות')}
+            options={['אין לי הכנסות אחרות', 'יש לי הכנסות נוספות']}
+            disabled={disabled}
+          />
+        </Section>
 
+        {/* ח. פטורים */}
+        <Section title="ח. אני מבקש/ת פטור או זיכוי ממס">
+          <div className="space-y-2">
+            {EXEMPTION_OPTIONS.map(ex => (
+              <Checkbox key={ex.num} label={`${ex.num}. ${ex.label}`} checked={form.exemptions.includes(ex.num)} onChange={() => !disabled && toggleExemption(ex.num)} disabled={disabled} />
+            ))}
+          </div>
+        </Section>
+
+        {/* ט. תיאום מס */}
+        <Section title="ט. תיאום מס">
+          <Checkbox label="צירוף/עריכת תיאום מס" checked={form.tax_coordination} onChange={v => !disabled && set('tax_coordination', v)} disabled={disabled} />
+        </Section>
+
+        {/* י. הצהרה וחתימה */}
+        <Section title="י. הצהרה">
+          <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+            אני מצהיר/ה כי הפרטים שמסרתי בטופס זה הינם מלאים ונכונים. ידוע לי שהשמטה או מסירת פרטים לא נכונים הינה עבירה על פקודת מס הכנסה. אני מתחייב/ת להודיע למעסיק על כל שינוי שיחול בפרטיי האישיים ובפרטים דלעיל תוך שבוע ימים מתאריך השינוי.
+          </p>
+          <label className="form-label">חתימת המבקש/ת <Required /></label>
+          {!disabled ? (
+            <div className="border-2 border-gray-200 rounded-xl overflow-hidden bg-white">
+              <SignatureCanvas
+                ref={sigRef}
+                canvasProps={{ width: 500, height: 150, className: 'w-full' }}
+                backgroundColor="white"
+              />
+              <div className="border-t border-gray-100 px-3 py-1.5 flex justify-end">
+                <button onClick={() => sigRef.current?.clear()} className="text-xs text-gray-400 hover:text-gray-600">נקה חתימה</button>
+              </div>
+            </div>
+          ) : (
+            form.signature && <img src={form.signature} alt="חתימה" className="border rounded-xl max-h-24" />
+          )}
+        </Section>
+
+        {/* כפתורי פעולה */}
         {!isApproved && (
-          <button onClick={handleSubmit} disabled={loading}
-            className="w-full btn btn-primary py-3 text-sm font-medium">
+          <button onClick={handleSubmit} disabled={loading} className="w-full btn btn-primary py-3 text-sm font-medium">
             {loading ? 'שולח...' : isPending ? '🔄 עדכן וישלח מחדש' : '📤 שלח לאישור'}
           </button>
         )}
@@ -349,6 +453,74 @@ export default function Form101() {
       </div>
 
       <AlertModal open={!!alert} onClose={() => setAlert(null)} title={alert?.title} message={alert?.message} />
+    </div>
+  )
+}
+
+// קומפוננטות עזר
+function Section({ title, children }) {
+  return (
+    <div className="card p-4">
+      <h2 className="text-sm font-semibold text-blue-800 bg-blue-50 -mx-4 -mt-4 px-4 py-2.5 mb-4 rounded-t-xl border-b border-blue-100">{title}</h2>
+      {children}
+    </div>
+  )
+}
+
+function Required() {
+  return <span className="text-red-500 mr-0.5">*</span>
+}
+
+function Field({ label, value, disabled }) {
+  return (
+    <div>
+      <label className="form-label">{label}</label>
+      <input className="form-control bg-gray-50" value={value} disabled={disabled} readOnly />
+    </div>
+  )
+}
+
+function RadioGroup({ label, required, value, onChange, options, disabled }) {
+  return (
+    <div>
+      <label className="form-label">{label} {required && <Required />}</label>
+      <div className="space-y-1 mt-1">
+        {options.map(opt => (
+          <label key={opt} className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="radio" checked={value === opt} onChange={() => !disabled && onChange(opt)} disabled={disabled} className="w-3.5 h-3.5" />
+            {opt}
+          </label>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function Checkbox({ label, checked, onChange, disabled }) {
+  return (
+    <label className="flex items-start gap-2 text-sm cursor-pointer">
+      <input type="checkbox" checked={checked} onChange={e => !disabled && onChange(e.target.checked)} disabled={disabled} className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+      <span className="text-gray-700 leading-snug">{label}</span>
+    </label>
+  )
+}
+
+function UploadBox({ label, preview, existing, onChange, disabled }) {
+  return (
+    <div>
+      <label className="form-label text-xs">{label}</label>
+      {!disabled && (
+        <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl p-3 cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors">
+          <Upload size={18} className="text-gray-400 mb-1" />
+          <span className="text-xs text-gray-400">לחץ להעלאה</span>
+          <input type="file" accept="image/*" className="hidden" onChange={onChange} />
+        </label>
+      )}
+      {(preview || existing) && (
+        <div className="mt-1 text-xs text-green-600 flex items-center gap-1">
+          <CheckCircle size={11} /> {preview ? 'קובץ נבחר' : 'קובץ קיים'}
+        </div>
+      )}
     </div>
   )
 }
