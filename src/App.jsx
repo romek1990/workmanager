@@ -16,6 +16,10 @@ import UserHome from './pages/UserHome'
 import MyShifts from './pages/MyShifts'
 import WeeklySchedule from './pages/WeeklySchedule'
 import ActivityLogs from './pages/ActivityLogs'
+import Form101 from './pages/Form101'
+import Admin101 from './pages/Admin101'
+
+
 
 function AppRoutes() {
   const { currentUser, loading } = useApp()
@@ -56,6 +60,8 @@ function AppRoutes() {
           <Route path="/my-home" element={<ProtectedRoute><UserHome /></ProtectedRoute>} />
           <Route path="/my-shifts" element={<ProtectedRoute><MyShifts /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to={currentUser.role === 'admin' ? '/' : '/my-home'} replace />} />
+          <Route path="/form-101" element={<ProtectedRoute><Form101 /></ProtectedRoute>} />
+<Route path="/admin-101" element={<ProtectedRoute requiredRole="admin"><Admin101 /></ProtectedRoute>} />
         </Routes>
       </main>
     </div>
