@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, Building2, CalendarDays, Menu, X, Shield, Bell } from 'lucide-react'
+
 import { useApp } from '../../context/AppContext'
 import { Avatar } from '../ui'
 import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, Building2, CalendarDays, Menu, X, Shield, Bell, FileText } from 'lucide-react'
