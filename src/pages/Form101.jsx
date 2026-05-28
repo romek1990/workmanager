@@ -188,10 +188,12 @@ export default function Form101() {
       }
 
       if (existingForm) {
-        await supabase.from('form_101').update(payload).eq('id', existingForm.id)
-      } else {
-        await supabase.from('form_101').insert(payload)
-      }
+  const { error: updateError } = await supabase.from('form_101').update(payload).eq('id', existingForm.id)
+  if (updateError) throw new Error(updateError.message)
+} else {
+  const { error: insertError } = await supabase.from('form_101').insert(payload)
+  if (insertError) throw new Error(insertError.message)
+}
 
       // התראה למנהלים
       const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin')
