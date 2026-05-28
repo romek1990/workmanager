@@ -254,8 +254,8 @@ export default function Form101() {
         {/* א. פרטי המעסיק */}
         <Section title="א. פרטי המעסיק">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="שם המעסיק" value="WorkManager" disabled />
-            <Field label="מספר תיק ניכויים" value="" disabled />
+            <Field label="שם המעסיק" value="פלורנטין מרקט בע״מ" disabled />
+<Field label="מספר תיק ניכויים" value="907393060" disabled />
           </div>
         </Section>
 
