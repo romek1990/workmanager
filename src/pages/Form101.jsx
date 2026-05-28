@@ -9,7 +9,6 @@ const MARITAL_OPTIONS = ['רווק/ה', 'נשוי/אה', 'גרוש/ה', 'אלמ�
 const INCOME_TYPES = ['משכורת חודש', 'משכורת בעד משרה נוספת', 'משכורת חלקית', 'שכר עבודה (עובד יומי)', 'קצבה', 'מלגה']
 
 const defaultForm = {
-  // פרטי עובד
   first_name: '',
   last_name: '',
   id_number: '',
@@ -26,22 +25,17 @@ const defaultForm = {
   is_israel_resident: true,
   is_kibbutz_member: false,
   health_fund: '',
-  // ילדים
   children: [],
-  // פרטי הכנסה
   income_types: [],
   work_start_date: '',
   has_other_income: false,
-  // פטורים
   exemptions: [],
-  // תיאום מס
   tax_coordination: false,
-  // חתימה
   signature: '',
 }
 
 export default function Form101() {
-  const { currentUser, currentUserEmail, employees } = useApp()
+  const { currentUser, currentUserEmail, employees, submitForm101 } = useApp()
   const emp = employees.find(e => e.email === currentUserEmail)
   const sigRef = useRef(null)
 
@@ -157,7 +151,6 @@ export default function Form101() {
       return
     }
 
-    // שמור חתימה
     let signature = form.signature
     if (sigRef.current && !sigRef.current.isEmpty()) {
       signature = sigRef.current.toDataURL()
@@ -175,6 +168,7 @@ export default function Form101() {
       if (idBack) idBackUrl = await uploadFile(idBack, 'back')
 
       const payload = {
+        id: existingForm?.id || undefined,
         employee_id: currentUser.id,
         employee_name: emp?.full_name || currentUser.name,
         employee_email: currentUserEmail,
@@ -187,13 +181,8 @@ export default function Form101() {
         submitted_at: new Date().toISOString(),
       }
 
-      if (existingForm) {
-  const { error: updateError } = await supabase.from('form_101').update(payload).eq('id', existingForm.id)
-  if (updateError) throw new Error(updateError.message)
-} else {
-  const { error: insertError } = await supabase.from('form_101').insert(payload)
-  if (insertError) throw new Error(insertError.message)
-}
+      // ✅ שימוש בפונקציה מה-AppContext
+      await submitForm101(payload)
 
       // התראה למנהלים
       const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin')
@@ -240,7 +229,6 @@ export default function Form101() {
 
   return (
     <div className="p-6 pt-14 md:pt-6 max-w-3xl mx-auto">
-      {/* כותרת */}
       <div className="flex items-center gap-3 mb-6">
         <FileText size={22} className="text-blue-600" />
         <div>
@@ -252,16 +240,13 @@ export default function Form101() {
       </div>
 
       <div className="space-y-4">
-
-        {/* א. פרטי המעסיק */}
         <Section title="א. פרטי המעסיק">
           <div className="grid grid-cols-2 gap-3">
             <Field label="שם המעסיק" value="פלורנטין מרקט בע״מ" disabled />
-<Field label="מספר תיק ניכויים" value="907393060" disabled />
+            <Field label="מספר תיק ניכויים" value="907393060" disabled />
           </div>
         </Section>
 
-        {/* ב. פרטי העובד */}
         <Section title="ב. פרטי העובד/ת">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -309,8 +294,6 @@ export default function Form101() {
               <input type="email" className="form-control" value={form.email} onChange={e => set('email', e.target.value)} disabled={disabled} />
             </div>
           </div>
-
-          {/* רדיו בוטונים */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             <RadioGroup label="מין" required value={form.gender} onChange={v => set('gender', v)} options={['זכר', 'נקבה']} disabled={disabled} />
             <div>
@@ -322,7 +305,6 @@ export default function Form101() {
             <RadioGroup label="תושב ישראל" required value={form.is_israel_resident ? 'כן' : 'לא'} onChange={v => set('is_israel_resident', v === 'כן')} options={['כן', 'לא']} disabled={disabled} />
             <RadioGroup label="חבר קיבוץ/מושב שיתופי" required value={form.is_kibbutz_member ? 'כן' : 'לא'} onChange={v => set('is_kibbutz_member', v === 'כן')} options={['כן', 'לא']} disabled={disabled} />
           </div>
-
           <div className="mt-3">
             <label className="form-label">קופת חולים <Required /></label>
             <select className="form-control" value={form.health_fund} onChange={e => set('health_fund', e.target.value)} disabled={disabled}>
@@ -330,8 +312,6 @@ export default function Form101() {
               {['כללית', 'מכבי', 'מאוחדת', 'לאומית'].map(o => <option key={o}>{o}</option>)}
             </select>
           </div>
-
-          {/* העלאת ת.ז */}
           <div className="mt-4">
             <label className="form-label text-sm font-medium">צילום תעודת זהות וספח <Required /></label>
             <div className="grid grid-cols-2 gap-3 mt-2">
@@ -341,7 +321,6 @@ export default function Form101() {
           </div>
         </Section>
 
-        {/* ג. פרטים על ילדים */}
         <Section title="ג. פרטים על ילדים (מתחת לגיל 19)">
           {form.children.map((child, i) => (
             <div key={i} className="bg-gray-50 rounded-xl p-3 mb-3 border border-gray-100">
@@ -376,7 +355,6 @@ export default function Form101() {
           )}
         </Section>
 
-        {/* ד. פרטים על הכנסות ממעסיק זה */}
         <Section title="ד. פרטים על הכנסותי ממעסיק זה">
           <div>
             <label className="form-label">אני מקבל/ת <Required /></label>
@@ -392,7 +370,6 @@ export default function Form101() {
           </div>
         </Section>
 
-        {/* ה. הכנסות אחרות */}
         <Section title="ה. פרטים על הכנסות אחרות">
           <RadioGroup
             label="יש לך הכנסות אחרות?"
@@ -404,7 +381,6 @@ export default function Form101() {
           />
         </Section>
 
-        {/* ח. פטורים */}
         <Section title="ח. אני מבקש/ת פטור או זיכוי ממס">
           <div className="space-y-2">
             {EXEMPTION_OPTIONS.map(ex => (
@@ -413,12 +389,10 @@ export default function Form101() {
           </div>
         </Section>
 
-        {/* ט. תיאום מס */}
         <Section title="ט. תיאום מס">
           <Checkbox label="צירוף/עריכת תיאום מס" checked={form.tax_coordination} onChange={v => !disabled && set('tax_coordination', v)} disabled={disabled} />
         </Section>
 
-        {/* י. הצהרה וחתימה */}
         <Section title="י. הצהרה">
           <p className="text-xs text-gray-600 mb-3 leading-relaxed">
             אני מצהיר/ה כי הפרטים שמסרתי בטופס זה הינם מלאים ונכונים. ידוע לי שהשמטה או מסירת פרטים לא נכונים הינה עבירה על פקודת מס הכנסה. אני מתחייב/ת להודיע למעסיק על כל שינוי שיחול בפרטיי האישיים ובפרטים דלעיל תוך שבוע ימים מתאריך השינוי.
@@ -440,7 +414,6 @@ export default function Form101() {
           )}
         </Section>
 
-        {/* כפתורי פעולה */}
         {!isApproved && (
           <button onClick={handleSubmit} disabled={loading} className="w-full btn btn-primary py-3 text-sm font-medium">
             {loading ? 'שולח...' : isPending ? '🔄 עדכן וישלח מחדש' : '📤 שלח לאישור'}
@@ -459,7 +432,6 @@ export default function Form101() {
   )
 }
 
-// קומפוננטות עזר
 function Section({ title, children }) {
   return (
     <div className="card p-4">
