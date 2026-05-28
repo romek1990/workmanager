@@ -8,6 +8,7 @@ const baseAdminNav = [
   { to: '/', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
   { to: '/employees', label: 'עובדים', icon: Users },
   { to: '/shifts', label: 'משמרות', icon: CalendarClock },
+  { to: '/admin-101', label: 'טפסי 101', icon: FileText },
   { to: '/weekly-schedule', label: 'סידור שבועי', icon: CalendarDays },
   { to: '/bonuses', label: 'בונוסים', icon: Gift },
   { to: '/reports', label: 'דוחות', icon: BarChart2 },
@@ -22,6 +23,7 @@ const superAdminNav = [
 const userNav = [
   { to: '/my-home', label: 'דף הבית', icon: Home, end: true },
   { to: '/my-shifts', label: 'המשמרות שלי', icon: CalendarClock },
+  { to: '/form-101', label: 'טופס 101', icon: FileText },
 ]
 
 export default function Sidebar() {
