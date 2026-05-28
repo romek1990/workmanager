@@ -128,49 +128,48 @@ export function AppProvider({ children }) {
   }
 
   async function addEmployee(emp) {
-  const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53ZXRhanl3YXp6cHhrZGtucXNmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTA4NDI3MCwiZXhwIjoyMDk0NjYwMjcwfQ.nXv9_VDNViQcT9s1xfg1UzROz-wJuo9uM0v4KGie3OQ'
+    const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53ZXRhanl3YXp6cHhrZGtucXNmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTA4NDI3MCwiZXhwIjoyMDk0NjYwMjcwfQ.nXv9_VDNViQcT9s1xfg1UzROz-wJuo9uM0v4KGie3OQ'
 
-  const res = await fetch('https://nwetajywazzpxkdknqsf.supabase.co/auth/v1/admin/users', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'apikey': SERVICE_ROLE_KEY,
-      'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-    },
-    body: JSON.stringify({
-      email: emp.email,
-      email_confirm: true,
-      user_metadata: { full_name: emp.full_name, role: 'user' },
+    const res = await fetch('https://nwetajywazzpxkdknqsf.supabase.co/auth/v1/admin/users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SERVICE_ROLE_KEY,
+        'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify({
+        email: emp.email,
+        email_confirm: true,
+        user_metadata: { full_name: emp.full_name, role: 'user' },
+      })
     })
-  })
 
-  const authData = await res.json()
-  if (!res.ok) throw new Error(authData.message || 'שגיאה ביצירת משתמש')
+    const authData = await res.json()
+    if (!res.ok) throw new Error(authData.message || 'שגיאה ביצירת משתמש')
 
-  if (authData.id) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .upsert({ id: authData.id, ...emp, role: 'user' })
-      .select().single()
-    if (!error && data) {
-      setEmployees(prev => [...prev, data])
-      await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'הוספת עובד', `הוסיף עובד חדש: ${emp.full_name} (${emp.email})`)
+    if (authData.id) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .upsert({ id: authData.id, ...emp, role: 'user' })
+        .select().single()
+      if (!error && data) {
+        setEmployees(prev => [...prev, data])
+        await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'הוספת עובד', `הוסיף עובד חדש: ${emp.full_name} (${emp.email})`)
+      }
+      if (error) throw error
+
+      await supabase.from('notifications').insert({
+        user_id: authData.id,
+        title: '📋 יש למלא טופס 101',
+        message: `ברוך הבא! יש למלא טופס 101 לשנת ${new Date().getFullYear()} בהקדם`,
+        type: 'warning'
+      })
+
+      await supabase.auth.resetPasswordForEmail(emp.email, {
+        redirectTo: 'https://workmanager-seven.vercel.app/set-password',
+      })
     }
-    if (error) throw error
-
-    // התראה לעובד למלא טופס 101
-    await supabase.from('notifications').insert({
-      user_id: authData.id,
-      title: '📋 יש למלא טופס 101',
-      message: `ברוך הבא! יש למלא טופס 101 לשנת ${new Date().getFullYear()} בהקדם`,
-      type: 'warning'
-    })
-
-    await supabase.auth.resetPasswordForEmail(emp.email, {
-      redirectTo: 'https://workmanager-seven.vercel.app/set-password',
-    })
   }
-}
 
   async function updateEmployee(id, patch) {
     const { data, error } = await supabase.from('profiles').update(patch).eq('id', id).select().single()
@@ -188,7 +187,6 @@ export function AppProvider({ children }) {
       setShifts(prev => [data, ...prev])
       await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'הוספת משמרת', `הוסיף משמרת לעובד ${shift.employee_name} בתאריך ${shift.date}`)
 
-      // שליחת התראה לכל המנהלים
       const admins = await supabase.from('profiles').select('id').eq('role', 'admin')
       if (admins.data) {
         for (const admin of admins.data) {
@@ -206,23 +204,22 @@ export function AppProvider({ children }) {
   }
 
   async function updateShiftStatus(id, status) {
-  const { error } = await supabase.from('shifts').update({ status }).eq('id', id)
-  if (!error) {
-    setShifts(prev => prev.map(s => s.id === id ? { ...s, status } : s))
-    const shift = shifts.find(s => s.id === id)
-    const statusHe = status === 'approved' ? 'אישר' : 'דחה'
-    await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, `${statusHe} משמרת`, `${statusHe} משמרת של ${shift?.employee_name} בתאריך ${shift?.date}`)
+    const { error } = await supabase.from('shifts').update({ status }).eq('id', id)
+    if (!error) {
+      setShifts(prev => prev.map(s => s.id === id ? { ...s, status } : s))
+      const shift = shifts.find(s => s.id === id)
+      const statusHe = status === 'approved' ? 'אישר' : 'דחה'
+      await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, `${statusHe} משמרת`, `${statusHe} משמרת של ${shift?.employee_name} בתאריך ${shift?.date}`)
 
-    // ✅ סמן את ההתראה הרלוונטית כנקראת אוטומטית
-    const relatedNotif = notifications.find(n =>
-      !n.read && n.message?.includes(shift?.employee_name) && n.message?.includes(shift?.date)
-    )
-    if (relatedNotif) {
-      await markNotificationRead(relatedNotif.id)
+      const relatedNotif = notifications.find(n =>
+        !n.read && n.message?.includes(shift?.employee_name) && n.message?.includes(shift?.date)
+      )
+      if (relatedNotif) {
+        await markNotificationRead(relatedNotif.id)
+      }
     }
+    if (error) throw error
   }
-  if (error) throw error
-}
 
   async function addBonus(bonus) {
     const emp = employees.find(e => e.email === bonus.employee_email)
@@ -290,6 +287,29 @@ export function AppProvider({ children }) {
     if (error) throw error
   }
 
+  // ✅ פונקציה חדשה לשמירת טופס 101
+  async function submitForm101(payload) {
+    const { id, ...rest } = payload
+    if (id) {
+      const { data, error } = await supabase
+        .from('form_101')
+        .update(rest)
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    } else {
+      const { data, error } = await supabase
+        .from('form_101')
+        .insert(rest)
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    }
+  }
+
   return (
     <AppContext.Provider value={{
       employees, shifts, bonuses, weeklySchedule, dayNotes,
@@ -304,6 +324,7 @@ export function AppProvider({ children }) {
       saveDayNote,
       logActivity,
       addNotification, markNotificationRead, markAllNotificationsRead,
+      submitForm101,
     }}>
       {children}
     </AppContext.Provider>
