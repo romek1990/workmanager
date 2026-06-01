@@ -35,92 +35,172 @@ export async function generateForm101PDF(formData) {
   const pages = pdfDoc.getPages()
   const page1 = pages[0]
   const { width, height } = page1.getSize()
-
-  // ═══════════════════════════════════════════════════
-  // 🔴 DEBUG GRID — רשת מלאה כמו נייר משבצות
-  // מחק את כל הבלוק הזה אחרי הכיול!
-  // ═══════════════════════════════════════════════════
-  const STEP = 25
-
-  // קווים אופקיים (Y) — אדומים דקים בכל הרוחב
-  for (let y = 0; y <= height; y += STEP) {
-    const isMajor = y % 100 === 0
-    page1.drawLine({
-      start: { x: 0, y },
-      end:   { x: width, y },
-      thickness: isMajor ? 0.6 : 0.2,
-      color: isMajor ? rgb(0.9, 0, 0) : rgb(1, 0.6, 0.6),
-      opacity: 0.5,
-    })
-    // מספר Y בצד שמאל (כל 50)
-    if (y % 50 === 0) {
-      page1.drawText(`${Math.round(y)}`, {
-        x: 2, y: y + 2, size: 5, font, color: rgb(0.8, 0, 0),
-      })
-    }
-  }
-
-  // קווים אנכיים (X) — כחולים דקים בכל הגובה
-  for (let x = 0; x <= width; x += STEP) {
-    const isMajor = x % 100 === 0
-    page1.drawLine({
-      start: { x, y: 0 },
-      end:   { x, y: height },
-      thickness: isMajor ? 0.6 : 0.2,
-      color: isMajor ? rgb(0, 0, 0.9) : rgb(0.6, 0.6, 1),
-      opacity: 0.5,
-    })
-    // מספר X בתחתית (כל 50)
-    if (x % 50 === 0) {
-      page1.drawText(`${Math.round(x)}`, {
-        x: x + 1, y: 3, size: 5, font, color: rgb(0, 0, 0.8),
-      })
-    }
-  }
-  // ═══════════════════════════════════════════════════
-  // סוף DEBUG GRID
-  // ═══════════════════════════════════════════════════
+  // width ≈ 595, height ≈ 841 (A4)
 
   const R  = (t, rx, y, s) => drawRTL(page1, font, t, rx, y, s)
   const L  = (t, x,  y, s) => drawLTR(page1, font, t, x,  y, s)
   const CK = (x, y)        => drawCheck(page1, font, x, y)
 
-  L(String(formData.year || new Date().getFullYear()), 395, 800, 11)
-  R('פלורנטין מרקט בע"מ',    980, 660, 8)
-  R('קרית ים, זלן שז"ר 31',  730, 660, 8)
-  L('0522719904',             490, 660, 8)
-  L('907393060',              360, 660, 8)
-  R(formData.last_name,       980, 628, 9)
-  R(formData.first_name,      730, 628, 9)
+  // ── שנת מס (y≈800, x≈210) ───────────────────────
+  L(String(formData.year || new Date().getFullYear()), 210, 800, 11)
+
+  // ── א. פרטי המעסיק (y≈675) ──────────────────────
+  // שם:          x 430→530
+  // כתובת:       x 280→430
+  // טלפון:       x 175→280
+  // תיק ניכויים: x 75→175
+  R('פלורנטין מרקט בע"מ',   528, 675, 8)
+  R('קרית ים, זלן שז"ר 31', 425, 675, 8)
+  L('0522719904',            180, 675, 8)
+  L('907393060',              80, 675, 8)
+
+  // ── ב. פרטי העובד ────────────────────────────────
+  // שורה 1: מספר זהות | שם משפחה | שם פרטי | תאריך לידה | תאריך עליה (y≈638)
+  // מספר זהות — 9 תאים מימין, כל תא ≈13px (x: 430→545)
+  if (formData.id_number) {
+    const id    = formData.id_number.padStart(9, ' ')
+    const right = 543
+    const cell  = 13
+    for (let i = 0; i < 9; i++) {
+      L(id[i], right - i * cell, 638, 9)
+    }
+  }
+
+  // שם משפחה (x: 300→430)
+  R(formData.last_name,  428, 638, 9)
+  // שם פרטי (x: 175→300)
+  R(formData.first_name, 298, 638, 9)
+
+  // תאריך לידה DD / MM / YYYY (x: 75→175)
   if (formData.birth_date) {
     const [yr, mo, dy] = formData.birth_date.split('-')
-    L(dy, 490, 628, 9)
-    L(mo, 455, 628, 9)
-    L(yr, 400, 628, 9)
+    L(dy,  158, 638, 9)
+    L(mo,  135, 638, 9)
+    L(yr,   98, 638, 9)
   }
-  if (formData.id_number) {
-    const id = formData.id_number.padStart(9, ' ')
-    for (let i = 0; i < 9; i++) L(id[i], 980 - i * 28 + 8, 610, 9)
-  }
-  R(formData.address,       980, 594, 9)
-  L(formData.house_number,  590, 594, 9)
-  R(formData.city,          555, 594, 9)
-  L(formData.zip_code,      360, 594, 9)
-  L(formData.email,         500, 575, 9)
-  L(formData.mobile_phone,  700, 558, 9)
-  L(formData.phone || '',   360, 558, 9)
 
-  // עמוד 2 — ללא grid (רק עמוד 1 לכיול)
+  // ── כתובת פרטית (y≈603) ──────────────────────────
+  // רחוב (x: 300→545) | מספר (x: 250→300) | עיר (x: 150→250) | מיקוד (x: 75→150)
+  R(formData.address,       543, 603, 9)
+  L(formData.house_number,  252, 603, 9)
+  R(formData.city,          248, 603, 9)
+  L(formData.zip_code,       78, 603, 9)
+
+  // ── כתובת פרטית / אימייל (y≈583) ────────────────
+  L(formData.email, 175, 583, 9)
+
+  // ── טלפון (y≈563) ────────────────────────────────
+  L(formData.mobile_phone, 300, 563, 9)   // נייד (אמצע)
+  L(formData.phone || '',   78, 563, 9)   // קווי (שמאל)
+
+  // ── מין (y≈553 / 536) ────────────────────────────
+  // זכר: תיבה ימנית יותר | נקבה: תיבה שמאלית יותר
+  if (formData.gender === 'זכר') {
+    CK(543, 553)
+  } else {
+    CK(543, 536)
+  }
+
+  // ── מצב משפחתי (y≈553 / 536) ─────────────────────
+  // רווק | נשוי | גרוש (שורה עליונה) | אלמן | פרוד (שורה תחתונה)
+  const marital = {
+    'רווק/ה':  { x: 493, y: 553 },
+    'נשוי/אה': { x: 453, y: 553 },
+    'גרוש/ה':  { x: 413, y: 553 },
+    'אלמן/ה':  { x: 493, y: 536 },
+    'פרוד/ה':  { x: 453, y: 536 },
+  }
+  if (marital[formData.marital_status]) {
+    CK(marital[formData.marital_status].x, marital[formData.marital_status].y)
+  }
+
+  // ── תושב ישראל ────────────────────────────────────
+  CK(formData.is_israel_resident ? 368 : 348, 553)
+
+  // ── חבר קיבוץ ─────────────────────────────────────
+  CK(formData.is_kibbutz_member ? 298 : 278, 553)
+
+  // ── קופת חולים ────────────────────────────────────
+  CK(218, 553)
+  R(formData.health_fund, 215, 536, 8)
+
+  // ── ד. סוג הכנסה (y≈490 / 473) ────────────────────
+  const incomePos = {
+    'משכורת חודש':            { x: 543, y: 490 },
+    'משכורת בעד משרה נוספת': { x: 418, y: 490 },
+    'משכורת חלקית':           { x: 293, y: 490 },
+    'שכר עבודה (עובד יומי)': { x: 543, y: 473 },
+    'קצבה':                   { x: 418, y: 473 },
+    'מלגה':                   { x: 293, y: 473 },
+  }
+  formData.income_types?.forEach(t => {
+    if (incomePos[t]) CK(incomePos[t].x, incomePos[t].y)
+  })
+
+  // ── תאריך תחילת עבודה (y≈455) ─────────────────────
+  if (formData.work_start_date) {
+    const [yr, mo, dy] = formData.work_start_date.split('-')
+    L(`${dy}/${mo}/${yr}`, 185, 455, 9)
+  }
+
+  // ── ה. הכנסות אחרות ────────────────────────────────
+  // אין: y≈408 | יש: y≈390
+  CK(543, formData.has_other_income ? 390 : 408)
+
+  // ══════════════════════════════════════════════════
+  // עמוד 2
+  // ══════════════════════════════════════════════════
   const page2 = pages[1]
   const h2    = page2.getSize().height
   const L2    = (t, x, y, s) => drawLTR(page2, font, t, x, y, s)
+  const R2    = (t, rx, y, s) => drawRTL(page2, font, t, rx, y, s)
   const CK2   = (x, y)       => drawCheck(page2, font, x, y)
+
+  // ת.ז בראש עמוד 2 (x: 430→543)
   if (formData.id_number) {
-    const id = formData.id_number.padStart(9, ' ')
-    for (let i = 0; i < 9; i++) L2(id[i], 980 - i * 28 + 8, h2 - 30, 9)
+    const id   = formData.id_number.padStart(9, ' ')
+    const right = 543
+    const cell  = 13
+    for (let i = 0; i < 9; i++) {
+      L2(id[i], right - i * cell, h2 - 45, 9)
+    }
   }
+
+  // ח. פטורים — תיבות בצד ימין (x≈543)
+  const exemptPos = {
+    1:  h2 - 92,
+    2:  h2 - 133,
+    3:  h2 - 174,
+    4:  h2 - 218,
+    5:  h2 - 258,
+    6:  h2 - 313,
+    7:  h2 - 358,
+    8:  h2 - 423,
+    9:  h2 - 458,
+    11: h2 - 493,
+    14: h2 - 558,
+    16: h2 - 598,
+  }
+  formData.exemptions?.forEach(n => {
+    if (exemptPos[n] !== undefined) CK2(543, exemptPos[n])
+  })
+
+  // ט. תיאום מס
+  if (formData.tax_coordination) CK2(543, h2 - 643)
+
+  // י. תאריך חתימה
   const today = new Date()
   L2(`${today.getDate()}/${today.getMonth()+1}/${today.getFullYear()}`, 115, h2 - 693, 9)
+
+  // חתימה
+  if (formData.signature) {
+    try {
+      const base64 = formData.signature.split(',')[1]
+      const bytes  = Uint8Array.from(atob(base64), c => c.charCodeAt(0))
+      const img    = await pdfDoc.embedPng(bytes)
+      page2.drawImage(img, { x: 200, y: h2 - 720, width: 120, height: 40 })
+    } catch (e) { console.warn('sig:', e) }
+  }
 
   return await pdfDoc.save()
 }
