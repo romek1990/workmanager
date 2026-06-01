@@ -1,3 +1,4 @@
+import { generateForm101PDF, downloadPDF } from '../utils/generateForm101'
 import React, { useState, useEffect, useRef } from 'react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
@@ -204,6 +205,16 @@ export default function Form101() {
     setLoading(false)
   }
 
+  async function handleDownloadPDF() {
+  if (!existingForm) return
+  try {
+    const pdfBytes = await generateForm101PDF({ ...form, year: currentYear, signature: existingForm.signature })
+    downloadPDF(pdfBytes, `טופס-101-${emp?.full_name || 'עובד'}.pdf`)
+  } catch (e) {
+    setAlert({ title: 'שגיאה', message: 'שגיאה ביצירת PDF: ' + e.message })
+  }
+}
+  
   function set(k, v) { setForm(p => ({ ...p, [k]: v })) }
 
   const isApproved = existingForm?.status === 'approved'
@@ -438,7 +449,12 @@ export default function Form101() {
           </div>
         )}
       </div>
-
+{existingForm && (
+  <button onClick={handleDownloadPDF}
+    className="w-full btn border border-blue-200 text-blue-600 hover:bg-blue-50 py-3 text-sm font-medium flex items-center justify-center gap-2">
+    📄 הורד טופס 101 כ-PDF
+  </button>
+)}
       <AlertModal open={!!alert} onClose={() => setAlert(null)} title={alert?.title} message={alert?.message} />
     </div>
   )
