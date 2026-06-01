@@ -4,6 +4,48 @@ import fontkit from '@pdf-lib/fontkit'
 const FONT_URL = 'https://nwetajywazzpxkdknqsf.supabase.co/storage/v1/object/public/templates/Heebo-Regular.ttf'
 const PDF_URL = 'https://nwetajywazzpxkdknqsf.supabase.co/storage/v1/object/public/templates/tofes-101.pdf'
 
+/**
+ * הופך מחרוזת עברית/מעורבת לצורך כתיבה RTL ב-pdf-lib
+ * pdf-lib לא תומך RTL — פונקציה זו מאפשרת הצגה נכונה
+ */
+function reverseHebrew(text) {
+  if (!text) return ''
+  return String(text).split('').reverse().join('')
+}
+
+/**
+ * מצייר טקסט RTL (עברית/מעורב) — x הוא נקודת הימין
+ * הפונקציה מחשבת את רוחב הטקסט ומזיזה את x בהתאם
+ */
+function drawRTL(page, font, text, rightX, y, size = 9, color = rgb(0, 0, 0)) {
+  if (!text) return
+  const str = String(text)
+  const textWidth = font.widthOfTextAtSize(str, size)
+  const reversed = reverseHebrew(str)
+  page.drawText(reversed, {
+    x: rightX - textWidth,
+    y,
+    size,
+    font,
+    color,
+  })
+}
+
+/**
+ * מצייר טקסט LTR רגיל (מספרים, אנגלית) — x הוא נקודת השמאל
+ */
+function drawLTR(page, font, text, x, y, size = 9, color = rgb(0, 0, 0)) {
+  if (!text) return
+  page.drawText(String(text), { x, y, size, font, color })
+}
+
+/**
+ * מצייר V בתוך תיבת סימון
+ */
+function drawCheck(page, font, x, y, size = 10) {
+  page.drawText('v', { x, y, size, font, color: rgb(0, 0, 0) })
+}
+
 export async function generateForm101PDF(formData) {
   const [existingPdfBytes, fontBytes] = await Promise.all([
     fetch(PDF_URL).then(r => r.arrayBuffer()),
@@ -18,167 +60,194 @@ export async function generateForm101PDF(formData) {
   const page1 = pages[0]
   const { width, height } = page1.getSize()
 
-  function drawText(page, text, x, y, size = 9) {
-    if (!text) return
-    page.drawText(String(text), { x, y, size, font: heeboFont, color: rgb(0, 0, 0) })
-  }
+  // קיצורים נוחים
+  const rtl  = (text, rx, y, size) => drawRTL(page1, heeboFont, text, rx, y, size)
+  const ltr  = (text, x,  y, size) => drawLTR(page1, heeboFont, text, x,  y, size)
+  const chk  = (x, y)              => drawCheck(page1, heeboFont, x, y)
 
-  function drawCheck(page, x, y) {
-    page.drawText('✓', { x, y, size: 10, font: heeboFont, color: rgb(0, 0, 0) })
-  }
+  // ─────────────────────────────────────────────
+  // שנת מס (ראש עמוד, שדה גדול יחסית)
+  // ─────────────────────────────────────────────
+  ltr(String(formData.year || new Date().getFullYear()), 63, height - 58, 12)
 
-  // ===== עמוד 1 =====
-
+  // ─────────────────────────────────────────────
   // א. פרטי המעסיק
-  drawText(page1, 'פלורנטין מרקט בע"מ', 390, height - 113, 8)
-  drawText(page1, 'קרית ים זלן שז"ר 31', 270, height - 113, 8)
-  drawText(page1, '0522719904', 175, height - 113, 8)
-  drawText(page1, '907393060', 70, height - 113, 8)
+  // שורה אחת: שם | כתובת | טלפון | מספר תיק ניכויים
+  // ─────────────────────────────────────────────
+  rtl('פלורנטין מרקט בע"מ',   530, height - 115, 8)
+  rtl('קרית ים — זלן שז"ר 31', 390, height - 115, 8)
+  ltr('0522719904',             195, height - 115, 8)
+  ltr('907393060',               75, height - 115, 8)
 
-  // ב. פרטי העובד — שם
-  drawText(page1, formData.last_name, 390, height - 186, 9)
-  drawText(page1, formData.first_name, 270, height - 186, 9)
+  // ─────────────────────────────────────────────
+  // ב. פרטי העובד
+  // ─────────────────────────────────────────────
 
-  // ת.ז — ספרות בודדות
+  // שם משפחה (ימין) | שם פרטי (אמצע)
+  rtl(formData.last_name,  530, height - 192, 9)
+  rtl(formData.first_name, 380, height - 192, 9)
+
+  // תאריך לידה — שלושה שדות נפרדים (DD | MM | YYYY)
+  if (formData.birth_date) {
+    const [y, m, d] = formData.birth_date.split('-')
+    ltr(d,    205, height - 192, 9)   // יום
+    ltr(m,    175, height - 192, 9)   // חודש
+    ltr(y,    130, height - 192, 9)   // שנה
+  }
+
+  // מספר זהות — ספרה אחרי ספרה, מימין לשמאל
   if (formData.id_number) {
     const id = formData.id_number.padStart(9, ' ')
-    const startX = 390
-    const spacing = 14.5
+    const startX = 530  // מיקום ספרה ראשונה (ימנית ביותר)
+    const cellW  = 15.5 // רוחב תא
     for (let i = 0; i < 9; i++) {
-      drawText(page1, id[i], startX - (i * spacing), height - 200, 9)
+      ltr(id[i], startX - (i * cellW), height - 207, 9)
     }
   }
 
-  // תאריך לידה
-  if (formData.birth_date) {
-    const [y, m, d] = formData.birth_date.split('-')
-    const dateStr = `${d}  ${m}  ${y}`
-    drawText(page1, dateStr, 200, height - 186, 9)
-  }
+  // ─────────────────────────────────────────────
+  // כתובת: רחוב | מספר בית | עיר | מיקוד
+  // ─────────────────────────────────────────────
+  rtl(formData.address,      530, height - 222, 9)
+  ltr(formData.house_number, 310, height - 222, 9)
+  rtl(formData.city,         280, height - 222, 9)
+  ltr(formData.zip_code,      85, height - 222, 9)
 
-  // כתובת
-  drawText(page1, formData.address, 390, height - 216, 9)
-  drawText(page1, formData.house_number, 285, height - 216, 9)
-  drawText(page1, formData.city, 210, height - 216, 9)
-  drawText(page1, formData.zip_code, 90, height - 216, 9)
+  // אימייל וטלפון
+  ltr(formData.email,        250, height - 237, 9)
+  ltr(formData.mobile_phone, 210, height - 252, 9)
+  ltr(formData.phone || '',   85, height - 252, 9)
 
-  // אימייל
-  drawText(page1, formData.email, 350, height - 230, 9)
-
-  // טלפון נייד
-  drawText(page1, formData.mobile_phone, 200, height - 244, 9)
-  drawText(page1, formData.phone || '', 80, height - 244, 9)
-
-  // מין
+  // ─────────────────────────────────────────────
+  // מין — תיבות סימון
+  // ─────────────────────────────────────────────
   if (formData.gender === 'זכר') {
-    drawCheck(page1, 516, height - 259)
+    chk(520, height - 265)
   } else {
-    drawCheck(page1, 516, height - 270)
+    chk(497, height - 265)
   }
 
+  // ─────────────────────────────────────────────
   // מצב משפחתי
-  const maritalPositions = {
-    'רווק/ה':   { x: 460, y: height - 259 },
-    'נשוי/אה':  { x: 415, y: height - 259 },
-    'גרוש/ה':   { x: 370, y: height - 259 },
-    'אלמן/ה':   { x: 460, y: height - 270 },
-    'פרוד/ה':   { x: 415, y: height - 270 },
+  // ─────────────────────────────────────────────
+  const marital = {
+    'רווק/ה':  { x: 468, y: height - 265 },
+    'נשוי/אה': { x: 437, y: height - 265 },
+    'גרוש/ה':  { x: 408, y: height - 265 },
+    'אלמן/ה':  { x: 379, y: height - 265 },
+    'פרוד/ה':  { x: 350, y: height - 265 },
   }
-  if (maritalPositions[formData.marital_status]) {
-    const pos = maritalPositions[formData.marital_status]
-    drawCheck(page1, pos.x, pos.y)
+  if (marital[formData.marital_status]) {
+    const { x, y } = marital[formData.marital_status]
+    chk(x, y)
   }
 
   // תושב ישראל
   if (formData.is_israel_resident) {
-    drawCheck(page1, 330, height - 259)
+    chk(320, height - 265)
   } else {
-    drawCheck(page1, 330, height - 270)
+    chk(295, height - 265)
   }
 
   // חבר קיבוץ
-  drawCheck(page1, formData.is_kibbutz_member ? 255 : 230, height - 259)
+  chk(formData.is_kibbutz_member ? 253 : 228, height - 265)
 
   // קופת חולים
-  drawCheck(page1, 145, height - 259)
-  drawText(page1, formData.health_fund, 95, height - 270, 8)
+  chk(148, height - 265)
+  rtl(formData.health_fund, 135, height - 278, 8)
 
-  // ד. הכנסות ממעסיק זה
-  const incomePositions = {
-    'משכורת חודש':             { x: 490, y: height - 355 },
-    'משכורת בעד משרה נוספת':  { x: 390, y: height - 355 },
-    'משכורת חלקית':            { x: 280, y: height - 355 },
-    'שכר עבודה (עובד יומי)':  { x: 490, y: height - 367 },
-    'קצבה':                    { x: 390, y: height - 367 },
-    'מלגה':                    { x: 280, y: height - 367 },
+  // ─────────────────────────────────────────────
+  // ד. סוג הכנסה
+  // ─────────────────────────────────────────────
+  const incomePos = {
+    'משכורת חודש':            { x: 495, y: height - 363 },
+    'משכורת בעד משרה נוספת': { x: 395, y: height - 363 },
+    'משכורת חלקית':           { x: 295, y: height - 363 },
+    'שכר עבודה (עובד יומי)': { x: 495, y: height - 376 },
+    'קצבה':                   { x: 395, y: height - 376 },
+    'מלגה':                   { x: 295, y: height - 376 },
   }
   formData.income_types?.forEach(type => {
-    if (incomePositions[type]) {
-      drawCheck(page1, incomePositions[type].x, incomePositions[type].y)
-    }
+    if (incomePos[type]) chk(incomePos[type].x, incomePos[type].y)
   })
 
   // תאריך תחילת עבודה
   if (formData.work_start_date) {
     const [y, m, d] = formData.work_start_date.split('-')
-    drawText(page1, `${d}/${m}/${y}`, 430, height - 382, 9)
+    ltr(`${d}/${m}/${y}`, 430, height - 390, 9)
   }
 
+  // ─────────────────────────────────────────────
   // ה. הכנסות אחרות
+  // ─────────────────────────────────────────────
   if (!formData.has_other_income) {
-    drawCheck(page1, 490, height - 410)
+    chk(493, height - 418)   // אין
   } else {
-    drawCheck(page1, 490, height - 430)
+    chk(493, height - 438)   // יש
   }
 
-  // שנת מס
-  drawText(page1, String(formData.year || new Date().getFullYear()), 68, height - 57, 11)
-
-  // ===== עמוד 2 =====
+  // ─────────────────────────────────────────────
+  // עמוד 2
+  // ─────────────────────────────────────────────
   const page2 = pages[1]
   const h2 = page2.getSize().height
+  const rtl2 = (text, rx, y, size) => drawRTL(page2, heeboFont, text, rx, y, size)
+  const ltr2 = (text, x,  y, size) => drawLTR(page2, heeboFont, text, x,  y, size)
+  const chk2 = (x, y)              => drawCheck(page2, heeboFont, x, y)
 
   // מספר ת.ז בראש עמוד 2
-  drawText(page2, formData.id_number, 390, h2 - 27, 9)
+  if (formData.id_number) {
+    const id = formData.id_number.padStart(9, ' ')
+    const startX = 530
+    const cellW  = 15.5
+    for (let i = 0; i < 9; i++) {
+      ltr2(id[i], startX - (i * cellW), h2 - 30, 9)
+    }
+  }
 
-  // ח. פטורים
-  const exemptionPositions = {
-    1:  { x: 528, y: h2 - 90 },
-    2:  { x: 528, y: h2 - 130 },
-    3:  { x: 528, y: h2 - 170 },
-    4:  { x: 528, y: h2 - 215 },
-    5:  { x: 528, y: h2 - 255 },
-    6:  { x: 528, y: h2 - 310 },
-    7:  { x: 528, y: h2 - 355 },
-    8:  { x: 528, y: h2 - 420 },
-    9:  { x: 528, y: h2 - 455 },
-    11: { x: 528, y: h2 - 490 },
-    14: { x: 528, y: h2 - 555 },
-    16: { x: 528, y: h2 - 595 },
+  // ─────────────────────────────────────────────
+  // ח. פטורים — תיבות סימון
+  // ─────────────────────────────────────────────
+  const exemptPos = {
+    1:  h2 - 92,
+    2:  h2 - 133,
+    3:  h2 - 174,
+    4:  h2 - 218,
+    5:  h2 - 258,
+    6:  h2 - 313,
+    7:  h2 - 358,
+    8:  h2 - 423,
+    9:  h2 - 458,
+    11: h2 - 493,
+    14: h2 - 558,
+    16: h2 - 598,
   }
   formData.exemptions?.forEach(num => {
-    if (exemptionPositions[num]) {
-      drawCheck(page2, exemptionPositions[num].x, exemptionPositions[num].y)
-    }
+    if (exemptPos[num] !== undefined) chk2(530, exemptPos[num])
   })
 
   // ט. תיאום מס
   if (formData.tax_coordination) {
-    drawCheck(page2, 528, h2 - 640)
+    chk2(530, h2 - 643)
   }
 
   // י. תאריך חתימה
   const today = new Date()
-  drawText(page2, `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`, 120, h2 - 690, 9)
+  ltr2(
+    `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`,
+    115, h2 - 693, 9
+  )
 
-  // חתימה
+  // חתימה דיגיטלית
   if (formData.signature) {
     try {
       const base64 = formData.signature.split(',')[1]
       const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0))
       const img = await pdfDoc.embedPng(bytes)
-      page2.drawImage(img, { x: 200, y: h2 - 710, width: 100, height: 35 })
-    } catch (e) {}
+      page2.drawImage(img, { x: 200, y: h2 - 715, width: 110, height: 38 })
+    } catch (e) {
+      console.warn('Signature embed failed:', e)
+    }
   }
 
   const pdfBytes = await pdfDoc.save()
