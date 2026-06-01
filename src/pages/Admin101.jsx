@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { AlertModal } from '../components/ui'
-import { CheckCircle, XCircle, Eye, FileText, Clock, User } from 'lucide-react'
+import { CheckCircle, XCircle, Eye, FileText, Clock, User, Download, Mail } from 'lucide-react'
+import { generateForm101PDF, downloadPDF } from '../utils/generateForm101'
+import emailjs from '@emailjs/browser'
 
 export default function Admin101() {
   const { employees } = useApp()
@@ -12,6 +14,7 @@ export default function Admin101() {
   const [alert, setAlert] = useState(null)
   const [idFrontUrl, setIdFrontUrl] = useState(null)
   const [idBackUrl, setIdBackUrl] = useState(null)
+  const [pdfLoading, setPdfLoading] = useState(false)
   const currentYear = new Date().getFullYear()
 
   useEffect(() => { loadForms() }, [])
@@ -49,7 +52,6 @@ export default function Admin101() {
       setForms(prev => prev.map(f => f.id === id ? { ...f, status } : f))
       if (selected?.id === id) setSelected(prev => ({ ...prev, status }))
 
-      // התראה לעובד
       const form = forms.find(f => f.id === id)
       if (form) {
         await supabase.from('notifications').insert({
@@ -63,6 +65,40 @@ export default function Admin101() {
       }
       setAlert({ title: status === 'approved' ? 'אושר!' : 'נדחה', message: `הטופס ${status === 'approved' ? 'אושר' : 'נדחה'} בהצלחה` })
     }
+  }
+
+  async function handleDownloadPDF() {
+    if (!selected) return
+    setPdfLoading(true)
+    try {
+      const pdfBytes = await generateForm101PDF(selected)
+      downloadPDF(pdfBytes, `טופס-101-${selected.employee_name}.pdf`)
+    } catch (e) {
+      setAlert({ title: 'שגיאה', message: 'שגיאה ביצירת PDF: ' + e.message })
+    }
+    setPdfLoading(false)
+  }
+
+  async function handleSendEmail() {
+    if (!selected) return
+    setPdfLoading(true)
+    try {
+      await emailjs.send(
+        'service_atutffw',
+        'template_er61rbp',
+        {
+          to_email: selected.employee_email,
+          to_name: selected.employee_name,
+          subject: `טופס 101 שלך לשנת ${currentYear} — ${selected.status === 'approved' ? 'אושר ✅' : 'עדכון'}`,
+          message: `שלום ${selected.employee_name},\n\nטופס 101 שלך לשנת ${currentYear} ${selected.status === 'approved' ? 'אושר בהצלחה על ידי המנהל.' : 'עודכן.'}\n\nניתן לצפות בטופס במערכת WorkManager.\n\nבברכה,\nפלורנטין מרקט`,
+        },
+        'O6dGxcOoOfwbY1b2g'
+      )
+      setAlert({ title: 'נשלח!', message: `מייל נשלח ל-${selected.employee_email}` })
+    } catch (e) {
+      setAlert({ title: 'שגיאה', message: 'שגיאה בשליחת מייל: ' + e.message })
+    }
+    setPdfLoading(false)
   }
 
   const activeEmps = employees.filter(e => e.status === 'active')
@@ -101,7 +137,7 @@ export default function Admin101() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* רשימת טפסים שהוגשו */}
+        {/* רשימת טפסים */}
         <div className="card overflow-hidden">
           <div className="p-4 border-b border-gray-100">
             <h2 className="text-sm font-medium">טפסים שהוגשו</h2>
@@ -137,45 +173,73 @@ export default function Admin101() {
             </div>
           ) : (
             <div className="overflow-y-auto max-h-[600px]">
-              <div className="p-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
-                <div>
-                  <h2 className="text-sm font-medium">{selected.employee_name}</h2>
-                  <div className="flex items-center gap-2 mt-1">{statusBadge(selected.status)}</div>
-                </div>
-                {selected.status === 'pending' && (
-                  <div className="flex gap-2">
-                    <button onClick={() => updateStatus(selected.id, 'approved')}
-                      className="btn btn-success text-xs py-1.5 px-3">✅ אשר</button>
-                    <button onClick={() => updateStatus(selected.id, 'rejected')}
-                      className="btn btn-danger text-xs py-1.5 px-3">❌ דחה</button>
+              <div className="p-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <h2 className="text-sm font-medium">{selected.employee_name}</h2>
+                    <div className="flex items-center gap-2 mt-1">{statusBadge(selected.status)}</div>
                   </div>
-                )}
+                  {selected.status === 'pending' && (
+                    <div className="flex gap-2">
+                      <button onClick={() => updateStatus(selected.id, 'approved')}
+                        className="btn btn-success text-xs py-1.5 px-3">✅ אשר</button>
+                      <button onClick={() => updateStatus(selected.id, 'rejected')}
+                        className="btn btn-danger text-xs py-1.5 px-3">❌ דחה</button>
+                    </div>
+                  )}
+                </div>
+                {/* כפתורי הורדה ומייל */}
+                <div className="flex gap-2 mt-2">
+                  <button onClick={handleDownloadPDF} disabled={pdfLoading}
+                    className="flex-1 flex items-center justify-center gap-1.5 text-xs border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg py-2 transition-colors">
+                    <Download size={13} />
+                    {pdfLoading ? 'יוצר...' : 'הורד PDF'}
+                  </button>
+                  <button onClick={handleSendEmail} disabled={pdfLoading}
+                    className="flex-1 flex items-center justify-center gap-1.5 text-xs border border-green-200 text-green-600 hover:bg-green-50 rounded-lg py-2 transition-colors">
+                    <Mail size={13} />
+                    שלח במייל לעובד
+                  </button>
+                </div>
               </div>
 
               <div className="p-4 space-y-4 text-sm">
                 <Section title="פרטים אישיים">
+                  <Row label="שם פרטי" value={selected.first_name} />
+                  <Row label="שם משפחה" value={selected.last_name} />
                   <Row label="ת.ז" value={selected.id_number} />
                   <Row label="תאריך לידה" value={selected.birth_date} />
                   <Row label="מגדר" value={selected.gender} />
-                  <Row label="כתובת" value={`${selected.address}, ${selected.city}`} />
-                  <Row label="טלפון" value={selected.phone} />
+                  <Row label="רחוב" value={`${selected.address || ''} ${selected.house_number || ''}`} />
+                  <Row label="עיר" value={selected.city} />
+                  <Row label="מיקוד" value={selected.zip_code} />
+                  <Row label="טלפון נייד" value={selected.mobile_phone} />
+                  <Row label="אימייל" value={selected.email} />
                 </Section>
 
                 <Section title="מצב משפחתי">
                   <Row label="סטטוס" value={selected.marital_status} />
-                  <Row label="ילדים" value={selected.children_count} />
+                  <Row label="תושב ישראל" value={selected.is_israel_resident ? 'כן' : 'לא'} />
+                  <Row label="קופת חולים" value={selected.health_fund} />
                 </Section>
 
-                <Section title="פרטי בנק">
-                  <Row label="בנק" value={selected.bank_name} />
-                  <Row label="סניף" value={selected.bank_branch} />
-                  <Row label="חשבון" value={selected.bank_account} />
+                <Section title="הכנסות">
+                  <Row label="סוג הכנסה" value={selected.income_types?.join(', ')} />
+                  <Row label="תחילת עבודה" value={selected.work_start_date} />
+                  <Row label="הכנסות אחרות" value={selected.has_other_income ? 'כן' : 'לא'} />
                 </Section>
 
-                <Section title="מס הכנסה">
-                  <Row label="סוג מעסיק" value={selected.is_primary_employer ? 'עיקרי' : 'משני'} />
-                  {selected.tax_credits && <Row label="נקודות זיכוי" value={selected.tax_credits} />}
-                </Section>
+                {selected.exemptions?.length > 0 && (
+                  <Section title="פטורים">
+                    <Row label="סעיפים" value={selected.exemptions?.join(', ')} />
+                  </Section>
+                )}
+
+                {selected.tax_coordination && (
+                  <Section title="תיאום מס">
+                    <Row label="תיאום מס" value="כן" />
+                  </Section>
+                )}
 
                 {(idFrontUrl || idBackUrl) && (
                   <Section title="תעודת זהות">
@@ -200,9 +264,9 @@ export default function Admin101() {
                   </Section>
                 )}
 
-                {selected.notes && (
-                  <Section title="הערות">
-                    <p className="text-gray-600 text-xs">{selected.notes}</p>
+                {selected.signature && (
+                  <Section title="חתימה">
+                    <img src={selected.signature} alt="חתימה" className="border rounded-xl max-h-16 mt-1" />
                   </Section>
                 )}
               </div>
@@ -211,7 +275,6 @@ export default function Admin101() {
         </div>
       </div>
 
-      {/* עובדים שלא הגישו */}
       {notSubmitted.length > 0 && (
         <div className="card p-4 mt-5">
           <h2 className="text-sm font-medium mb-3 text-red-600">⚠️ עובדים שטרם הגישו טופס</h2>
