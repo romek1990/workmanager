@@ -313,8 +313,22 @@ export default function Form101() {
           <div className="mt-4">
             <label className="form-label text-sm font-medium">צילום תעודת זהות וספח <Required /></label>
             <div className="grid grid-cols-2 gap-3 mt-2">
-              <UploadBox label="צד קדמי" preview={idFrontPreview} existing={existingForm?.id_front_url} onChange={e => handleFileChange(e, 'front')} disabled={disabled} />
-              <UploadBox label="ספח (צד אחורי)" preview={idBackPreview} existing={existingForm?.id_back_url} onChange={e => handleFileChange(e, 'back')} disabled={disabled} />
+              <UploadBox 
+  label="צד קדמי" 
+  preview={idFrontPreview} 
+  existing={existingForm?.id_front_url} 
+  onChange={e => handleFileChange(e, 'front')} 
+  disabled={disabled}
+  onDelete={() => { setIdFront(null); setIdFrontPreview(null) }}
+/>
+<UploadBox 
+  label="ספח (צד אחורי)" 
+  preview={idBackPreview} 
+  existing={existingForm?.id_back_url} 
+  onChange={e => handleFileChange(e, 'back')} 
+  disabled={disabled}
+  onDelete={() => { setIdBack(null); setIdBackPreview(null) }}
+/>
             </div>
           </div>
         </Section>
@@ -477,7 +491,7 @@ function Checkbox({ label, checked, onChange, disabled }) {
   )
 }
 
-function UploadBox({ label, preview, existing, onChange, disabled }) {
+function UploadBox({ label, preview, existing, onChange, disabled, onDelete }) {
   return (
     <div>
       <label className="form-label text-xs">{label}</label>
@@ -489,8 +503,18 @@ function UploadBox({ label, preview, existing, onChange, disabled }) {
         </label>
       )}
       {(preview || existing) && (
-        <div className="mt-1 text-xs text-green-600 flex items-center gap-1">
-          <CheckCircle size={11} /> {preview ? 'קובץ נבחר' : 'קובץ קיים'}
+        <div className="mt-1 flex items-center justify-between">
+          <div className="text-xs text-green-600 flex items-center gap-1">
+            <CheckCircle size={11} /> {preview ? 'קובץ נבחר' : 'קובץ קיים'}
+          </div>
+          {!disabled && (preview || existing) && (
+            <button
+              onClick={onDelete}
+              className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1"
+            >
+              <Trash2 size={11} /> מחק
+            </button>
+          )}
         </div>
       )}
     </div>
