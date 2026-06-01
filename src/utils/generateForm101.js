@@ -4,44 +4,24 @@ import fontkit from '@pdf-lib/fontkit'
 const FONT_URL = 'https://nwetajywazzpxkdknqsf.supabase.co/storage/v1/object/public/templates/Heebo-Regular.ttf'
 const PDF_URL = 'https://nwetajywazzpxkdknqsf.supabase.co/storage/v1/object/public/templates/tofes-101.pdf'
 
-/**
- * הופך מחרוזת עברית/מעורבת לצורך כתיבה RTL ב-pdf-lib
- * pdf-lib לא תומך RTL — פונקציה זו מאפשרת הצגה נכונה
- */
 function reverseHebrew(text) {
   if (!text) return ''
   return String(text).split('').reverse().join('')
 }
 
-/**
- * מצייר טקסט RTL (עברית/מעורב) — x הוא נקודת הימין
- * הפונקציה מחשבת את רוחב הטקסט ומזיזה את x בהתאם
- */
 function drawRTL(page, font, text, rightX, y, size = 9, color = rgb(0, 0, 0)) {
   if (!text) return
   const str = String(text)
   const textWidth = font.widthOfTextAtSize(str, size)
   const reversed = reverseHebrew(str)
-  page.drawText(reversed, {
-    x: rightX - textWidth,
-    y,
-    size,
-    font,
-    color,
-  })
+  page.drawText(reversed, { x: rightX - textWidth, y, size, font, color })
 }
 
-/**
- * מצייר טקסט LTR רגיל (מספרים, אנגלית) — x הוא נקודת השמאל
- */
 function drawLTR(page, font, text, x, y, size = 9, color = rgb(0, 0, 0)) {
   if (!text) return
   page.drawText(String(text), { x, y, size, font, color })
 }
 
-/**
- * מצייר V בתוך תיבת סימון
- */
 function drawCheck(page, font, x, y, size = 10) {
   page.drawText('v', { x, y, size, font, color: rgb(0, 0, 0) })
 }
@@ -60,54 +40,74 @@ export async function generateForm101PDF(formData) {
   const page1 = pages[0]
   const { width, height } = page1.getSize()
 
-  // קיצורים נוחים
-  const rtl  = (text, rx, y, size) => drawRTL(page1, heeboFont, text, rx, y, size)
-  const ltr  = (text, x,  y, size) => drawLTR(page1, heeboFont, text, x,  y, size)
-  const chk  = (x, y)              => drawCheck(page1, heeboFont, x, y)
+  // ═══════════════════════════════════════════════
+  // 🔴 DEBUG — קווי עזר למציאת קואורדינטות
+  // מחק את כל הבלוק הזה אחרי הכיול!
+  // ═══════════════════════════════════════════════
+  // קווים אדומים אופקיים + מספרי Y (כל 25 נקודות)
+  for (let y = 0; y <= height; y += 25) {
+    page1.drawLine({
+      start: { x: 0, y },
+      end: { x: 30, y },
+      thickness: 0.4,
+      color: rgb(1, 0, 0),
+    })
+    page1.drawText(`${Math.round(y)}`, {
+      x: 2, y: y + 1, size: 5, font: heeboFont, color: rgb(1, 0, 0),
+    })
+  }
+  // קווים כחולים אנכיים + מספרי X (כל 25 נקודות)
+  for (let x = 0; x <= width; x += 25) {
+    page1.drawLine({
+      start: { x, y: 0 },
+      end: { x, y: 30 },
+      thickness: 0.4,
+      color: rgb(0, 0, 1),
+    })
+    page1.drawText(`${Math.round(x)}`, {
+      x: x + 1, y: 2, size: 5, font: heeboFont, color: rgb(0, 0, 1),
+    })
+  }
+  // ═══════════════════════════════════════════════
+  // סוף DEBUG
+  // ═══════════════════════════════════════════════
 
-  // ─────────────────────────────────────────────
-  // שנת מס (ראש עמוד, שדה גדול יחסית)
-  // ─────────────────────────────────────────────
+  const rtl = (text, rx, y, size) => drawRTL(page1, heeboFont, text, rx, y, size)
+  const ltr = (text, x,  y, size) => drawLTR(page1, heeboFont, text, x,  y, size)
+  const chk = (x, y)              => drawCheck(page1, heeboFont, x, y)
+
+  // שנת מס
   ltr(String(formData.year || new Date().getFullYear()), 63, height - 58, 12)
 
-  // ─────────────────────────────────────────────
   // א. פרטי המעסיק
-  // שורה אחת: שם | כתובת | טלפון | מספר תיק ניכויים
-  // ─────────────────────────────────────────────
-  rtl('פלורנטין מרקט בע"מ',   530, height - 115, 8)
+  rtl('פלורנטין מרקט בע"מ',    530, height - 115, 8)
   rtl('קרית ים — זלן שז"ר 31', 390, height - 115, 8)
-  ltr('0522719904',             195, height - 115, 8)
-  ltr('907393060',               75, height - 115, 8)
+  ltr('0522719904',              195, height - 115, 8)
+  ltr('907393060',                75, height - 115, 8)
 
-  // ─────────────────────────────────────────────
-  // ב. פרטי העובד
-  // ─────────────────────────────────────────────
-
-  // שם משפחה (ימין) | שם פרטי (אמצע)
+  // ב. פרטי העובד — שם
   rtl(formData.last_name,  530, height - 192, 9)
   rtl(formData.first_name, 380, height - 192, 9)
 
-  // תאריך לידה — שלושה שדות נפרדים (DD | MM | YYYY)
+  // תאריך לידה
   if (formData.birth_date) {
     const [y, m, d] = formData.birth_date.split('-')
-    ltr(d,    205, height - 192, 9)   // יום
-    ltr(m,    175, height - 192, 9)   // חודש
-    ltr(y,    130, height - 192, 9)   // שנה
+    ltr(d,   205, height - 192, 9)
+    ltr(m,   175, height - 192, 9)
+    ltr(y,   130, height - 192, 9)
   }
 
-  // מספר זהות — ספרה אחרי ספרה, מימין לשמאל
+  // מספר זהות
   if (formData.id_number) {
     const id = formData.id_number.padStart(9, ' ')
-    const startX = 530  // מיקום ספרה ראשונה (ימנית ביותר)
-    const cellW  = 15.5 // רוחב תא
+    const startX = 530
+    const cellW  = 15.5
     for (let i = 0; i < 9; i++) {
       ltr(id[i], startX - (i * cellW), height - 207, 9)
     }
   }
 
-  // ─────────────────────────────────────────────
-  // כתובת: רחוב | מספר בית | עיר | מיקוד
-  // ─────────────────────────────────────────────
+  // כתובת
   rtl(formData.address,      530, height - 222, 9)
   ltr(formData.house_number, 310, height - 222, 9)
   rtl(formData.city,         280, height - 222, 9)
@@ -118,18 +118,14 @@ export async function generateForm101PDF(formData) {
   ltr(formData.mobile_phone, 210, height - 252, 9)
   ltr(formData.phone || '',   85, height - 252, 9)
 
-  // ─────────────────────────────────────────────
-  // מין — תיבות סימון
-  // ─────────────────────────────────────────────
+  // מין
   if (formData.gender === 'זכר') {
     chk(520, height - 265)
   } else {
     chk(497, height - 265)
   }
 
-  // ─────────────────────────────────────────────
   // מצב משפחתי
-  // ─────────────────────────────────────────────
   const marital = {
     'רווק/ה':  { x: 468, y: height - 265 },
     'נשוי/אה': { x: 437, y: height - 265 },
@@ -143,11 +139,7 @@ export async function generateForm101PDF(formData) {
   }
 
   // תושב ישראל
-  if (formData.is_israel_resident) {
-    chk(320, height - 265)
-  } else {
-    chk(295, height - 265)
-  }
+  chk(formData.is_israel_resident ? 320 : 295, height - 265)
 
   // חבר קיבוץ
   chk(formData.is_kibbutz_member ? 253 : 228, height - 265)
@@ -156,9 +148,7 @@ export async function generateForm101PDF(formData) {
   chk(148, height - 265)
   rtl(formData.health_fund, 135, height - 278, 8)
 
-  // ─────────────────────────────────────────────
   // ד. סוג הכנסה
-  // ─────────────────────────────────────────────
   const incomePos = {
     'משכורת חודש':            { x: 495, y: height - 363 },
     'משכורת בעד משרה נוספת': { x: 395, y: height - 363 },
@@ -177,18 +167,12 @@ export async function generateForm101PDF(formData) {
     ltr(`${d}/${m}/${y}`, 430, height - 390, 9)
   }
 
-  // ─────────────────────────────────────────────
   // ה. הכנסות אחרות
-  // ─────────────────────────────────────────────
-  if (!formData.has_other_income) {
-    chk(493, height - 418)   // אין
-  } else {
-    chk(493, height - 438)   // יש
-  }
+  chk(493, formData.has_other_income ? height - 438 : height - 418)
 
-  // ─────────────────────────────────────────────
+  // ═══════════════════════════════════════════════
   // עמוד 2
-  // ─────────────────────────────────────────────
+  // ═══════════════════════════════════════════════
   const page2 = pages[1]
   const h2 = page2.getSize().height
   const rtl2 = (text, rx, y, size) => drawRTL(page2, heeboFont, text, rx, y, size)
@@ -198,16 +182,12 @@ export async function generateForm101PDF(formData) {
   // מספר ת.ז בראש עמוד 2
   if (formData.id_number) {
     const id = formData.id_number.padStart(9, ' ')
-    const startX = 530
-    const cellW  = 15.5
     for (let i = 0; i < 9; i++) {
-      ltr2(id[i], startX - (i * cellW), h2 - 30, 9)
+      ltr2(id[i], 530 - (i * 15.5), h2 - 30, 9)
     }
   }
 
-  // ─────────────────────────────────────────────
-  // ח. פטורים — תיבות סימון
-  // ─────────────────────────────────────────────
+  // ח. פטורים
   const exemptPos = {
     1:  h2 - 92,
     2:  h2 - 133,
@@ -227,16 +207,11 @@ export async function generateForm101PDF(formData) {
   })
 
   // ט. תיאום מס
-  if (formData.tax_coordination) {
-    chk2(530, h2 - 643)
-  }
+  if (formData.tax_coordination) chk2(530, h2 - 643)
 
   // י. תאריך חתימה
   const today = new Date()
-  ltr2(
-    `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`,
-    115, h2 - 693, 9
-  )
+  ltr2(`${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`, 115, h2 - 693, 9)
 
   // חתימה דיגיטלית
   if (formData.signature) {
