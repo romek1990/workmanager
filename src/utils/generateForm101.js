@@ -12,7 +12,8 @@ export async function generateForm101PDF(formData) {
   const { width, height } = page1.getSize()
   
   // פונט עברי — נשתמש ב-Helvetica עם טקסט מירורד
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  // טען פונט עברי
+const fontBytes = await fetch('https://fonts.gstatic.com/s/rubik/v28/iJWZBXyIfDnIV5PNhY1KTN7Z-Yh-B4i1UA.woff2').then(r => r.arrayBuffer())
   
   function drawText(page, text, x, y, size = 9) {
     if (!text) return
