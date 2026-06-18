@@ -2,7 +2,7 @@
 // POC לבדיקת מילוי טופס 101 בדפדפן עם pdf-lib.
 
 import { useState } from 'react'
-import { supabase } from './lib/supabase'
+import { supabase } from '../lib/supabase'
 import { PDFDocument, rgb } from 'pdf-lib'
 import fontkit from '@pdf-lib/fontkit'
 
