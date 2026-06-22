@@ -293,6 +293,64 @@ function fillPage1(page, font, data) {
   const E_YES = [236.5, 478.2, 244.9, 489.2] // יש לי הכנסות אחרות
   if (data.has_other_income) D.checkboxX(...E_YES)
   else D.checkboxX(...E_NO)
+
+  // --- Section ו (spouse details) ---
+  // row baseline: bottom line at top 710.8, baseline_td = 708.6
+  {
+    const SP_BASELINE = topToY(708.6)
+
+    // ID number — 9 cells (centers from bounds, pitch ~11.3)
+    const SP_ID_BOUNDS = [437.8, 449.1, 460.5, 471.9, 483.1, 494.6, 505.9, 517.3, 528.5, 538.0]
+    if (data.spouse_id_number) {
+      const id = String(data.spouse_id_number)
+      for (let i = 0; i < id.length && i < 9; i++) {
+        const xc = (SP_ID_BOUNDS[i] + SP_ID_BOUNDS[i + 1]) / 2
+        D.text(id[i], xc, SP_BASELINE, 7, { align: 'center' })
+      }
+    }
+
+    // birth date — 8 cells
+    const SP_BIRTH_BOUNDS = [119.3, 130.7, 142.0, 153.3, 164.6, 176.0, 187.4, 198.8, 210.0]
+    if (data.spouse_birth_date) {
+      const b = dateToDDMMYYYY(data.spouse_birth_date)
+      for (let i = 0; i < b.length && i < 8; i++) {
+        const xc = (SP_BIRTH_BOUNDS[i] + SP_BIRTH_BOUNDS[i + 1]) / 2
+        D.text(b[i], xc, SP_BASELINE, 7, { align: 'center' })
+      }
+    }
+
+    // aliyah date — 8 cells
+    const SP_ALIYAH_BOUNDS = [28.7, 40.0, 51.3, 62.6, 73.9, 85.3, 96.7, 108.1, 119.3]
+    if (data.spouse_aliyah_date) {
+      const a = dateToDDMMYYYY(data.spouse_aliyah_date)
+      for (let i = 0; i < a.length && i < 8; i++) {
+        const xc = (SP_ALIYAH_BOUNDS[i] + SP_ALIYAH_BOUNDS[i + 1]) / 2
+        D.text(a[i], xc, SP_BASELINE, 7, { align: 'center' })
+      }
+    }
+
+    // family name + first name (right-aligned in their cells)
+    D.text(data.spouse_last_name || '', 437.8 - 4, SP_BASELINE, 9, { align: 'right' })
+    D.text(data.spouse_first_name || '', 314.2 - 4, SP_BASELINE, 9, { align: 'right' })
+
+    // spouse income status checkboxes (x0, top, x1, bottom)
+    const SP_CB = {
+      'אין הכנסה': [409.8, 715.6, 418.2, 726.6],
+      'עבודה/קצבה/עסק': [160.1, 717.2, 168.5, 727.2],
+      'הכנסה אחרת': [80.7, 717.2, 89.1, 727.2],
+    }
+    // "יש לבן/בת הזוג הכנסה מ:" header box — mark it when income is not "אין הכנסה"
+    const SP_HAS_INCOME = [282.4, 715.6, 290.8, 726.6]
+    if (data.spouse_income_status === 'אין הכנסה') {
+      D.checkboxX(...SP_CB['אין הכנסה'])
+    } else if (data.spouse_income_status === 'עבודה/קצבה/עסק') {
+      D.checkboxX(...SP_HAS_INCOME)
+      D.checkboxX(...SP_CB['עבודה/קצבה/עסק'])
+    } else if (data.spouse_income_status === 'הכנסה אחרת') {
+      D.checkboxX(...SP_HAS_INCOME)
+      D.checkboxX(...SP_CB['הכנסה אחרת'])
+    }
+  }
 }
 
 // ===========================================================================
