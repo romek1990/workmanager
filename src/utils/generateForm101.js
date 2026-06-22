@@ -40,15 +40,13 @@ function topToY(top) {
   return PAGE_HEIGHT - top
 }
 
-// Reverse Hebrew for pdf-lib's LTR drawing, keeping digit/Latin runs in their
-// original order (so "13" stays "13", not "31").
-function rtl(s) {
+// pdf-lib + a Hebrew font renders pure-Hebrew runs correctly on its own (the
+// viewer applies bidi), so we must NOT reverse whole strings. But a digit run
+// embedded inside Hebrew (e.g. "דרך עכו 140") gets visually flipped by bidi.
+// fixDigits reverses only the digit runs so they read correctly after bidi.
+function fixDigits(s) {
   if (!s) return ''
-  const tokens = String(s).match(/[0-9A-Za-z.,:/\-]+|[^0-9A-Za-z.,:/\-]+/g) || []
-  return tokens
-    .reverse()
-    .map((t) => (/^[0-9A-Za-z.,:/\-]+$/.test(t) ? t : [...t].reverse().join('')))
-    .join('')
+  return String(s).replace(/\d+/g, (run) => [...run].reverse().join(''))
 }
 
 // "YYYY-MM-DD" -> "DDMMYYYY"  (8 chars, for the per-cell date fields)
@@ -138,9 +136,9 @@ function fillPage1(page, font, data) {
 
   // --- Section A: employer (constant) ---
   D.text(EMPLOYER.name, 536, topToY(180), 9, { align: 'right' })
-  D.text(EMPLOYER.address, 412, topToY(180), 8, { align: 'right' })
-  D.text(EMPLOYER.phone, 207, topToY(180), 9, { align: 'center' })
-  D.text(EMPLOYER.fileNumber, 96, topToY(180), 9, { align: 'center' })
+  D.text(fixDigits(EMPLOYER.address), 311.9, topToY(180), 8, { align: 'center' })
+  D.text(EMPLOYER.phone, 169.7, topToY(180), 9, { align: 'center' })
+  D.text(EMPLOYER.fileNumber, 79.2, topToY(180), 9, { align: 'center' })
 
   // --- Section B: employee ---
   // ID number — 9 digit cells (x centers from calibration, pitch ~10.1)
@@ -153,11 +151,10 @@ function fillPage1(page, font, data) {
     }
   }
 
-  // name (שם משפחה + שם פרטי) — drawn right-aligned in the name band
-  // family name col ~395-433, first name col ~278-308; we write the full
-  // name right-aligned starting at the family-name right edge.
-  const fullName = `${data.last_name || ''} ${data.first_name || ''}`.trim()
-  D.text(fullName, 433, topToY(227), 9, { align: 'right' })
+  // name — family name and first name in their separate columns
+  // family name col: 313.9-438.1 ; first name col: 210.0-313.9
+  D.text(data.last_name || '', 434, topToY(227), 9, { align: 'right' })
+  D.text(data.first_name || '', 310, topToY(227), 9, { align: 'right' })
 
   // birth date — 8 cells on the employee row (centers from calibration)
   {
