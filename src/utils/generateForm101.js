@@ -174,6 +174,15 @@ function fillPage1(page, font, data) {
     }
   }
 
+  // passport number — 9 cells (alphanumeric), only filled if provided
+  if (data.passport_number) {
+    const PASSPORT_X0 = [397.1, 413.2, 429.5, 445.6, 461.7, 477.8, 493.9, 510.0, 526.1]
+    const pass = String(data.passport_number)
+    for (let i = 0; i < pass.length && i < 9; i++) {
+      D.text(pass[i], PASSPORT_X0[i] + 3, topToY(257.0), 7, { align: 'center' })
+    }
+  }
+
   // --- Section B checkboxes ---
   // glyph bboxes (x0, top, x1, bottom) from calibration
   const CB = {
