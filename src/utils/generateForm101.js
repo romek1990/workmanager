@@ -137,8 +137,8 @@ function fillPage1(page, font, data) {
   })
 
   // --- Section A: employer (constant) ---
-  D.text(rtl(EMPLOYER.name), 536, topToY(180), 9, { align: 'right' })
-  D.text(rtl(EMPLOYER.address), 412, topToY(180), 8, { align: 'right' })
+  D.text(EMPLOYER.name, 536, topToY(180), 9, { align: 'right' })
+  D.text(EMPLOYER.address, 412, topToY(180), 8, { align: 'right' })
   D.text(EMPLOYER.phone, 207, topToY(180), 9, { align: 'center' })
   D.text(EMPLOYER.fileNumber, 96, topToY(180), 9, { align: 'center' })
 
@@ -157,7 +157,7 @@ function fillPage1(page, font, data) {
   // family name col ~395-433, first name col ~278-308; we write the full
   // name right-aligned starting at the family-name right edge.
   const fullName = `${data.last_name || ''} ${data.first_name || ''}`.trim()
-  D.text(rtl(fullName), 433, topToY(227), 9, { align: 'right' })
+  D.text(fullName, 433, topToY(227), 9, { align: 'right' })
 
   // birth date — 8 cells on the employee row (centers from calibration)
   {
@@ -221,15 +221,15 @@ function fillPage1(page, font, data) {
   if (data.health_fund) {
     D.checkboxX(...CB.healthYes)
     // fund name on its underline (baseline 542.28, right-aligned at x=70)
-    D.text(rtl(data.health_fund), 70, topToY(299.6), 9, { align: 'right' })
+    D.text(data.health_fund, 70, topToY(299.6), 9, { align: 'right' })
   }
 
   // --- private address (band above the column headers) ---
   // cells: zip, city, house_no, street (centers from calibration)
   D.text(String(data.zip_code || ''), 68.8, topToY(257.3), 7, { align: 'center' })
-  D.text(rtl(data.city || ''), 155.5, topToY(257.3), 7, { align: 'center' })
+  D.text(data.city || '', 155.5, topToY(257.3), 7, { align: 'center' })
   D.text(String(data.house_number || ''), 215.7, topToY(257.3), 7, { align: 'center' })
-  D.text(rtl(data.address || ''), 310.65, topToY(257.3), 7, { align: 'center' })
+  D.text(data.address || '', 310.65, topToY(257.3), 7, { align: 'center' })
 
   // --- phone / mobile / email (Section B bottom row) ---
   D.text(String(data.mobile_phone || ''), 144.0, topToY(314.4), 9, { align: 'right' })
@@ -255,7 +255,7 @@ function fillPage1(page, font, data) {
     // ID number (9 digits)
     D.digitsInCells(CHILD_ID_BOUNDS, child.id_number || '', baselineTop, 7)
     // name (right-aligned)
-    D.text(rtl(child.name || ''), NAME_CELL[1] - 4, topToY(baselineTop), 9, { align: 'right' })
+    D.text(child.name || '', NAME_CELL[1] - 4, topToY(baselineTop), 9, { align: 'right' })
     // checkmarks
     if (child.receives_allowance) D.checkMark(COL2[0], COL2[1], baselineTop)
     if (child.in_custody) D.checkMark(COL1[0], COL1[1], baselineTop)
