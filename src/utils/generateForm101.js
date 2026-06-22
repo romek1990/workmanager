@@ -186,10 +186,11 @@ function fillPage1(page, font, data) {
     separated: [442.5, 290.8, 450.9, 301.8], // פרוד/ה
     residentYes: [309.7, 278.8, 318.1, 289.8],
     residentNo: [309.7, 291.8, 318.1, 302.8],
-    kibbutzYes: [270.6, 279.0, 278.2, 289.0],
-    kibbutzNo: [270.6, 292.0, 278.2, 302.0],
-    healthYes: [123.2, 277.2, 131.6, 288.2],
-    healthNo: [123.2, 290.2, 131.6, 301.2],
+    kibbutzNo: [270.6, 279.0, 278.2, 289.0], // לא (not a member)
+    kibbutzYesTransfer: [248.6, 279.9, 256.2, 288.9], // כן, מועברות
+    kibbutzYesNoTransfer: [270.6, 292.0, 278.2, 302.0], // כן, אינן מועברות
+    healthNo: [123.2, 277.2, 131.6, 288.2], // לא
+    healthYes: [123.2, 290.2, 131.6, 301.2], // כן, שם הקופה
   }
 
   // gender
@@ -210,8 +211,9 @@ function fillPage1(page, font, data) {
   if (data.is_israel_resident) D.checkboxX(...CB.residentYes)
   else D.checkboxX(...CB.residentNo)
 
-  // kibbutz member
-  if (data.is_kibbutz_member) D.checkboxX(...CB.kibbutzYes)
+  // kibbutz member — if a member, default to "income not transferred";
+  // otherwise mark "לא"
+  if (data.is_kibbutz_member) D.checkboxX(...CB.kibbutzYesNoTransfer)
   else D.checkboxX(...CB.kibbutzNo)
 
   // health fund
