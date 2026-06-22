@@ -13,7 +13,9 @@ const defaultForm = {
   first_name: '',
   last_name: '',
   id_number: '',
+  passport_number: '',
   birth_date: '',
+  aliyah_date: '',
   gender: 'זכר',
   address: '',
   house_number: '',
@@ -66,7 +68,9 @@ export default function Form101() {
         first_name: data.first_name || '',
         last_name: data.last_name || '',
         id_number: data.id_number || '',
+        passport_number: data.passport_number || '',
         birth_date: data.birth_date || '',
+        aliyah_date: data.aliyah_date || '',
         gender: data.gender || 'זכר',
         address: data.address || '',
         house_number: data.house_number || '',
@@ -252,7 +256,7 @@ export default function Form101() {
         <Section title="א. פרטי המעסיק">
           <div className="grid grid-cols-2 gap-3">
             <Field label="שם המעסיק" value="פלורנטין מרקט בע״מ" disabled />
-            <Field label="מספר תיק ניכויים" value="907393060" disabled />
+            <Field label="מספר תיק ניכויים" value="911000925" disabled />
           </div>
         </Section>
 
@@ -271,8 +275,16 @@ export default function Form101() {
               <input className="form-control" value={form.id_number} onChange={e => set('id_number', e.target.value)} disabled={disabled} placeholder="9 ספרות" maxLength={9} />
             </div>
             <div>
+              <label className="form-label">מספר דרכון (אם אין ת.ז)</label>
+              <input className="form-control" value={form.passport_number} onChange={e => set('passport_number', e.target.value)} disabled={disabled} />
+            </div>
+            <div>
               <label className="form-label">תאריך לידה <Required /></label>
               <input type="date" className="form-control" value={form.birth_date} onChange={e => set('birth_date', e.target.value)} disabled={disabled} />
+            </div>
+            <div>
+              <label className="form-label">תאריך עלייה (לעולים חדשים)</label>
+              <input type="date" className="form-control" value={form.aliyah_date} onChange={e => set('aliyah_date', e.target.value)} disabled={disabled} />
             </div>
             <div>
               <label className="form-label">רחוב <Required /></label>
