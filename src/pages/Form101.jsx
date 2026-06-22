@@ -8,6 +8,7 @@ import SignatureCanvas from 'react-signature-canvas'
 
 const MARITAL_OPTIONS = ['רווק/ה', 'נשוי/אה', 'גרוש/ה', 'אלמן/ה', 'פרוד/ה']
 const INCOME_TYPES = ['משכורת חודש', 'משכורת בעד משרה נוספת', 'משכורת חלקית', 'שכר עבודה (עובד יומי)', 'קצבה', 'מלגה']
+const SPOUSE_INCOME_OPTIONS = ['אין הכנסה', 'עבודה/קצבה/עסק', 'הכנסה אחרת']
 
 const defaultForm = {
   first_name: '',
@@ -28,6 +29,12 @@ const defaultForm = {
   is_israel_resident: true,
   is_kibbutz_member: false,
   health_fund: '',
+  spouse_id_number: '',
+  spouse_last_name: '',
+  spouse_first_name: '',
+  spouse_birth_date: '',
+  spouse_aliyah_date: '',
+  spouse_income_status: '',
   children: [],
   income_types: [],
   work_start_date: '',
@@ -83,6 +90,12 @@ export default function Form101() {
         is_israel_resident: data.is_israel_resident ?? true,
         is_kibbutz_member: data.is_kibbutz_member ?? false,
         health_fund: data.health_fund || '',
+        spouse_id_number: data.spouse_id_number || '',
+        spouse_last_name: data.spouse_last_name || '',
+        spouse_first_name: data.spouse_first_name || '',
+        spouse_birth_date: data.spouse_birth_date || '',
+        spouse_aliyah_date: data.spouse_aliyah_date || '',
+        spouse_income_status: data.spouse_income_status || '',
         children: data.children || [],
         income_types: data.income_types || [],
         work_start_date: data.work_start_date || '',
@@ -224,6 +237,7 @@ export default function Form101() {
   const isApproved = existingForm?.status === 'approved'
   const isPending = existingForm?.status === 'pending'
   const disabled = isApproved
+  const isMarried = form.marital_status === 'נשוי/אה'
 
   const EXEMPTION_OPTIONS = [
     { num: 1, label: 'אני תושב/ת ישראל' },
@@ -355,6 +369,40 @@ export default function Form101() {
             </div>
           </div>
         </Section>
+
+        {isMarried && (
+        <Section title="ו. פרטים על בן/בת הזוג">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="form-label">שם פרטי</label>
+              <input className="form-control" value={form.spouse_first_name} onChange={e => set('spouse_first_name', e.target.value)} disabled={disabled} />
+            </div>
+            <div>
+              <label className="form-label">שם משפחה</label>
+              <input className="form-control" value={form.spouse_last_name} onChange={e => set('spouse_last_name', e.target.value)} disabled={disabled} />
+            </div>
+            <div>
+              <label className="form-label">מספר ת.ז</label>
+              <input className="form-control" value={form.spouse_id_number} onChange={e => set('spouse_id_number', e.target.value)} disabled={disabled} placeholder="9 ספרות" maxLength={9} />
+            </div>
+            <div>
+              <label className="form-label">תאריך לידה</label>
+              <input type="date" className="form-control" value={form.spouse_birth_date} onChange={e => set('spouse_birth_date', e.target.value)} disabled={disabled} />
+            </div>
+            <div>
+              <label className="form-label">תאריך עלייה (אם רלוונטי)</label>
+              <input type="date" className="form-control" value={form.spouse_aliyah_date} onChange={e => set('spouse_aliyah_date', e.target.value)} disabled={disabled} />
+            </div>
+            <div>
+              <label className="form-label">מצב הכנסה של בן/בת הזוג</label>
+              <select className="form-control" value={form.spouse_income_status} onChange={e => set('spouse_income_status', e.target.value)} disabled={disabled}>
+                <option value="">בחר</option>
+                {SPOUSE_INCOME_OPTIONS.map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+          </div>
+        </Section>
+        )}
 
         <Section title="ג. פרטים על ילדים (מתחת לגיל 19)">
           {form.children.map((child, i) => (
