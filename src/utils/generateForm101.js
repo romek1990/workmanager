@@ -159,14 +159,21 @@ function fillPage1(page, font, data) {
   const fullName = `${data.last_name || ''} ${data.first_name || ''}`.trim()
   D.text(rtl(fullName), 433, topToY(227), 9, { align: 'right' })
 
-  // birth date — 8 cells, left group on the employee row (pitch 11.3, start 167.8)
-  // aliyah date stays empty unless provided (no DB column); birth from birth_date.
+  // birth date — 8 cells on the employee row (centers from calibration)
   {
+    const BIRTH_CENTERS = [124.4, 135.7, 147.0, 158.3, 169.6, 180.9, 192.2, 203.5]
     const birth = dateToDDMMYYYY(data.birth_date) // DDMMYYYY
-    // birth cells centers (right group of the left block): 167.8.. with pitch 11.3
-    const start = 167.8 + 11.3 / 2
     for (let i = 0; i < birth.length && i < 8; i++) {
-      D.text(birth[i], start + i * 11.3, topToY(233.3), 7, { align: 'center' })
+      D.text(birth[i], BIRTH_CENTERS[i], topToY(233.3), 7, { align: 'center' })
+    }
+  }
+
+  // aliyah date — 8 cells (left of birth); only filled if provided
+  if (data.aliyah_date) {
+    const ALIYAH_CENTERS = [34.0, 45.3, 56.6, 67.9, 79.2, 90.5, 101.8, 113.1]
+    const aliyah = dateToDDMMYYYY(data.aliyah_date)
+    for (let i = 0; i < aliyah.length && i < 8; i++) {
+      D.text(aliyah[i], ALIYAH_CENTERS[i], topToY(233.3), 7, { align: 'center' })
     }
   }
 
@@ -320,10 +327,14 @@ function fillPage2(page, font, data) {
     D.checkboxXRelative(512.4, 589.0, 523.1, 603.0)
   }
 
-  // Section י (declaration) — date on the date line
-  D.text(dateToSlashed(new Date().toISOString().slice(0, 10)), (139.9 + 228.0) / 2, topToY(97.5), 9, {
-    align: 'center',
-  })
+  // Section י (declaration) — date on the date line (baseline y=185.99 bottom-up)
+  D.text(
+    dateToSlashed(new Date().toISOString().slice(0, 10)),
+    (139.9 + 228.0) / 2,
+    185.99,
+    9,
+    { align: 'center' }
+  )
 }
 
 // Signature image (base64 PNG from SignatureCanvas) placed on the
@@ -339,7 +350,7 @@ async function placeSignature(pdfDoc, page2, signature) {
     const h = png.height * scale
     page2.drawImage(png, {
       x: 36,
-      y: topToY(97.5) - 2,
+      y: 185.99 - 2,
       width: w,
       height: h,
     })
