@@ -388,6 +388,44 @@ function fillPage2(page, font, data) {
     if (box) D.checkboxXRelative(...box)
   })
 
+  // Section H accompanying fields (only filled when the exemption is checked).
+  // baseline formula: topToY(top - 1.8); dates DD/MM/YYYY at size 8, text/num size 9.
+  const hasEx = (n) => (data.exemptions || []).includes(n)
+  const hField = (x0, top, x1, value, size) => {
+    if (!value) return
+    D.text(value, (x0 + x1) / 2, topToY(top - 1.8), size, { align: 'center' })
+  }
+
+  // item 3 — town + from-date
+  if (hasEx(3)) {
+    hField(294.3, 119.9, 440.3, data.exemption_3_town || '', 9)
+    hField(254.1, 106.5, 331.6, dateToSlashed(data.exemption_3_from_date), 8)
+  }
+  // item 4 — aliyah date + income-until date
+  if (hasEx(4)) {
+    hField(330.1, 133.9, 407.6, dateToSlashed(data.exemption_4_aliyah_date), 8)
+    hField(191.0, 147.9, 250.6, dateToSlashed(data.exemption_4_income_until_date), 8)
+  }
+  // item 11 — number of disabled children
+  if (hasEx(11)) {
+    hField(447.8, 367.3, 467.2, data.exemption_11_disabled_children || '', 9)
+  }
+  // item 14 — service start + end dates
+  if (hasEx(14)) {
+    hField(192.6, 423.2, 249.9, dateToSlashed(data.exemption_14_service_start), 8)
+    hField(58.8, 424.2, 118.9, dateToSlashed(data.exemption_14_service_end), 8)
+  }
+  // item 16 — reserve days (sits on the underscore line, baseline 382.53 bottom-up)
+  if (hasEx(16) && data.exemption_16_reserve_days) {
+    D.text(
+      String(data.exemption_16_reserve_days),
+      (341.1 + 363.9) / 2,
+      382.53 + 1.5,
+      9,
+      { align: 'center' }
+    )
+  }
+
   // Section ט (tax coordination) — checkbox 3 ("פקיד השומה אישר תיאום")
   if (data.tax_coordination) {
     D.checkboxXRelative(512.4, 589.0, 523.1, 603.0)
