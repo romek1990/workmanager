@@ -410,6 +410,37 @@ function fillPage2(page, font, data) {
   if (hasEx(11)) {
     hField(447.8, 367.3, 467.2, data.exemption_11_disabled_children || '', 9)
   }
+
+  // items 7 & 8 — child counts by age group (x0, top, x1 per group)
+  const SEC7_CELLS = {
+    born: [324.1, 263.8, 347.1],
+    age1to2: [368.6, 241.3, 391.6],
+    age3: [279.8, 253.2, 302.8],
+    age4to5: [78.2, 263.8, 101.2],
+    age6to17: [43.6, 242.3, 67.0],
+    age18: [39.6, 252.2, 63.0],
+  }
+  const SEC8_CELLS = {
+    born: [324.1, 311.3, 347.1],
+    age1to2: [368.6, 288.9, 391.6],
+    age3: [279.8, 300.7, 302.8],
+    age4to5: [78.2, 311.4, 101.2],
+    age6to17: [43.6, 289.8, 67.0],
+    age18: [39.6, 299.7, 63.0],
+  }
+  const fillChildCounts = (cells, counts) => {
+    if (!counts) return
+    Object.keys(cells).forEach((key) => {
+      const v = counts[key]
+      if (v !== undefined && v !== null && String(v).trim() !== '') {
+        const [x0, top, x1] = cells[key]
+        hField(x0, top, x1, String(v), 9)
+      }
+    })
+  }
+  if (hasEx(7)) fillChildCounts(SEC7_CELLS, data.exemption_7_children)
+  if (hasEx(8)) fillChildCounts(SEC8_CELLS, data.exemption_8_children)
+
   // item 14 — service start + end dates
   if (hasEx(14)) {
     hField(192.6, 423.2, 249.9, dateToSlashed(data.exemption_14_service_start), 8)
