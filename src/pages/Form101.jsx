@@ -9,6 +9,14 @@ import SignatureCanvas from 'react-signature-canvas'
 const MARITAL_OPTIONS = ['רווק/ה', 'נשוי/אה', 'גרוש/ה', 'אלמן/ה', 'פרוד/ה']
 const INCOME_TYPES = ['משכורת חודש', 'משכורת בעד משרה נוספת', 'משכורת חלקית', 'שכר עבודה (עובד יומי)', 'קצבה', 'מלגה']
 const SPOUSE_INCOME_OPTIONS = ['אין הכנסה', 'עבודה/קצבה/עסק', 'הכנסה אחרת']
+const AGE_GROUPS = [
+  { key: 'born', label: 'נולדו בשנת המס' },
+  { key: 'age1to2', label: 'שנה אחת עד שנתיים' },
+  { key: 'age3', label: '3 שנים' },
+  { key: 'age4to5', label: '4 עד 5 שנים' },
+  { key: 'age6to17', label: '6 עד 17 שנים' },
+  { key: 'age18', label: '18 שנים' },
+]
 
 const defaultForm = {
   first_name: '',
@@ -48,6 +56,8 @@ const defaultForm = {
   exemption_14_service_end: '',
   exemption_16_reserve_days: '',
   exemption_11_disabled_children: '',
+  exemption_7_children: {},
+  exemption_8_children: {},
   tax_coordination: false,
   signature: '',
 }
@@ -117,6 +127,8 @@ export default function Form101() {
         exemption_14_service_end: data.exemption_14_service_end || '',
         exemption_16_reserve_days: data.exemption_16_reserve_days || '',
         exemption_11_disabled_children: data.exemption_11_disabled_children || '',
+        exemption_7_children: data.exemption_7_children || {},
+        exemption_8_children: data.exemption_8_children || {},
         tax_coordination: data.tax_coordination ?? false,
         signature: data.signature || '',
       })
@@ -173,6 +185,10 @@ export default function Form101() {
         ? p.exemptions.filter(e => e !== num)
         : [...p.exemptions, num]
     }))
+  }
+
+  function setChildCount(field, ageKey, value) {
+    setForm(p => ({ ...p, [field]: { ...p[field], [ageKey]: value } }))
   }
 
   async function handleSubmit() {
@@ -510,6 +526,28 @@ export default function Form101() {
                       <label className="form-label text-xs">לא היתה הכנסה עד תאריך</label>
                       <input type="date" className="form-control text-sm" value={form.exemption_4_income_until_date} onChange={e => set('exemption_4_income_until_date', e.target.value)} disabled={disabled} />
                     </div>
+                  </div>
+                )}
+
+                {ex.num === 7 && hasEx(7) && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1 mr-6">
+                    {AGE_GROUPS.map(g => (
+                      <div key={g.key}>
+                        <label className="form-label text-xs">{g.label}</label>
+                        <input className="form-control text-sm" value={form.exemption_7_children[g.key] || ''} onChange={e => setChildCount('exemption_7_children', g.key, e.target.value)} disabled={disabled} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {ex.num === 8 && hasEx(8) && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1 mr-6">
+                    {AGE_GROUPS.map(g => (
+                      <div key={g.key}>
+                        <label className="form-label text-xs">{g.label}</label>
+                        <input className="form-control text-sm" value={form.exemption_8_children[g.key] || ''} onChange={e => setChildCount('exemption_8_children', g.key, e.target.value)} disabled={disabled} />
+                      </div>
+                    ))}
                   </div>
                 )}
 
