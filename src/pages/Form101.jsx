@@ -40,6 +40,14 @@ const defaultForm = {
   work_start_date: '',
   has_other_income: false,
   exemptions: [],
+  exemption_4_aliyah_date: '',
+  exemption_4_income_until_date: '',
+  exemption_3_town: '',
+  exemption_3_from_date: '',
+  exemption_14_service_start: '',
+  exemption_14_service_end: '',
+  exemption_16_reserve_days: '',
+  exemption_11_disabled_children: '',
   tax_coordination: false,
   signature: '',
 }
@@ -101,6 +109,14 @@ export default function Form101() {
         work_start_date: data.work_start_date || '',
         has_other_income: data.has_other_income ?? false,
         exemptions: data.exemptions || [],
+        exemption_4_aliyah_date: data.exemption_4_aliyah_date || '',
+        exemption_4_income_until_date: data.exemption_4_income_until_date || '',
+        exemption_3_town: data.exemption_3_town || '',
+        exemption_3_from_date: data.exemption_3_from_date || '',
+        exemption_14_service_start: data.exemption_14_service_start || '',
+        exemption_14_service_end: data.exemption_14_service_end || '',
+        exemption_16_reserve_days: data.exemption_16_reserve_days || '',
+        exemption_11_disabled_children: data.exemption_11_disabled_children || '',
         tax_coordination: data.tax_coordination ?? false,
         signature: data.signature || '',
       })
@@ -238,6 +254,7 @@ export default function Form101() {
   const isPending = existingForm?.status === 'pending'
   const disabled = isApproved
   const isMarried = form.marital_status === 'נשוי/אה'
+  const hasEx = (num) => form.exemptions.includes(num)
 
   const EXEMPTION_OPTIONS = [
     { num: 1, label: 'אני תושב/ת ישראל' },
@@ -467,7 +484,62 @@ export default function Form101() {
         <Section title="ח. אני מבקש/ת פטור או זיכוי ממס">
           <div className="space-y-2">
             {EXEMPTION_OPTIONS.map(ex => (
-              <Checkbox key={ex.num} label={`${ex.num}. ${ex.label}`} checked={form.exemptions.includes(ex.num)} onChange={() => !disabled && toggleExemption(ex.num)} disabled={disabled} />
+              <div key={ex.num}>
+                <Checkbox label={`${ex.num}. ${ex.label}`} checked={form.exemptions.includes(ex.num)} onChange={() => !disabled && toggleExemption(ex.num)} disabled={disabled} />
+
+                {ex.num === 3 && hasEx(3) && (
+                  <div className="grid grid-cols-2 gap-2 mt-1 mr-6">
+                    <div>
+                      <label className="form-label text-xs">שם היישוב המזכה</label>
+                      <input className="form-control text-sm" value={form.exemption_3_town} onChange={e => set('exemption_3_town', e.target.value)} disabled={disabled} />
+                    </div>
+                    <div>
+                      <label className="form-label text-xs">מתאריך</label>
+                      <input type="date" className="form-control text-sm" value={form.exemption_3_from_date} onChange={e => set('exemption_3_from_date', e.target.value)} disabled={disabled} />
+                    </div>
+                  </div>
+                )}
+
+                {ex.num === 4 && hasEx(4) && (
+                  <div className="grid grid-cols-2 gap-2 mt-1 mr-6">
+                    <div>
+                      <label className="form-label text-xs">תאריך עלייה</label>
+                      <input type="date" className="form-control text-sm" value={form.exemption_4_aliyah_date} onChange={e => set('exemption_4_aliyah_date', e.target.value)} disabled={disabled} />
+                    </div>
+                    <div>
+                      <label className="form-label text-xs">לא היתה הכנסה עד תאריך</label>
+                      <input type="date" className="form-control text-sm" value={form.exemption_4_income_until_date} onChange={e => set('exemption_4_income_until_date', e.target.value)} disabled={disabled} />
+                    </div>
+                  </div>
+                )}
+
+                {ex.num === 11 && hasEx(11) && (
+                  <div className="mt-1 mr-6">
+                    <label className="form-label text-xs">מספר ילדים עם מוגבלות</label>
+                    <input className="form-control text-sm" value={form.exemption_11_disabled_children} onChange={e => set('exemption_11_disabled_children', e.target.value)} disabled={disabled} />
+                  </div>
+                )}
+
+                {ex.num === 14 && hasEx(14) && (
+                  <div className="grid grid-cols-2 gap-2 mt-1 mr-6">
+                    <div>
+                      <label className="form-label text-xs">תאריך תחילת שירות</label>
+                      <input type="date" className="form-control text-sm" value={form.exemption_14_service_start} onChange={e => set('exemption_14_service_start', e.target.value)} disabled={disabled} />
+                    </div>
+                    <div>
+                      <label className="form-label text-xs">תאריך סיום שירות</label>
+                      <input type="date" className="form-control text-sm" value={form.exemption_14_service_end} onChange={e => set('exemption_14_service_end', e.target.value)} disabled={disabled} />
+                    </div>
+                  </div>
+                )}
+
+                {ex.num === 16 && hasEx(16) && (
+                  <div className="mt-1 mr-6">
+                    <label className="form-label text-xs">מספר ימי מילואים</label>
+                    <input className="form-control text-sm" value={form.exemption_16_reserve_days} onChange={e => set('exemption_16_reserve_days', e.target.value)} disabled={disabled} />
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </Section>
