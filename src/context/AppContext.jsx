@@ -128,46 +128,25 @@ export function AppProvider({ children }) {
   }
 
   async function addEmployee(emp) {
-    const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53ZXRhanl3YXp6cHhrZGtucXNmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTA4NDI3MCwiZXhwIjoyMDk0NjYwMjcwfQ.nXv9_VDNViQcT9s1xfg1UzROz-wJuo9uM0v4KGie3OQ'
+    const { data: sessionData } = await supabase.auth.getSession()
+    const accessToken = sessionData?.session?.access_token
+    if (!accessToken) throw new Error('יש להתחבר מחדש למערכת')
 
-    const res = await fetch('https://nwetajywazzpxkdknqsf.supabase.co/auth/v1/admin/users', {
+    const res = await fetch('https://nwetajywazzpxkdknqsf.supabase.co/functions/v1/admin-create-employee', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': SERVICE_ROLE_KEY,
-        'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+        'Authorization': `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({
-        email: emp.email,
-        email_confirm: true,
-        user_metadata: { full_name: emp.full_name, role: 'user' },
-      })
+      body: JSON.stringify(emp),
     })
 
-    const authData = await res.json()
-    if (!res.ok) throw new Error(authData.message || 'שגיאה ביצירת משתמש')
+    const result = await res.json()
+    if (!res.ok) throw new Error(result.error || 'שגיאה ביצירת עובד')
 
-    if (authData.id) {
-      const { data, error } = await supabase
-        .from('profiles')
-        .upsert({ id: authData.id, ...emp, role: 'user' })
-        .select().single()
-      if (!error && data) {
-        setEmployees(prev => [...prev, data])
-        await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'הוספת עובד', `הוסיף עובד חדש: ${emp.full_name} (${emp.email})`)
-      }
-      if (error) throw error
-
-      await supabase.from('notifications').insert({
-        user_id: authData.id,
-        title: '📋 יש למלא טופס 101',
-        message: `ברוך הבא! יש למלא טופס 101 לשנת ${new Date().getFullYear()} בהקדם`,
-        type: 'warning'
-      })
-
-      await supabase.auth.resetPasswordForEmail(emp.email, {
-        redirectTo: 'https://workmanager-seven.vercel.app/set-password',
-      })
+    if (result.profile) {
+      setEmployees(prev => [...prev, result.profile])
+      await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'הוספת עובד', `הוסיף עובד חדש: ${emp.full_name} (${emp.email})`)
     }
   }
 
@@ -288,31 +267,32 @@ export function AppProvider({ children }) {
   }
 
   async function submitForm101(payload) {
-    const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53ZXRhanl3YXp6cHhrZGtucXNmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTA4NDI3MCwiZXhwIjoyMDk0NjYwMjcwfQ.nXv9_VDNViQcT9s1xfg1UzROz-wJuo9uM0v4KGie3OQ'
-
     const { id, ...rest } = payload
 
-    const url = id
-      ? `https://nwetajywazzpxkdknqsf.supabase.co/rest/v1/form_101?id=eq.${id}`
-      : `https://nwetajywazzpxkdknqsf.supabase.co/rest/v1/form_101`
+    // employee_id is enforced server-side by RLS (own row or admin), but
+    // pin it to the current user here too so a non-admin can never target
+    // someone else's form.
+    const isAdmin = currentUser?.role === 'admin'
+    const employeeId = isAdmin ? (payload.employee_id || currentUser?.id) : currentUser?.id
 
-    const res = await fetch(url, {
-      method: id ? 'PATCH' : 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SERVICE_ROLE_KEY,
-        'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-        'Prefer': 'return=representation',
-      },
-      body: JSON.stringify(id ? rest : payload)
-    })
-
-    if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.message || err[0]?.message || 'שגיאה בשמירת הטופס')
+    if (id) {
+      const { data, error } = await supabase
+        .from('form_101')
+        .update({ ...rest, employee_id: employeeId })
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw new Error(error.message || 'שגיאה בשמירת הטופס')
+      return data
     }
 
-    return await res.json()
+    const { data, error } = await supabase
+      .from('form_101')
+      .insert({ ...payload, employee_id: employeeId })
+      .select()
+      .single()
+    if (error) throw new Error(error.message || 'שגיאה בשמירת הטופס')
+    return data
   }
 
   return (
