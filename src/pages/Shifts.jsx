@@ -5,20 +5,36 @@ import { ShiftTypeBadge, StatusBadge, Modal, AlertModal, Table, CardSection } fr
 import { calcHours, todayISO } from '../utils/helpers'
 
 const defaultForm = { employee_email: '', date: todayISO(), start_time: '08:00', end_time: '16:00', shift_type: 'regular', notes: '' }
+const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
 
 export default function Shifts() {
   const { employees, shifts, addShift, updateShiftStatus } = useApp()
+  const now = new Date()
+  const thisYear = now.getFullYear()
+  const thisMonthNum = now.getMonth() + 1
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [selectedYear, setSelectedYear] = useState(thisYear)
+  const [selectedMonthNum, setSelectedMonthNum] = useState(thisMonthNum)
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState(defaultForm)
   const [alert, setAlert] = useState(null)
 
   const activeEmps = employees.filter(e => e.status === 'active')
-  const filtered = shifts.filter(s =>
-    (!search || s.employee_name.toLowerCase().includes(search.toLowerCase())) &&
-    (!statusFilter || s.status === statusFilter)
-  )
+
+  const dataYears = shifts.map(s => Number((s.date || '').slice(0, 4))).filter(Boolean)
+  const earliestYear = dataYears.length ? Math.min(...dataYears) : thisYear
+  const years = []
+  for (let y = thisYear; y >= earliestYear; y--) years.push(y)
+
+  const filtered = shifts
+    .filter(s =>
+      (!search || s.employee_name.toLowerCase().includes(search.toLowerCase())) &&
+      (!statusFilter || s.status === statusFilter) &&
+      (selectedYear === 0 || Number((s.date || '').slice(0, 4)) === selectedYear) &&
+      (selectedMonthNum === 0 || Number((s.date || '').slice(5, 7)) === selectedMonthNum)
+    )
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
 
   function handleAdd() {
     if (!form.employee_email || !form.date) return
@@ -41,9 +57,19 @@ export default function Shifts() {
       <h1 className="text-lg font-medium mb-5">ניהול משמרות</h1>
 
       <CardSection>
-        <div className="flex items-center gap-3 p-4 border-b border-gray-100">
-          <Search size={16} className="text-gray-400" />
-          <input className="flex-1 text-sm outline-none bg-transparent placeholder-gray-400" placeholder="חיפוש לפי שם עובד..." value={search} onChange={e => setSearch(e.target.value)} />
+        <div className="flex flex-wrap items-center gap-3 p-4 border-b border-gray-100">
+          <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+            <Search size={16} className="text-gray-400" />
+            <input className="flex-1 text-sm outline-none bg-transparent placeholder-gray-400" placeholder="חיפוש לפי שם עובד..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <select className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white" value={selectedMonthNum} onChange={e => setSelectedMonthNum(Number(e.target.value))}>
+            <option value={0}>כל החודשים</option>
+            {HEBREW_MONTHS.map((label, i) => <option key={i} value={i + 1}>{label}</option>)}
+          </select>
+          <select className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white" value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}>
+            <option value={0}>כל השנים</option>
+            {years.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
           <select className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
             <option value="">כל הסטטוסים</option>
             <option value="pending">ממתין</option>
