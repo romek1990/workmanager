@@ -105,7 +105,7 @@ export default function Bonuses() {
               <td className="table-td text-sm text-gray-500">{b.date}</td>
               <td className="table-td text-sm text-gray-500">{b.description}</td>
               <td className="table-td">
-                <button onClick={() => openEdit(b)} className="text-blue-400 hover:text-blue-600">
+                <button onClick={() => openEdit(b)} className="text-brand-400 hover:text-brand-600">
                   <Pencil size={14} />
                 </button>
               </td>

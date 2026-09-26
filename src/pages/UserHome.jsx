@@ -159,7 +159,7 @@ export default function UserHome() {
           {now.toLocaleTimeString('he-IL')}
         </div>
         {active && (
-          <p className="text-sm text-blue-600 mb-3 tabular-nums">⏱ משמרת פעילה: {elapsed()}</p>
+          <p className="text-sm text-brand-600 mb-3 tabular-nums">⏱ משמרת פעילה: {elapsed()}</p>
         )}
         <div className="flex items-center justify-center gap-3 mt-2">
           <button
@@ -167,7 +167,7 @@ export default function UserHome() {
             className={`inline-flex items-center gap-2 px-8 py-3 rounded-xl font-medium text-sm transition-colors ${
               active
                 ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-brand-600 text-white hover:bg-brand-700'
             }`}
           >
             {active ? <><Square size={16} />סיים משמרת</> : <><Play size={16} />התחל משמרת</>}
@@ -188,14 +188,14 @@ export default function UserHome() {
       <div className="grid grid-cols-2 gap-3 mb-5">
         <StatCard label="שעות החודש" value={totalHours} sub="מאושרות" icon={Clock} iconColor="text-amber-500" />
         <StatCard label="שכר משוער" value={fmtMoney(totalPay)} sub="לפני ניכויים" icon={Banknote} iconColor="text-green-500" />
-        <StatCard label="סך הכל משמרות שדווחו" value={myShifts.length} sub={`${pendingCount} ממתינות`} icon={CalendarDays} iconColor="text-blue-500" />
+        <StatCard label="סך הכל משמרות שדווחו" value={myShifts.length} sub={`${pendingCount} ממתינות`} icon={CalendarDays} iconColor="text-brand-500" />
         <StatCard label="משמרות שאושרו" value={approvedShifts.length} sub="החודש" icon={CalendarDays} iconColor="text-green-500" />
       </div>
 
       {/* סידור שבועי */}
       <div className="card p-4 mb-5">
         <div className="flex items-center gap-2 mb-4">
-          <CalendarCheck size={18} className="text-blue-600" />
+          <CalendarCheck size={18} className="text-brand-600" />
           <h2 className="text-sm font-medium text-gray-800">הסידור שלי השבוע</h2>
           <span className="text-xs text-gray-400">
             {formatDate(weekStart)} — {formatDate(addDays(weekStart, 6))}
@@ -220,7 +220,7 @@ export default function UserHome() {
                   key={i}
                   className={`rounded-xl p-2 text-center text-xs flex flex-col gap-1 border transition-all ${
                     isToday
-                      ? 'border-blue-300 bg-blue-50 shadow-sm'
+                      ? 'border-brand-300 bg-brand-50 shadow-sm'
                       : entry
                         ? night
                           ? 'border-indigo-100 bg-indigo-50'
@@ -229,11 +229,11 @@ export default function UserHome() {
                   }`}
                 >
                   {/* שם היום */}
-                  <div className={`font-semibold ${isToday ? 'text-blue-700' : 'text-gray-600'}`}>
+                  <div className={`font-semibold ${isToday ? 'text-brand-700' : 'text-gray-600'}`}>
                     {dayName}
                   </div>
                   {/* תאריך */}
-                  <div className={`text-[10px] ${isToday ? 'text-blue-500' : 'text-gray-400'}`}>
+                  <div className={`text-[10px] ${isToday ? 'text-brand-500' : 'text-gray-400'}`}>
                     {formatDate(date)}
                   </div>
 

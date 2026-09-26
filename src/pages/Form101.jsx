@@ -290,7 +290,7 @@ export default function Form101() {
   return (
     <div className="p-6 pt-14 md:pt-6 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <FileText size={22} className="text-blue-600" />
+        <FileText size={22} className="text-brand-600" />
         <div>
           <h1 className="text-lg font-medium">טופס 101</h1>
           <p className="text-xs text-gray-400">הצהרת עובד למס הכנסה — שנת {currentYear}</p>
@@ -465,7 +465,7 @@ export default function Form101() {
             </div>
           ))}
           {!disabled && (
-            <button onClick={addChild} className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 border border-dashed border-blue-200 rounded-lg px-3 py-2 w-full justify-center">
+            <button onClick={addChild} className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-800 border border-dashed border-brand-200 rounded-lg px-3 py-2 w-full justify-center">
               <Plus size={13} /> הוסף ילד
             </button>
           )}
@@ -621,7 +621,7 @@ export default function Form101() {
       </div>
 {existingForm && (
   <button onClick={handleDownloadPDF}
-    className="w-full btn border border-blue-200 text-blue-600 hover:bg-blue-50 py-3 text-sm font-medium flex items-center justify-center gap-2">
+    className="w-full btn border border-brand-200 text-brand-600 hover:bg-brand-50 py-3 text-sm font-medium flex items-center justify-center gap-2">
     📄 הורד טופס 101 כ-PDF
   </button>
 )}
@@ -633,7 +633,7 @@ export default function Form101() {
 function Section({ title, children }) {
   return (
     <div className="card p-4">
-      <h2 className="text-sm font-semibold text-blue-800 bg-blue-50 -mx-4 -mt-4 px-4 py-2.5 mb-4 rounded-t-xl border-b border-blue-100">{title}</h2>
+      <h2 className="text-sm font-semibold text-brand-800 bg-brand-50 -mx-4 -mt-4 px-4 py-2.5 mb-4 rounded-t-xl border-b border-brand-100">{title}</h2>
       {children}
     </div>
   )
@@ -682,7 +682,7 @@ function UploadBox({ label, preview, existing, onChange, disabled, onDelete }) {
     <div>
       <label className="form-label text-xs">{label}</label>
       {!disabled && (
-        <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl p-3 cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors">
+        <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl p-3 cursor-pointer hover:border-brand-300 hover:bg-brand-50 transition-colors">
           <Upload size={18} className="text-gray-400 mb-1" />
           <span className="text-xs text-gray-400">לחץ להעלאה</span>
           <input type="file" accept="image/*" className="hidden" onChange={onChange} />

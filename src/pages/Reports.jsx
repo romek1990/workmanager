@@ -268,7 +268,7 @@ function exportEmployeePDF(row) {
       <div className="flex gap-2 mb-4">
         {[['summary', 'סיכום כללי'], ['detail', 'פירוט לפי עובד']].map(([k, l]) => (
           <button key={k}
-            className={`px-4 py-2 rounded-lg text-sm border transition-colors ${tab === k ? 'bg-blue-50 text-blue-700 border-blue-200' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+            className={`px-4 py-2 rounded-lg text-sm border transition-colors ${tab === k ? 'bg-brand-50 text-brand-700 border-brand-200' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
             onClick={() => setTab(k)}>{l}
           </button>
         ))}
@@ -289,7 +289,7 @@ function exportEmployeePDF(row) {
                 <td className="table-td text-sm text-green-600">{fmtMoney(r.bonus)}</td>
                 <td className="table-td text-sm font-semibold">{fmtMoney(r.total)}</td>
                 <td className="table-td">
-                  <button onClick={() => exportEmployeePDF(r)} className="text-xs text-blue-500 hover:text-blue-700 border border-blue-200 rounded px-2 py-0.5">
+                  <button onClick={() => exportEmployeePDF(r)} className="text-xs text-brand-500 hover:text-brand-700 border border-brand-200 rounded px-2 py-0.5">
                     📄 PDF
                   </button>
                 </td>
@@ -327,7 +327,7 @@ function exportEmployeePDF(row) {
                 </div>
                 <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
                   <div className="text-xs text-gray-500 mb-1">סה"כ לתשלום</div>
-                  <div className="text-xl font-semibold text-blue-600">{fmtMoney(rows.find(r => r.emp.email === detailEmp)?.total || 0)}</div>
+                  <div className="text-xl font-semibold text-brand-600">{fmtMoney(rows.find(r => r.emp.email === detailEmp)?.total || 0)}</div>
                 </div>
               </div>
               <CardSection>

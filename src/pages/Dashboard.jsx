@@ -13,11 +13,14 @@ export default function Dashboard() {
 
   return (
     <div className="p-6">
-      <h1 className="text-lg font-medium mb-5">לוח בקרה</h1>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatCard label="עובדים פעילים" value={activeEmps} sub={`${employees.length - activeEmps} לא פעילים`} icon={Users} iconColor="text-blue-500" />
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-gray-900">לוח בקרה</h1>
+        <p className="text-sm text-gray-400 mt-0.5">סקירה כללית · פלורנטין מרקט</p>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <StatCard label="עובדים פעילים" value={activeEmps} sub={`${employees.length - activeEmps} לא פעילים`} icon={Users} featured />
         <StatCard label="שעות החודש" value={totalHours} sub="משמרות מאושרות" icon={Clock} iconColor="text-amber-500" />
-        <StatCard label='סה"כ בונוסים' value={fmtMoney(totalBonus)} sub="החודש" icon={Banknote} iconColor="text-green-500" />
+        <StatCard label='סה"כ בונוסים' value={fmtMoney(totalBonus)} sub="החודש" icon={Banknote} iconColor="text-brand-500" />
         <StatCard label="ממתינות לאישור" value={pending.length} sub="משמרות" icon={AlertCircle} iconColor="text-red-500" />
       </div>
       <CardSection title="משמרות ממתינות לאישור">

@@ -58,7 +58,7 @@ export default function Employees() {
 
         <Table headers={['שם', 'אימייל', 'סוג העסקה', 'שכר', 'סטטוס']}>
           {filtered.map(e => (
-            <tr key={e.id} className="hover:bg-blue-50 cursor-pointer" onClick={() => navigate(`/employees/${e.id}`)}>
+            <tr key={e.id} className="hover:bg-brand-50 cursor-pointer" onClick={() => navigate(`/employees/${e.id}`)}>
               <td className="table-td">
                 <div className="flex items-center gap-2.5">
                   <Avatar name={e.full_name} size="sm" />

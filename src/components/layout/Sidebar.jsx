@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 
 import { useApp } from '../../context/AppContext'
 import { Avatar } from '../ui'
-import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, Building2, CalendarDays, Menu, X, Shield, Bell, FileText } from 'lucide-react'
+import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, CalendarDays, Menu, X, Shield, Bell, FileText } from 'lucide-react'
 
 const baseAdminNav = [
   { to: '/', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
@@ -56,7 +56,7 @@ export default function Sidebar() {
   function getNotifColor(type) {
     const map = {
       warning: 'bg-amber-50 border-amber-200',
-      info: 'bg-blue-50 border-blue-200',
+      info: 'bg-brand-50 border-brand-200',
       success: 'bg-green-50 border-green-200',
       error: 'bg-red-50 border-red-200',
     }
@@ -75,7 +75,7 @@ export default function Sidebar() {
       <div className="px-4 py-5 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Building2 size={20} className="text-blue-600" />
+            <img src="/logo.png" alt="פלורנטין מרקט" className="w-8 h-8 rounded-full shrink-0" />
             <span className="font-semibold text-gray-900">WorkManager</span>
           </div>
           <div className="flex items-center gap-2">
@@ -100,7 +100,7 @@ export default function Sidebar() {
                     <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                       <span className="text-sm font-medium">התראות</span>
                       {unreadCount > 0 && (
-                        <button onClick={markAllNotificationsRead} className="text-xs text-blue-500 hover:text-blue-700">
+                        <button onClick={markAllNotificationsRead} className="text-xs text-brand-600 hover:text-brand-800">
                           סמן הכל כנקרא
                         </button>
                       )}
@@ -113,10 +113,10 @@ export default function Sidebar() {
                           <div
                             key={n.id}
                             onClick={() => markNotificationRead(n.id)}
-                            className={`px-4 py-3 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors ${!n.read ? 'bg-blue-50/50' : ''}`}
+                            className={`px-4 py-3 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors ${!n.read ? 'bg-brand-50/50' : ''}`}
                           >
                             <div className="flex items-start gap-2">
-                              {!n.read && <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 shrink-0" />}
+                              {!n.read && <div className="w-2 h-2 bg-brand-500 rounded-full mt-1.5 shrink-0" />}
                               <div className={!n.read ? '' : 'mr-4'}>
                                 <p className="text-xs font-medium text-gray-800">{n.title}</p>
                                 <p className="text-xs text-gray-500 mt-0.5">{n.message}</p>
@@ -152,7 +152,7 @@ export default function Sidebar() {
             className={({ isActive }) =>
               `flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors border-r-2 ` +
               (isActive
-                ? 'bg-blue-50 text-blue-700 border-blue-600 font-medium'
+                ? 'bg-brand-50 text-brand-700 border-brand-500 font-medium'
                 : 'text-gray-600 border-transparent hover:bg-gray-50 hover:text-gray-900')
             }
           >

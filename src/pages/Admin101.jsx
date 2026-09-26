@@ -114,7 +114,7 @@ export default function Admin101() {
   return (
     <div className="p-6">
       <div className="flex items-center gap-3 mb-6">
-        <FileText size={22} className="text-blue-600" />
+        <FileText size={22} className="text-brand-600" />
         <div>
           <h1 className="text-lg font-medium">טפסי 101</h1>
           <p className="text-xs text-gray-400">ניהול טפסי מס הכנסה — שנת {currentYear}</p>
@@ -148,10 +148,10 @@ export default function Admin101() {
             )}
             {forms.map(f => (
               <div key={f.id} onClick={() => openForm(f)}
-                className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-between ${selected?.id === f.id ? 'bg-blue-50' : ''}`}>
+                className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-between ${selected?.id === f.id ? 'bg-brand-50' : ''}`}>
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                    <User size={14} className="text-blue-600" />
+                  <div className="w-8 h-8 bg-brand-100 rounded-full flex items-center justify-center">
+                    <User size={14} className="text-brand-600" />
                   </div>
                   <div>
                     <div className="text-sm font-medium">{f.employee_name}</div>
@@ -191,7 +191,7 @@ export default function Admin101() {
                 {/* כפתורי הורדה ומייל */}
                 <div className="flex gap-2 mt-2">
                   <button onClick={handleDownloadPDF} disabled={pdfLoading}
-                    className="flex-1 flex items-center justify-center gap-1.5 text-xs border border-blue-200 text-blue-600 hover:bg-blue-50 rounded-lg py-2 transition-colors">
+                    className="flex-1 flex items-center justify-center gap-1.5 text-xs border border-brand-200 text-brand-600 hover:bg-brand-50 rounded-lg py-2 transition-colors">
                     <Download size={13} />
                     {pdfLoading ? 'יוצר...' : 'הורד PDF'}
                   </button>

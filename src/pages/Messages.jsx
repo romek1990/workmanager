@@ -66,7 +66,7 @@ export default function Messages() {
         <div className="col-span-2">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-gray-700">בחר עובדים</span>
-            <button className="text-xs text-blue-600 hover:underline" onClick={selectAll}>
+            <button className="text-xs text-brand-600 hover:underline" onClick={selectAll}>
               {selected.size === employees.length ? 'בטל הכל' : 'בחר הכל'}
             </button>
           </div>
@@ -74,10 +74,10 @@ export default function Messages() {
             {employees.map(e => (
               <div
                 key={e.email}
-                className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${selected.has(e.email) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${selected.has(e.email) ? 'bg-brand-50' : 'hover:bg-gray-50'}`}
                 onClick={() => toggle(e.email)}
               >
-                <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${selected.has(e.email) ? 'bg-blue-600 border-blue-600' : 'border-gray-300'}`}>
+                <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${selected.has(e.email) ? 'bg-brand-600 border-brand-600' : 'border-gray-300'}`}>
                   {selected.has(e.email) && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
                 </div>
                 <Avatar name={e.full_name} size="sm" />

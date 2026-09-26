@@ -16,7 +16,7 @@ export function StatusBadge({ status }) {
 export function Avatar({ name, size = 'md' }) {
   const sizes = { sm: 'w-7 h-7 text-xs', md: 'w-9 h-9 text-sm', lg: 'w-14 h-14 text-xl' }
   return (
-    <div className={`${sizes[size]} rounded-full bg-blue-50 text-blue-600 font-medium flex items-center justify-center flex-shrink-0`}>
+    <div className={`${sizes[size]} rounded-full bg-brand-50 text-brand-700 font-medium flex items-center justify-center flex-shrink-0`}>
       {getInitials(name)}
     </div>
   )
@@ -40,14 +40,27 @@ export function Modal({ open, onClose, title, children, footer }) {
 }
 
 // ── Stat Card ──────────────────────────────────────────────────────────
-export function StatCard({ label, value, sub, icon: Icon, iconColor = 'text-blue-500' }) {
+export function StatCard({ label, value, sub, icon: Icon, iconColor = 'text-brand-500', featured = false }) {
+  if (featured) {
+    return (
+      <div className="card-dark p-5 relative overflow-hidden">
+        <div className="absolute -left-6 -bottom-8 w-28 h-28 rounded-full bg-brand-500/20 blur-2xl" />
+        <div className="flex items-center gap-1.5 text-xs text-white/60 mb-3 relative">
+          {Icon && <Icon size={14} className="text-brand-400" />}
+          {label}
+        </div>
+        <div className="text-3xl font-semibold relative">{value}</div>
+        {sub && <div className="text-xs text-white/40 mt-1.5 relative">{sub}</div>}
+      </div>
+    )
+  }
   return (
-    <div className="bg-gray-50 rounded-xl p-4">
-      <div className={`flex items-center gap-1.5 text-xs text-gray-500 mb-2`}>
+    <div className="card p-5">
+      <div className={`flex items-center gap-1.5 text-xs text-gray-500 mb-2.5`}>
         {Icon && <Icon size={14} className={iconColor} />}
         {label}
       </div>
-      <div className="text-2xl font-medium">{value}</div>
+      <div className="text-2xl font-semibold text-gray-900">{value}</div>
       {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
     </div>
   )

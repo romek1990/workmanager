@@ -6,8 +6,8 @@ import { useNavigate } from 'react-router-dom'
 const ACTION_COLORS = {
   'התחברות': 'bg-green-100 text-green-700',
   'יציאה': 'bg-gray-100 text-gray-600',
-  'הוספת עובד': 'bg-blue-100 text-blue-700',
-  'עריכת עובד': 'bg-blue-50 text-blue-600',
+  'הוספת עובד': 'bg-brand-100 text-brand-700',
+  'עריכת עובד': 'bg-brand-50 text-brand-600',
   'הוספת משמרת': 'bg-purple-100 text-purple-700',
   'אישר משמרת': 'bg-emerald-100 text-emerald-700',
   'דחה משמרת': 'bg-red-100 text-red-700',
@@ -66,7 +66,7 @@ export default function ActivityLogs() {
 
   if (loading) return (
     <div className="p-6 flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
     </div>
   )
 

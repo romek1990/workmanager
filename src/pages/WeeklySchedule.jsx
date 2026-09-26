@@ -264,11 +264,11 @@ export default function WeeklySchedule() {
                     <div className="text-xs text-gray-400 font-normal mb-1">{formatDate(date)}</div>
                     {editingNote === date ? (
                       <div className="flex gap-1 mt-1">
-                        <input autoFocus className="flex-1 text-xs border border-gray-200 rounded px-1.5 py-0.5 outline-none focus:border-blue-400 font-normal"
+                        <input autoFocus className="flex-1 text-xs border border-gray-200 rounded px-1.5 py-0.5 outline-none focus:border-brand-400 font-normal"
                           value={noteInput} onChange={e => setNoteInput(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') handleSaveNote(date); if (e.key === 'Escape') setEditingNote(null) }}
                           placeholder="הערה..." maxLength={30} />
-                        <button onClick={() => handleSaveNote(date)} className="text-xs text-blue-500 font-normal hover:text-blue-700">✓</button>
+                        <button onClick={() => handleSaveNote(date)} className="text-xs text-brand-500 font-normal hover:text-brand-700">✓</button>
                       </div>
                     ) : (
                       <div onClick={() => currentRole === 'admin' && startEditNote(date)}
@@ -294,13 +294,13 @@ export default function WeeklySchedule() {
                       {dayEntries.map(entry => {
                         const night = isMidnightCross(entry.start_time, entry.end_time)
                         return (
-                          <div key={entry.id} className={`border rounded-lg px-2 py-1.5 text-xs ${night ? 'bg-indigo-50 border-indigo-100' : 'bg-blue-50 border-blue-100'}`}>
+                          <div key={entry.id} className={`border rounded-lg px-2 py-1.5 text-xs ${night ? 'bg-indigo-50 border-indigo-100' : 'bg-brand-50 border-brand-100'}`}>
                             <div className="flex items-start justify-between gap-1">
                               <div>
-                                <div className={`font-medium ${night ? 'text-indigo-800' : 'text-blue-800'}`}>
+                                <div className={`font-medium ${night ? 'text-indigo-800' : 'text-brand-800'}`}>
                                   {entry.profiles?.full_name || activeEmps.find(e => e.id === entry.employee_id)?.full_name}
                                 </div>
-                                <div className={`flex items-center gap-1 ${night ? 'text-indigo-600' : 'text-blue-600'}`}>
+                                <div className={`flex items-center gap-1 ${night ? 'text-indigo-600' : 'text-brand-600'}`}>
                                   {night && <MoonStar size={10} />}
                                   {entry.start_time.slice(0,5)}–{entry.end_time.slice(0,5)}
                                   {night && <span className="text-indigo-400 text-[10px]">+1</span>}
@@ -310,7 +310,7 @@ export default function WeeklySchedule() {
                               </div>
                               {currentRole === 'admin' && (
                                 <div className="flex flex-col gap-1">
-                                  <button onClick={() => openEdit(entry)} className="text-blue-300 hover:text-blue-500">
+                                  <button onClick={() => openEdit(entry)} className="text-brand-300 hover:text-brand-500">
                                     <Pencil size={11} />
                                   </button>
                                   <button onClick={() => handleDelete(entry.id)} className="text-red-300 hover:text-red-500">
@@ -324,7 +324,7 @@ export default function WeeklySchedule() {
                       })}
                       {currentRole === 'admin' && (
                         <button onClick={() => openAdd(dayIdx)}
-                          className="flex items-center justify-center gap-1 text-xs text-gray-400 hover:text-blue-500 border border-dashed border-gray-200 hover:border-blue-300 rounded-lg py-1.5 transition-colors">
+                          className="flex items-center justify-center gap-1 text-xs text-gray-400 hover:text-brand-500 border border-dashed border-gray-200 hover:border-brand-300 rounded-lg py-1.5 transition-colors">
                           <Plus size={12} /> הוסף
                         </button>
                       )}
