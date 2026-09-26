@@ -1,24 +1,34 @@
 import React, { useState } from 'react'
-import { Users, Clock, Banknote, AlertCircle, ChevronRight, ChevronLeft } from 'lucide-react'
+import { Users, Clock, Banknote, AlertCircle } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { StatCard, ShiftTypeBadge, CardSection, Table } from '../components/ui'
 import { fmtMoney } from '../utils/helpers'
 
-function monthLabel(ym) {
-  const [y, m] = ym.split('-').map(Number)
-  return new Date(y, m - 1, 1).toLocaleDateString('he-IL', { month: 'long', year: 'numeric' })
-}
+const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
 
-function shiftMonth(ym, delta) {
-  const [y, m] = ym.split('-').map(Number)
-  const d = new Date(y, m - 1 + delta, 1)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+function monthLabel(ym) {
+  const [, m] = ym.split('-').map(Number)
+  return HEBREW_MONTHS[m - 1]
 }
 
 export default function Dashboard() {
   const { employees, shifts, bonuses, updateShiftStatus } = useApp()
-  const thisMonth = new Date().toISOString().slice(0, 7) // "YYYY-MM"
-  const [selectedMonth, setSelectedMonth] = useState(thisMonth)
+  const now = new Date()
+  const thisYear = now.getFullYear()
+  const thisMonthNum = now.getMonth() + 1
+  const thisMonth = `${thisYear}-${String(thisMonthNum).padStart(2, '0')}`
+  const [selectedYear, setSelectedYear] = useState(thisYear)
+  const [selectedMonthNum, setSelectedMonthNum] = useState(thisMonthNum)
+  const selectedMonth = `${selectedYear}-${String(selectedMonthNum).padStart(2, '0')}`
+
+  // Offer a reasonable year range: earliest year with real data through the current year.
+  const dataYears = [...shifts, ...bonuses]
+    .map(r => Number((r.date || '').slice(0, 4)))
+    .filter(Boolean)
+  const earliestYear = dataYears.length ? Math.min(...dataYears) : thisYear
+  const years = []
+  for (let y = thisYear; y >= earliestYear; y--) years.push(y)
+
   const activeEmps = employees.filter(e => e.status === 'active').length
   const pending = shifts.filter(s => s.status === 'pending')
   const totalHours = shifts
@@ -35,17 +45,28 @@ export default function Dashboard() {
           <h1 className="text-2xl font-semibold text-gray-900">לוח בקרה</h1>
           <p className="text-sm text-gray-400 mt-0.5">סקירה כללית · פלורנטין מרקט</p>
         </div>
-        <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-xl shadow-soft px-1.5 py-1.5">
-          <button onClick={() => setSelectedMonth(m => shiftMonth(m, -1))} className="p-1.5 rounded-lg hover:bg-gray-50 text-gray-500">
-            <ChevronRight size={16} />
-          </button>
-          <span className="text-sm font-medium text-gray-700 px-2 min-w-[100px] text-center">{monthLabel(selectedMonth)}</span>
-          <button onClick={() => setSelectedMonth(m => shiftMonth(m, 1))} disabled={selectedMonth >= thisMonth}
-            className="p-1.5 rounded-lg hover:bg-gray-50 text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed">
-            <ChevronLeft size={16} />
-          </button>
+        <div className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl shadow-soft px-2 py-1.5">
+          <select
+            value={selectedMonthNum}
+            onChange={e => setSelectedMonthNum(Number(e.target.value))}
+            className="text-sm font-medium text-gray-700 bg-transparent border-none focus:outline-none focus:ring-0 cursor-pointer"
+          >
+            {HEBREW_MONTHS.map((label, i) => (
+              <option key={i} value={i + 1}>{label}</option>
+            ))}
+          </select>
+          <select
+            value={selectedYear}
+            onChange={e => setSelectedYear(Number(e.target.value))}
+            className="text-sm font-medium text-gray-700 bg-transparent border-none focus:outline-none focus:ring-0 cursor-pointer"
+          >
+            {years.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
           {selectedMonth !== thisMonth && (
-            <button onClick={() => setSelectedMonth(thisMonth)} className="text-xs text-brand-600 hover:text-brand-800 px-2">
+            <button
+              onClick={() => { setSelectedYear(thisYear); setSelectedMonthNum(thisMonthNum) }}
+              className="text-xs text-brand-600 hover:text-brand-800 px-2 border-r border-gray-100"
+            >
               חזרה להיום
             </button>
           )}
@@ -54,7 +75,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard label="עובדים פעילים" value={activeEmps} sub={`${employees.length - activeEmps} לא פעילים`} icon={Users} featured />
         <StatCard label="שעות בחודש שנבחר" value={totalHours} sub="משמרות מאושרות" icon={Clock} iconColor="text-amber-500" />
-        <StatCard label='סה"כ בונוסים' value={fmtMoney(totalBonus)} sub={monthLabel(selectedMonth)} icon={Banknote} iconColor="text-brand-500" />
+        <StatCard label='סה"כ בונוסים' value={fmtMoney(totalBonus)} sub={`${monthLabel(selectedMonth)} ${selectedYear}`} icon={Banknote} iconColor="text-brand-500" />
         <StatCard label="ממתינות לאישור" value={pending.length} sub="משמרות (כלל הזמנים)" icon={AlertCircle} iconColor="text-red-500" />
       </div>
       <CardSection title="משמרות ממתינות לאישור">
