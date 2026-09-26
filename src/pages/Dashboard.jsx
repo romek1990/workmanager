@@ -6,10 +6,15 @@ import { fmtMoney } from '../utils/helpers'
 
 export default function Dashboard() {
   const { employees, shifts, bonuses, updateShiftStatus } = useApp()
+  const currentMonth = new Date().toISOString().slice(0, 7) // "YYYY-MM"
   const activeEmps = employees.filter(e => e.status === 'active').length
   const pending = shifts.filter(s => s.status === 'pending')
-  const totalHours = shifts.filter(s => s.status === 'approved').reduce((a, s) => a + s.total_hours, 0)
-  const totalBonus = bonuses.reduce((a, b) => a + b.amount, 0)
+  const totalHours = shifts
+    .filter(s => s.status === 'approved' && s.date?.slice(0, 7) === currentMonth)
+    .reduce((a, s) => a + s.total_hours, 0)
+  const totalBonus = bonuses
+    .filter(b => (b.month || b.date?.slice(0, 7)) === currentMonth)
+    .reduce((a, b) => a + b.amount, 0)
 
   return (
     <div className="p-4 md:p-6">
