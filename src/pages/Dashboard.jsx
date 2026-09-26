@@ -12,7 +12,7 @@ export default function Dashboard() {
   const totalBonus = bonuses.reduce((a, b) => a + b.amount, 0)
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">לוח בקרה</h1>
         <p className="text-sm text-gray-400 mt-0.5">סקירה כללית · פלורנטין מרקט</p>

@@ -59,7 +59,7 @@ export default function Messages() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <h1 className="text-lg font-medium mb-5">הודעות</h1>
 
       <div className="grid grid-cols-5 gap-5">

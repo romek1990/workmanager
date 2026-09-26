@@ -48,7 +48,7 @@ export default function EmployeeProfile() {
   ]
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <button className="btn mb-4" onClick={() => navigate('/employees')}>
         <ArrowRight size={15} />חזרה לעובדים
       </button>

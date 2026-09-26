@@ -225,7 +225,7 @@ function exportEmployeePDF(row) {
  
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <h1 className="text-lg font-medium mb-5">דוחות</h1>
 
       {/* Period picker */}

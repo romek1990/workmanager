@@ -233,7 +233,7 @@ export default function WeeklySchedule() {
   const editCrosses = isMidnightCross(editForm.start_time, editForm.end_time)
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-lg font-medium">סידור שבועי</h1>
         {currentRole === 'admin' && (

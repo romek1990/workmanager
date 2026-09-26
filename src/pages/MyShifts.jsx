@@ -26,7 +26,7 @@ export default function MyShifts() {
   const approved = myShifts.filter(s => s.status === 'approved').reduce((a, s) => a + s.total_hours, 0)
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <h1 className="text-lg font-medium mb-5">המשמרות שלי</h1>
 
       <CardSection>

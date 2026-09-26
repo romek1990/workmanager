@@ -45,7 +45,7 @@ function AppRoutes() {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="md:mr-56 flex-1 min-h-screen">
+      <main className="flex-1 min-h-screen w-full pt-14 md:pt-0">
         <Routes>
           <Route path="/set-password" element={<SetPassword />} />
           <Route path="/" element={<ProtectedRoute requiredRole="admin"><Dashboard /></ProtectedRoute>} />
