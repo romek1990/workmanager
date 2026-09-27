@@ -280,6 +280,7 @@ export default function Form101() {
 
   const isApproved = existingForm?.status === 'approved'
   const isPending = existingForm?.status === 'pending'
+  const isCancelled = existingForm?.status === 'cancelled'
   const disabled = isApproved
   const isMarried = form.marital_status === 'נשוי/אה'
   const hasEx = (num) => form.exemptions.includes(num)
@@ -310,6 +311,12 @@ export default function Form101() {
         {isApproved && <span className="mr-auto flex items-center gap-1.5 text-xs text-green-600 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full"><CheckCircle size={13} />אושר</span>}
         {isPending && <span className="mr-auto flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full"><Clock size={13} />ממתין לאישור</span>}
       </div>
+
+      {isCancelled && (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4 text-center text-sm text-gray-600">
+          ↩️ האישור לטופס זה בוטל על ידי המנהל — ניתן לעדכן ולהגיש מחדש
+        </div>
+      )}
 
       <div className="space-y-4">
         <Section title="א. פרטי המעסיק">
@@ -662,6 +669,9 @@ export default function Form101() {
                 )}
                 {h.status === 'rejected' && (
                   <span className="flex items-center gap-1.5 text-xs text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">נדחה</span>
+                )}
+                {h.status === 'cancelled' && (
+                  <span className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-full">↩️ בוטל</span>
                 )}
               </div>
             ))}

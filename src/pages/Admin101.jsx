@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
-import { AlertModal } from '../components/ui'
+import { AlertModal, Modal } from '../components/ui'
 import { CheckCircle, XCircle, Eye, FileText, Clock, User, Download, Mail } from 'lucide-react'
 import { generateForm101PDF, downloadPDF } from '../utils/generateForm101'
 import emailjs from '@emailjs/browser'
@@ -15,6 +15,7 @@ export default function Admin101() {
   const [idFrontUrl, setIdFrontUrl] = useState(null)
   const [idBackUrl, setIdBackUrl] = useState(null)
   const [pdfLoading, setPdfLoading] = useState(false)
+  const [cancelConfirm, setCancelConfirm] = useState(false)
   const currentYear = new Date().getFullYear()
 
   useEffect(() => { loadForms() }, [])
@@ -54,16 +55,25 @@ export default function Admin101() {
 
       const form = forms.find(f => f.id === id)
       if (form) {
+        const titles = {
+          approved: '✅ טופס 101 אושר',
+          rejected: '❌ טופס 101 נדחה',
+          cancelled: '↩️ אישור טופס 101 בוטל',
+        }
+        const messages = {
+          approved: `טופס 101 שלך לשנת ${currentYear} אושר בהצלחה`,
+          rejected: `טופס 101 שלך לשנת ${currentYear} נדחה — אנא מלא מחדש`,
+          cancelled: `אישור טופס 101 שלך לשנת ${currentYear} בוטל על ידי המנהל — ניתן להגיש את הטופס מחדש`,
+        }
         await supabase.from('notifications').insert({
           user_id: form.employee_id,
-          title: status === 'approved' ? '✅ טופס 101 אושר' : '❌ טופס 101 נדחה',
-          message: status === 'approved'
-            ? `טופס 101 שלך לשנת ${currentYear} אושר בהצלחה`
-            : `טופס 101 שלך לשנת ${currentYear} נדחה — אנא מלא מחדש`,
-          type: status === 'approved' ? 'success' : 'error'
+          title: titles[status],
+          message: messages[status],
+          type: status === 'approved' ? 'success' : status === 'cancelled' ? 'warning' : 'error'
         })
       }
-      setAlert({ title: status === 'approved' ? 'אושר!' : 'נדחה', message: `הטופס ${status === 'approved' ? 'אושר' : 'נדחה'} בהצלחה` })
+      const labels = { approved: 'אושר', rejected: 'נדחה', cancelled: 'בוטל' }
+      setAlert({ title: labels[status] + '!', message: `הטופס ${labels[status]} בהצלחה` })
     }
   }
 
@@ -108,6 +118,7 @@ export default function Admin101() {
   const statusBadge = (status) => {
     if (status === 'approved') return <span className="text-xs text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle size={11} />אושר</span>
     if (status === 'rejected') return <span className="text-xs text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full flex items-center gap-1"><XCircle size={11} />נדחה</span>
+    if (status === 'cancelled') return <span className="text-xs text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full flex items-center gap-1">↩️ בוטל</span>
     return <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1"><Clock size={11} />ממתין</span>
   }
 
@@ -185,6 +196,12 @@ export default function Admin101() {
                         className="btn btn-success text-xs py-1.5 px-3">✅ אשר</button>
                       <button onClick={() => updateStatus(selected.id, 'rejected')}
                         className="btn btn-danger text-xs py-1.5 px-3">❌ דחה</button>
+                    </div>
+                  )}
+                  {selected.status === 'approved' && (
+                    <div className="flex gap-2">
+                      <button onClick={() => setCancelConfirm(true)}
+                        className="btn text-xs py-1.5 px-3">↩️ בטל אישור</button>
                     </div>
                   )}
                 </div>
@@ -287,6 +304,20 @@ export default function Admin101() {
           </div>
         </div>
       )}
+
+      <Modal
+        open={cancelConfirm}
+        onClose={() => setCancelConfirm(false)}
+        title="ביטול אישור טופס 101"
+        footer={<>
+          <button className="btn" onClick={() => setCancelConfirm(false)}>ביטול</button>
+          <button className="btn btn-danger" onClick={() => { setCancelConfirm(false); updateStatus(selected.id, 'cancelled') }}>↩️ בטל אישור</button>
+        </>}
+      >
+        <p className="text-sm text-gray-600">
+          אישור הטופס של <b>{selected?.employee_name}</b> לשנת {currentYear} יבוטל, והעובד יוכל להגיש טופס 101 מעודכן במקומו.
+        </p>
+      </Modal>
 
       <AlertModal open={!!alert} onClose={() => setAlert(null)} title={alert?.title} message={alert?.message} />
     </div>
