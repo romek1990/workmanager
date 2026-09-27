@@ -39,7 +39,13 @@ function normalizePhone(raw?: string | null): string | null {
 }
 
 async function sendWhatsApp(phone: string, message: string) {
-  const url = `https://api.green-api.com/waInstance${GREEN_API_ID_INSTANCE}/sendMessage/${GREEN_API_TOKEN_INSTANCE}`;
+  // GreenAPI serves many instances from a dedicated subdomain
+  // (e.g. https://7107.api.greenapi.com) rather than the generic
+  // api.green-api.com host — using the wrong host returns 403.
+  // The subdomain is the instance id's first 4 digits (matches the
+  // "apiUrl" shown for the instance in the GreenAPI console).
+  const host = GREEN_API_ID_INSTANCE.slice(0, 4);
+  const url = `https://${host}.api.greenapi.com/waInstance${GREEN_API_ID_INSTANCE}/sendMessage/${GREEN_API_TOKEN_INSTANCE}`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
