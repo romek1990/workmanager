@@ -18,6 +18,7 @@ import WeeklySchedule from './pages/WeeklySchedule'
 import ActivityLogs from './pages/ActivityLogs'
 import Form101 from './pages/Form101'
 import Admin101 from './pages/Admin101'
+import WhatsApp from './pages/WhatsApp'
 import { MeshBackground } from './components/ui'
 
 
@@ -64,6 +65,7 @@ function AppRoutes() {
           <Route path="/bonuses" element={<ProtectedRoute requiredRole="admin"><Bonuses /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute requiredRole="admin"><Reports /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute requiredRole="admin"><Messages /></ProtectedRoute>} />
+          <Route path="/whatsapp" element={<ProtectedRoute requiredRole="admin"><WhatsApp /></ProtectedRoute>} />
           <Route path="/activity-logs" element={<ProtectedRoute requiredRole="admin"><ActivityLogs /></ProtectedRoute>} />
           <Route path="/my-home" element={<ProtectedRoute><UserHome /></ProtectedRoute>} />
           <Route path="/my-shifts" element={<ProtectedRoute><MyShifts /></ProtectedRoute>} />
