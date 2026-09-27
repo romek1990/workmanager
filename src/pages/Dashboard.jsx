@@ -67,7 +67,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-4 md:px-10 md:py-8 max-w-[1180px]">
+    <div className="p-4 md:px-10 md:py-8">
       {/* Header */}
       <div className="mb-7 flex flex-wrap items-end justify-between gap-3 animate-rise">
         <div>
