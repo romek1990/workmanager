@@ -25,18 +25,16 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-brand-600 rounded-2xl mb-4 shadow-lg">
-            <Building2 size={28} className="text-white" />
-          </div>
-          <h1 className="text-2xl font-semibold text-gray-900">WorkManager</h1>
+          <img src="/logo.png" alt="פלורנטין מרקט" className="w-16 h-16 rounded-2xl mx-auto mb-4 shadow-[0_10px_24px_rgba(15,157,88,0.35)]" />
+          <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">WorkManager</h1>
           <p className="text-sm text-gray-500 mt-1">מערכת ניהול עובדים</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-          <h2 className="text-base font-medium text-gray-800 mb-6 text-center">כניסה למערכת</h2>
+        <div className="card animate-rise p-8">
+          <h2 className="text-base font-bold text-gray-800 mb-6 text-center">כניסה למערכת</h2>
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
               <label className="form-label">אימייל</label>

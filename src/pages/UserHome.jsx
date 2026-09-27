@@ -185,11 +185,11 @@ export default function UserHome() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 mb-5">
-        <StatCard label="שעות החודש" value={totalHours} sub="מאושרות" icon={Clock} iconColor="text-amber-500" />
-        <StatCard label="שכר משוער" value={fmtMoney(totalPay)} sub="לפני ניכויים" icon={Banknote} iconColor="text-green-500" />
-        <StatCard label="סך הכל משמרות שדווחו" value={myShifts.length} sub={`${pendingCount} ממתינות`} icon={CalendarDays} iconColor="text-brand-500" />
-        <StatCard label="משמרות שאושרו" value={approvedShifts.length} sub="החודש" icon={CalendarDays} iconColor="text-green-500" />
+      <div className="grid grid-cols-2 gap-3 mb-5 stagger">
+        <StatCard label="שעות החודש" value={totalHours} sub="מאושרות" icon={Clock} accent="amber" />
+        <StatCard label="שכר משוער" value={totalPay} format={fmtMoney} sub="לפני ניכויים" icon={Banknote} accent="lime" delay={80} />
+        <StatCard label="סך הכל משמרות שדווחו" value={myShifts.length} sub={`${pendingCount} ממתינות`} icon={CalendarDays} accent="emerald" delay={160} />
+        <StatCard label="משמרות שאושרו" value={approvedShifts.length} sub="החודש" icon={CalendarCheck} accent="emerald" delay={240} />
       </div>
 
       {/* סידור שבועי */}

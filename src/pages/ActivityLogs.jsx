@@ -81,15 +81,15 @@ export default function ActivityLogs() {
       </div>
 
       {/* פילטרים */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-5 flex flex-wrap gap-3">
+      <div className="card !overflow-visible p-4 mb-5 flex flex-wrap gap-3">
         <input
-          className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white flex-1 min-w-[150px]"
+          className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 bg-white/70 border-white/80 flex-1 min-w-[150px]"
           placeholder="חיפוש חופשי..."
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
         <select
-          className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white"
+          className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 bg-white/70 border-white/80"
           value={filterAction}
           onChange={e => setFilterAction(e.target.value)}
         >
@@ -97,7 +97,7 @@ export default function ActivityLogs() {
           {uniqueActions.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
         <select
-          className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white"
+          className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 bg-white/70 border-white/80"
           value={filterUser}
           onChange={e => setFilterUser(e.target.value)}
         >
@@ -115,10 +115,10 @@ export default function ActivityLogs() {
       </div>
 
       {/* טבלת לוגים */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="card">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-100 bg-gray-50">
+            <tr className="border-b border-black/5">
               <th className="px-4 py-3 text-right font-medium text-gray-500 text-xs">תאריך ושעה</th>
               <th className="px-4 py-3 text-right font-medium text-gray-500 text-xs">משתמש</th>
               <th className="px-4 py-3 text-right font-medium text-gray-500 text-xs">פעולה</th>

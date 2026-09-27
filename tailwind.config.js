@@ -20,8 +20,11 @@ export default {
           900: '#284f24',
           950: '#0f2a0d',
         },
+        lime: '#B7F04C',
+        amberx: '#FFB020',
+        coral: '#FF5A5F',
         ink: {
-          900: '#0a0a0a',
+          900: '#0B1210',
           800: '#141414',
           700: '#1f1f1f',
         },
@@ -33,6 +36,17 @@ export default {
       boxShadow: {
         soft: '0 2px 10px -2px rgba(10, 10, 10, 0.06)',
         card: '0 4px 20px -4px rgba(10, 10, 10, 0.08)',
+        glass: '0 8px 30px rgba(15, 40, 25, 0.08)',
+        'glass-lg': '0 16px 40px rgba(15, 40, 25, 0.14)',
+      },
+      keyframes: {
+        rise: {
+          '0%': { opacity: '0', transform: 'translateY(14px) scale(.98)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+      },
+      animation: {
+        rise: 'rise .6s cubic-bezier(.2,.8,.2,1) both',
       },
     },
   },

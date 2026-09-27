@@ -39,8 +39,8 @@ export default function SetPassword() {
   }
 
   if (done) return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-slate-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center max-w-sm w-full">
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="card animate-rise p-8 text-center max-w-sm w-full">
         <div className="text-4xl mb-4">✅</div>
         <h2 className="text-lg font-medium mb-2">הסיסמא הוגדרה בהצלחה!</h2>
         <p className="text-sm text-gray-500 mb-6">עכשיו תוכל להתחבר למערכת</p>
@@ -50,7 +50,7 @@ export default function SetPassword() {
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-brand-600 rounded-2xl mb-4 shadow-lg">
@@ -59,7 +59,7 @@ export default function SetPassword() {
           <h1 className="text-2xl font-semibold text-gray-900">WorkManager</h1>
           <p className="text-sm text-gray-500 mt-1">הגדרת סיסמא</p>
         </div>
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+        <div className="card animate-rise p-8">
           <h2 className="text-base font-medium text-gray-800 mb-6 text-center">בחר סיסמא חדשה</h2>
           <form onSubmit={handleSubmit}>
             <div className="mb-4">

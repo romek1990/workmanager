@@ -95,7 +95,7 @@ export default function Bonuses() {
       </div>
 
       <CardSection title="רשימת בונוסים" action={
-        <input className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-white" placeholder="חיפוש..." value={search} onChange={e => setSearch(e.target.value)} />
+        <input className="text-xs border border-gray-200 rounded-xl px-3 py-1.5 bg-white/70 border-white/80" placeholder="חיפוש..." value={search} onChange={e => setSearch(e.target.value)} />
       }>
         <Table headers={['עובד', 'סכום', 'תאריך', 'תיאור', 'עריכה']}>
           {filtered.map(b => (

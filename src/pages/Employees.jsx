@@ -46,7 +46,7 @@ export default function Employees() {
         <div className="flex items-center gap-3 p-4 border-b border-gray-100">
           <Search size={16} className="text-gray-400" />
           <input className="flex-1 text-sm outline-none bg-transparent placeholder-gray-400" placeholder="חיפוש לפי שם או אימייל..." value={search} onChange={e => setSearch(e.target.value)} />
-          <select className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+          <select className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 bg-white/70 border-white/80" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
             <option value="">כל הסטטוסים</option>
             <option value="active">פעיל</option>
             <option value="inactive">לא פעיל</option>

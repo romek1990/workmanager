@@ -62,15 +62,15 @@ export default function Shifts() {
             <Search size={16} className="text-gray-400" />
             <input className="flex-1 text-sm outline-none bg-transparent placeholder-gray-400" placeholder="חיפוש לפי שם עובד..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <select className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white" value={selectedMonthNum} onChange={e => setSelectedMonthNum(Number(e.target.value))}>
+          <select className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 bg-white/70 border-white/80" value={selectedMonthNum} onChange={e => setSelectedMonthNum(Number(e.target.value))}>
             <option value={0}>כל החודשים</option>
             {HEBREW_MONTHS.map((label, i) => <option key={i} value={i + 1}>{label}</option>)}
           </select>
-          <select className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white" value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}>
+          <select className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 bg-white/70 border-white/80" value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}>
             <option value={0}>כל השנים</option>
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
-          <select className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+          <select className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 bg-white/70 border-white/80" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
             <option value="">כל הסטטוסים</option>
             <option value="pending">ממתין</option>
             <option value="approved">מאושר</option>

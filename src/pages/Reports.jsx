@@ -257,7 +257,7 @@ function exportEmployeePDF(row) {
           ['בונוסים', fmtMoney(totals.bonus)],
           ["סה\"כ לתשלום", fmtMoney(totals.total)]
         ].map(([l, v]) => (
-          <div key={l} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+          <div key={l} className="card p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-glass-lg">
             <div className="text-xs text-gray-500 mb-1">{l}</div>
             <div className="text-xl font-semibold text-gray-900">{v}</div>
           </div>
@@ -295,7 +295,7 @@ function exportEmployeePDF(row) {
                 </td>
               </tr>
             ))}
-            <tr className="bg-gray-50 font-semibold">
+            <tr className="bg-brand-500/5 font-semibold">
               <td className="table-td text-sm">סה"כ</td>
               <td className="table-td text-sm text-center" colSpan={4}></td>
               <td className="table-td text-sm text-center">{totals.hrs}</td>
@@ -317,15 +317,15 @@ function exportEmployeePDF(row) {
           {detailEmp && detailEmpObj && (
             <>
               <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                <div className="card p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-glass-lg">
                   <div className="text-xs text-gray-500 mb-1">סה"כ שעות</div>
                   <div className="text-xl font-semibold">{rows.find(r => r.emp.email === detailEmp)?.hrs.total || 0}</div>
                 </div>
-                <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                <div className="card p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-glass-lg">
                   <div className="text-xs text-gray-500 mb-1">שכר גולמי</div>
                   <div className="text-xl font-semibold">{fmtMoney(rows.find(r => r.emp.email === detailEmp)?.pay || 0)}</div>
                 </div>
-                <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                <div className="card p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-glass-lg">
                   <div className="text-xs text-gray-500 mb-1">סה"כ לתשלום</div>
                   <div className="text-xl font-semibold text-brand-600">{fmtMoney(rows.find(r => r.emp.email === detailEmp)?.total || 0)}</div>
                 </div>

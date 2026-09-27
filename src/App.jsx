@@ -18,6 +18,7 @@ import WeeklySchedule from './pages/WeeklySchedule'
 import ActivityLogs from './pages/ActivityLogs'
 import Form101 from './pages/Form101'
 import Admin101 from './pages/Admin101'
+import { MeshBackground } from './components/ui'
 
 
 
@@ -25,8 +26,9 @@ function AppRoutes() {
   const { currentUser, loading } = useApp()
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
+      <div className="min-h-screen flex items-center justify-center">
+        <MeshBackground />
+        <div className="text-center relative z-10">
           <div className="w-10 h-10 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
           <p className="text-sm text-gray-400">טוען...</p>
         </div>
@@ -35,17 +37,23 @@ function AppRoutes() {
   }
   if (!currentUser) {
     return (
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/set-password" element={<SetPassword />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
+      <>
+        <MeshBackground />
+        <div className="relative z-10">
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/set-password" element={<SetPassword />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </div>
+      </>
     )
   }
   return (
     <div className="flex min-h-screen">
+      <MeshBackground />
       <Sidebar />
-      <main className="flex-1 min-h-screen w-full pt-14 md:pt-0">
+      <main className="relative z-10 flex-1 min-w-0 min-h-screen w-full pt-14 md:pt-0">
         <Routes>
           <Route path="/set-password" element={<SetPassword />} />
           <Route path="/" element={<ProtectedRoute requiredRole="admin"><Dashboard /></ProtectedRoute>} />

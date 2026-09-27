@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
-import { Users, Clock, Banknote, AlertCircle } from 'lucide-react'
+import { Users, Clock, Gift, Hourglass, Sparkles } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { StatCard, ShiftTypeBadge, CardSection, Table } from '../components/ui'
+import { StatCard, ShiftTypeBadge, Avatar, Toast, useToast } from '../components/ui'
 import { fmtMoney } from '../utils/helpers'
 
 const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
@@ -9,6 +9,12 @@ const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מ
 function monthLabel(ym) {
   const [, m] = ym.split('-').map(Number)
   return HEBREW_MONTHS[m - 1]
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—'
+  const [y, m, d] = iso.split('-').map(Number)
+  return `${d}.${m}.${y}`
 }
 
 export default function Dashboard() {
@@ -20,6 +26,8 @@ export default function Dashboard() {
   const [selectedYear, setSelectedYear] = useState(thisYear)
   const [selectedMonthNum, setSelectedMonthNum] = useState(thisMonthNum)
   const selectedMonth = `${selectedYear}-${String(selectedMonthNum).padStart(2, '0')}`
+  const [leaving, setLeaving] = useState({}) // id -> true while the row animates out
+  const [toast, showToast] = useToast()
 
   // Offer a reasonable year range: earliest year with real data through the current year.
   const dataYears = [...shifts, ...bonuses]
@@ -33,23 +41,47 @@ export default function Dashboard() {
   const pending = shifts.filter(s => s.status === 'pending')
   const totalHours = shifts
     .filter(s => s.status === 'approved' && s.date?.slice(0, 7) === selectedMonth)
-    .reduce((a, s) => a + s.total_hours, 0)
+    .reduce((a, s) => a + (s.total_hours || 0), 0)
   const totalBonus = bonuses
     .filter(b => (b.month || b.date?.slice(0, 7)) === selectedMonth)
-    .reduce((a, b) => a + b.amount, 0)
+    .reduce((a, b) => a + (b.amount || 0), 0)
+
+  async function resolve(shift, status) {
+    if (leaving[shift.id]) return
+    setLeaving(l => ({ ...l, [shift.id]: true }))
+    try {
+      // let the row slide out before the list re-renders without it
+      await Promise.all([
+        updateShiftStatus(shift.id, status),
+        new Promise(r => setTimeout(r, 350)),
+      ])
+      showToast(`המשמרת של ${shift.employee_name} ${status === 'approved' ? 'אושרה' : 'נדחתה'}`)
+    } catch (e) {
+      showToast('העדכון נכשל — נסה שוב', 'error')
+    } finally {
+      setLeaving(l => {
+        const { [shift.id]: _, ...rest } = l
+        return rest
+      })
+    }
+  }
 
   return (
-    <div className="p-4 md:p-6">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <div className="p-4 md:px-10 md:py-8 max-w-[1180px]">
+      {/* Header */}
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-3 animate-rise">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">לוח בקרה</h1>
-          <p className="text-sm text-gray-400 mt-0.5">סקירה כללית · פלורנטין מרקט</p>
+          <h1 className="text-[28px] font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>לוח בקרה</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-dim)' }}>
+            סקירה מהירה של המשמרות, השעות והבונוסים · פלורנטין מרקט
+          </p>
         </div>
-        <div className="flex items-center gap-2 bg-white border border-gray-100 rounded-xl shadow-soft px-2 py-1.5">
+        <div className="glass flex items-center gap-2 rounded-full shadow-glass px-4 py-2">
+          <span className="dot-live" />
           <select
             value={selectedMonthNum}
             onChange={e => setSelectedMonthNum(Number(e.target.value))}
-            className="text-sm font-medium text-gray-700 bg-transparent border-none focus:outline-none focus:ring-0 cursor-pointer"
+            className="text-sm font-semibold text-brand-700 bg-transparent border-none focus:outline-none focus:ring-0 cursor-pointer"
           >
             {HEBREW_MONTHS.map((label, i) => (
               <option key={i} value={i + 1}>{label}</option>
@@ -58,48 +90,112 @@ export default function Dashboard() {
           <select
             value={selectedYear}
             onChange={e => setSelectedYear(Number(e.target.value))}
-            className="text-sm font-medium text-gray-700 bg-transparent border-none focus:outline-none focus:ring-0 cursor-pointer"
+            className="text-sm font-semibold text-brand-700 bg-transparent border-none focus:outline-none focus:ring-0 cursor-pointer"
           >
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
           {selectedMonth !== thisMonth && (
             <button
               onClick={() => { setSelectedYear(thisYear); setSelectedMonthNum(thisMonthNum) }}
-              className="text-xs text-brand-600 hover:text-brand-800 px-2 border-r border-gray-100"
+              className="text-xs font-semibold text-brand-600 hover:text-brand-800 pr-2 border-r border-black/10"
             >
               חזרה להיום
             </button>
           )}
         </div>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard label="עובדים פעילים" value={activeEmps} sub={`${employees.length - activeEmps} לא פעילים`} icon={Users} featured />
-        <StatCard label="שעות בחודש שנבחר" value={totalHours} sub="משמרות מאושרות" icon={Clock} iconColor="text-amber-500" />
-        <StatCard label='סה"כ בונוסים' value={fmtMoney(totalBonus)} sub={`${monthLabel(selectedMonth)} ${selectedYear}`} icon={Banknote} iconColor="text-brand-500" />
-        <StatCard label="ממתינות לאישור" value={pending.length} sub="משמרות (כלל הזמנים)" icon={AlertCircle} iconColor="text-red-500" />
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-[18px] mb-7 stagger">
+        <StatCard label="ממתינות לאישור" value={pending.length} sub="משמרות (כלל הזמנים)" icon={Hourglass} accent="amber" />
+        <StatCard label='סה"כ בונוסים' value={totalBonus} format={fmtMoney} sub={`${monthLabel(selectedMonth)} ${selectedYear}`} icon={Gift} accent="lime" delay={80} />
+        <StatCard label="שעות בחודש שנבחר" value={totalHours} sub="משמרות מאושרות" icon={Clock} accent="emerald" delay={160} />
+        <StatCard label="עובדים פעילים" value={activeEmps} sub={`${employees.length - activeEmps} לא פעילים`} icon={Users} accent="coral" delay={240} />
       </div>
-      <CardSection title="משמרות ממתינות לאישור">
-        <Table
-          headers={['עובד', 'תאריך', 'שעות', 'סוג', 'הערות', 'פעולות']}
-          emptyMessage="אין משמרות ממתינות 🎉"
-        >
-          {pending.map(s => (
-            <tr key={s.id} className="hover:bg-gray-50">
-              <td className="table-td font-medium">{s.employee_name}</td>
-              <td className="table-td text-gray-500">{s.date}</td>
-              <td className="table-td">{s.total_hours}</td>
-              <td className="table-td"><ShiftTypeBadge type={s.shift_type} /></td>
-              <td className="table-td text-sm text-gray-400">{s.notes || '—'}</td>
-              <td className="table-td">
-                <div className="flex gap-2">
-                  <button className="btn btn-success py-1 px-3 text-xs" onClick={() => updateShiftStatus(s.id, 'approved')}>אשר</button>
-                  <button className="btn btn-danger py-1 px-3 text-xs" onClick={() => updateShiftStatus(s.id, 'rejected')}>דחה</button>
+
+      {/* Pending shifts */}
+      <div className="card animate-rise" style={{ animationDelay: '.32s' }}>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-black/5">
+          <h2 className="text-base font-bold">משמרות ממתינות לאישור</h2>
+          {pending.length > 0 && (
+            <span className="badge badge-warning font-bold">{pending.length} ממתינות</span>
+          )}
+        </div>
+
+        {pending.length === 0 ? (
+          <div className="py-12 px-6 text-center text-sm animate-rise" style={{ color: 'var(--text-dim)' }}>
+            <Sparkles size={30} className="mx-auto mb-2 text-amberx" />
+            הכל מטופל — אין משמרות שממתינות לאישור
+          </div>
+        ) : (
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    {['עובד', 'תאריך', 'שעות', 'סוג', 'הערות', 'פעולות'].map(h => (
+                      <th key={h} className="table-th px-6">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pending.map(s => (
+                    <tr
+                      key={s.id}
+                      className={`transition-all duration-300 hover:bg-brand-500/5 ${leaving[s.id] ? 'row-leave' : ''}`}
+                    >
+                      <td className="table-td px-6">
+                        <div className="flex items-center gap-2.5 font-medium">
+                          <Avatar name={s.employee_name} size="sm" />
+                          {s.employee_name}
+                        </div>
+                      </td>
+                      <td className="table-td px-6 tabular-nums" style={{ color: 'var(--text-dim)' }}>{fmtDate(s.date)}</td>
+                      <td className="table-td px-6 tabular-nums">{s.total_hours}</td>
+                      <td className="table-td px-6"><ShiftTypeBadge type={s.shift_type} /></td>
+                      <td className="table-td px-6" style={{ color: 'var(--text-dim)' }}>{s.notes || '—'}</td>
+                      <td className="table-td px-6">
+                        <div className="flex gap-2">
+                          <button disabled={leaving[s.id]} className="btn btn-success py-1.5 px-4 text-xs rounded-[10px]" onClick={() => resolve(s, 'approved')}>אשר</button>
+                          <button disabled={leaving[s.id]} className="btn btn-danger py-1.5 px-4 text-xs rounded-[10px]" onClick={() => resolve(s, 'rejected')}>דחה</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y divide-black/5">
+              {pending.map(s => (
+                <div
+                  key={s.id}
+                  className={`px-5 py-4 transition-all duration-300 ${leaving[s.id] ? 'row-leave' : ''}`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 font-medium text-sm">
+                      <Avatar name={s.employee_name} size="sm" />
+                      {s.employee_name}
+                    </div>
+                    <ShiftTypeBadge type={s.shift_type} />
+                  </div>
+                  <div className="text-xs mt-2 tabular-nums" style={{ color: 'var(--text-dim)' }}>
+                    {fmtDate(s.date)} · {s.total_hours} שעות{s.notes ? ` · ${s.notes}` : ''}
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <button disabled={leaving[s.id]} className="btn btn-success flex-1 justify-center py-2 text-xs" onClick={() => resolve(s, 'approved')}>אשר</button>
+                    <button disabled={leaving[s.id]} className="btn btn-danger flex-1 justify-center py-2 text-xs" onClick={() => resolve(s, 'rejected')}>דחה</button>
+                  </div>
                 </div>
-              </td>
-            </tr>
-          ))}
-        </Table>
-      </CardSection>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      <Toast {...toast} />
     </div>
   )
 }
