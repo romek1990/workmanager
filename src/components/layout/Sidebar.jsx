@@ -187,7 +187,7 @@ export default function Sidebar() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="md:hidden fixed top-4 right-4 z-50 glass rounded-xl p-2 shadow-glass"
+        className={`md:hidden fixed top-4 right-4 z-50 glass rounded-xl p-2 shadow-glass ${open ? "hidden" : ""}`}
       >
         <Menu size={20} className="text-gray-600" />
       </button>
