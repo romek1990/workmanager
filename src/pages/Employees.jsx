@@ -27,12 +27,47 @@ export default function Employees() {
     (!statusFilter || e.status === statusFilter)
   )
 
-  function handleAdd() {
+  function normPhone(p) {
+    const digits = (p || '').replace(/\D/g, '')
+    if (!digits) return ''
+    if (digits.startsWith('972')) return digits
+    if (digits.startsWith('0')) return '972' + digits.slice(1)
+    return '972' + digits
+  }
+
+  const [formError, setFormError] = useState('')
+  const [adding, setAdding] = useState(false)
+
+  async function handleAdd() {
+    setFormError('')
     if (!form.full_name || !form.email) return
-    addEmployee(form)
-    setModal(false)
-    setForm(defaultForm)
-    setAlert({ title: 'עובד נוסף', message: 'העובד נוסף בהצלחה למערכת' })
+
+    const emailNorm = form.email.trim().toLowerCase()
+    const phoneNorm = normPhone(form.phone)
+
+    const emailTaken = employees.some(e => (e.email || '').trim().toLowerCase() === emailNorm)
+    if (emailTaken) {
+      setFormError('כתובת האימייל הזו כבר משויכת לעובד קיים')
+      return
+    }
+    if (phoneNorm) {
+      const phoneTaken = employees.some(e => normPhone(e.phone) === phoneNorm)
+      if (phoneTaken) {
+        setFormError('מספר הטלפון הזה כבר משויך לעובד קיים')
+        return
+      }
+    }
+
+    setAdding(true)
+    try {
+      await addEmployee(form)
+      setModal(false)
+      setForm(defaultForm)
+      setAlert({ title: 'עובד נוסף', message: 'העובד נוסף בהצלחה למערכת' })
+    } catch (e) {
+      setFormError(e.message || 'שגיאה בהוספת העובד')
+    }
+    setAdding(false)
   }
 
   function set(k, v) { setForm(prev => ({ ...prev, [k]: v })) }
@@ -79,13 +114,16 @@ export default function Employees() {
       {/* Add Employee Modal */}
       <Modal
         open={modal}
-        onClose={() => setModal(false)}
+        onClose={() => { setModal(false); setFormError('') }}
         title="הוספת עובד חדש"
         footer={<>
-          <button className="btn" onClick={() => setModal(false)}>ביטול</button>
-          <button className="btn btn-primary" onClick={handleAdd}>הוסף עובד</button>
+          <button className="btn" onClick={() => { setModal(false); setFormError('') }}>ביטול</button>
+          <button className="btn btn-primary" onClick={handleAdd} disabled={adding}>{adding ? 'מוסיף...' : 'הוסף עובד'}</button>
         </>}
       >
+        {formError && (
+          <div className="mb-4 text-sm text-red-600 bg-red-50 rounded-lg px-4 py-2.5 text-center">{formError}</div>
+        )}
         <div className="grid grid-cols-2 gap-4">
           <div><label className="form-label">שם מלא</label><input className="form-control" value={form.full_name} onChange={e => set('full_name', e.target.value)} placeholder="ישראל ישראלי" /></div>
           <div><label className="form-label">אימייל</label><input className="form-control" value={form.email} onChange={e => set('email', e.target.value)} placeholder="israel@example.com" /></div>
