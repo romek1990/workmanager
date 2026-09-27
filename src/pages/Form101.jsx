@@ -74,10 +74,21 @@ export default function Form101() {
   const [idBackPreview, setIdBackPreview] = useState(null)
   const [loading, setLoading] = useState(false)
   const [existingForm, setExistingForm] = useState(null)
+  const [history, setHistory] = useState([])
   const [alert, setAlert] = useState(null)
   const currentYear = new Date().getFullYear()
 
-  useEffect(() => { loadExistingForm() }, [currentUser])
+  useEffect(() => { loadExistingForm(); loadHistory() }, [currentUser])
+
+  async function loadHistory() {
+    if (!currentUser?.id) return
+    const { data } = await supabase
+      .from('form_101')
+      .select('id, year, status, submitted_at, approved_at')
+      .eq('employee_id', currentUser.id)
+      .order('year', { ascending: false })
+    setHistory(data || [])
+  }
 
   async function loadExistingForm() {
     if (!currentUser?.id) return
@@ -248,6 +259,7 @@ export default function Form101() {
       await supabase.from('notifications').update({ read: true }).eq('user_id', currentUser.id).ilike('title', '%101%')
       setAlert({ title: 'נשלח בהצלחה!', message: 'הטופס נשלח לאישור המנהל' })
       await loadExistingForm()
+      await loadHistory()
     } catch (e) {
       setAlert({ title: 'שגיאה', message: e.message })
     }
@@ -615,7 +627,7 @@ export default function Form101() {
 
         {isApproved && (
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center text-sm text-green-700">
-            ✅ הטופס אושר על ידי המנהל — לא ניתן לערוך
+            ✅ הטופס לשנת {currentYear} אושר על ידי המנהל — לא ניתן לערוך. האפשרות להגשה תיפתח מחדש בשנת {currentYear + 1}.
           </div>
         )}
       </div>
@@ -625,6 +637,38 @@ export default function Form101() {
     📄 הורד טופס 101 כ-PDF
   </button>
 )}
+
+      {history.length > 0 && (
+        <div className="card p-4 mt-4">
+          <h2 className="text-sm font-semibold text-brand-800 bg-brand-50 -mx-4 -mt-4 px-4 py-2.5 mb-3 rounded-t-xl border-b border-brand-100">
+            היסטוריית הגשות 101
+          </h2>
+          <div className="space-y-2">
+            {history.map(h => (
+              <div key={h.id} className="flex items-center justify-between border border-gray-100 rounded-lg px-3 py-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">שנת {h.year}</span>
+                  {h.submitted_at && (
+                    <span className="text-xs text-gray-400">
+                      הוגש ב-{new Date(h.submitted_at).toLocaleDateString('he-IL')}
+                    </span>
+                  )}
+                </div>
+                {h.status === 'approved' && (
+                  <span className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full"><CheckCircle size={12} />אושר</span>
+                )}
+                {h.status === 'pending' && (
+                  <span className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full"><Clock size={12} />ממתין לאישור</span>
+                )}
+                {h.status === 'rejected' && (
+                  <span className="flex items-center gap-1.5 text-xs text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">נדחה</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <AlertModal open={!!alert} onClose={() => setAlert(null)} title={alert?.title} message={alert?.message} />
     </div>
   )
