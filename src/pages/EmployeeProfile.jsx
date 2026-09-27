@@ -1,20 +1,25 @@
 import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowRight, Pencil, X, Check } from 'lucide-react'
+import { ArrowRight, Pencil, X, Check, KeyRound } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { supabase } from '../lib/supabase'
 import { Avatar, ShiftTypeBadge, StatusBadge, CardSection, Table, Modal, AlertModal } from '../components/ui'
 import { EMP_TYPE_LABELS } from '../data/mockData'
 import { calcShiftPay, fmtMoney } from '../utils/helpers'
 
+const RESET_PW_URL = 'https://nwetajywazzpxkdknqsf.supabase.co/functions/v1/admin-reset-password'
+
 export default function EmployeeProfile() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { employees, shifts, bonuses, updateEmployee } = useApp()
+  const { employees, shifts, bonuses, updateEmployee, currentUser, logActivity } = useApp()
 
   const emp = employees.find(e => e.id === id)
   const [editModal, setEditModal] = useState(false)
   const [form, setForm] = useState(null)
   const [alert, setAlert] = useState(null)
+  const [resetConfirm, setResetConfirm] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   if (!emp) return <div className="p-6 text-gray-400">עובד לא נמצא</div>
 
@@ -39,6 +44,28 @@ export default function EmployeeProfile() {
     setAlert({ title: 'עובד עודכן', message: 'פרטי העובד עודכנו בהצלחה' })
   }
 
+  async function handleResetPassword() {
+    setResetConfirm(false)
+    setResetting(true)
+    try {
+      const { data: s } = await supabase.auth.getSession()
+      const token = s?.session?.access_token
+      if (!token) throw new Error('יש להתחבר מחדש למערכת')
+      const res = await fetch(RESET_PW_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ employeeId: emp.id }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error || `שגיאה ${res.status}`)
+      await logActivity?.(currentUser?.id, currentUser?.name, currentUser?.email, 'איפוס סיסמה', `אופסה הסיסמה של ${emp.full_name}`)
+      setAlert({ title: 'הסיסמה אופסה', message: `הסיסמה הישנה בוטלה ונשלח מייל ל-${emp.email} להגדרת סיסמה חדשה` })
+    } catch (e) {
+      setAlert({ title: 'שגיאה', message: e.message || 'איפוס הסיסמה נכשל' })
+    }
+    setResetting(false)
+  }
+
   const infoRows = [
     ['סוג העסקה', EMP_TYPE_LABELS[emp.employee_type]],
     ['שכר', emp.employee_type === 'hourly' ? `₪${emp.hourly_rate}/שעה` : `₪${emp.monthly_salary.toLocaleString()}/חודש`],
@@ -61,6 +88,9 @@ export default function EmployeeProfile() {
           <p className="text-sm text-gray-400 mt-1">{emp.email} · {emp.phone} · {emp.address}</p>
           <div className="mt-2"><StatusBadge status={emp.status} /></div>
         </div>
+        <button className="btn" onClick={() => setResetConfirm(true)} disabled={resetting}>
+          <KeyRound size={14} />{resetting ? 'מאפס...' : 'איפוס סיסמה'}
+        </button>
         <button className="btn" onClick={openEdit}>
           <Pencil size={14} />עריכה
         </button>
@@ -186,6 +216,21 @@ export default function EmployeeProfile() {
           </div>
         </Modal>
       )}
+
+      {/* Reset Password Confirm */}
+      <Modal
+        open={resetConfirm}
+        onClose={() => setResetConfirm(false)}
+        title="איפוס סיסמה"
+        footer={<>
+          <button className="btn" onClick={() => setResetConfirm(false)}>ביטול</button>
+          <button className="btn btn-danger" onClick={handleResetPassword}><KeyRound size={14} />איפוס ושליחת מייל</button>
+        </>}
+      >
+        <p className="text-sm text-gray-600">
+          הסיסמה הנוכחית של <b>{emp.full_name}</b> תבוטל מיידית, וישלח מייל לכתובת <b dir="ltr">{emp.email}</b> עם קישור להגדרת סיסמה חדשה. לא ניתן לבטל פעולה זו.
+        </p>
+      </Modal>
 
       <AlertModal open={!!alert} onClose={() => setAlert(null)} title={alert?.title} message={alert?.message} />
     </div>
