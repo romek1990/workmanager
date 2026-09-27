@@ -132,18 +132,18 @@ export default function Admin101() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className="card p-4 text-center">
-          <div className="text-2xl font-light text-green-600">{forms.filter(f => f.status === 'approved').length}</div>
-          <div className="text-xs text-gray-400 mt-1">אושרו</div>
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
+        <div className="card p-2.5 sm:p-4 text-center">
+          <div className="text-xl sm:text-2xl font-light text-green-600">{forms.filter(f => f.status === 'approved').length}</div>
+          <div className="text-[11px] sm:text-xs text-gray-400 mt-1">אושרו</div>
         </div>
-        <div className="card p-4 text-center">
-          <div className="text-2xl font-light text-amber-600">{forms.filter(f => f.status === 'pending').length}</div>
-          <div className="text-xs text-gray-400 mt-1">ממתינים</div>
+        <div className="card p-2.5 sm:p-4 text-center">
+          <div className="text-xl sm:text-2xl font-light text-amber-600">{forms.filter(f => f.status === 'pending').length}</div>
+          <div className="text-[11px] sm:text-xs text-gray-400 mt-1">ממתינים</div>
         </div>
-        <div className="card p-4 text-center">
-          <div className="text-2xl font-light text-red-500">{notSubmitted.length}</div>
-          <div className="text-xs text-gray-400 mt-1">לא הוגשו</div>
+        <div className="card p-2.5 sm:p-4 text-center">
+          <div className="text-xl sm:text-2xl font-light text-red-500">{notSubmitted.length}</div>
+          <div className="text-[11px] sm:text-xs text-gray-400 mt-1">לא הוגשו</div>
         </div>
       </div>
 
@@ -159,17 +159,17 @@ export default function Admin101() {
             )}
             {forms.map(f => (
               <div key={f.id} onClick={() => openForm(f)}
-                className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-between ${selected?.id === f.id ? 'bg-brand-50' : ''}`}>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-brand-100 rounded-full flex items-center justify-center">
+                className={`p-3 sm:p-4 cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-between gap-2 ${selected?.id === f.id ? 'bg-brand-50' : ''}`}>
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                  <div className="w-8 h-8 bg-brand-100 rounded-full flex items-center justify-center shrink-0">
                     <User size={14} className="text-brand-600" />
                   </div>
-                  <div>
-                    <div className="text-sm font-medium">{f.employee_name}</div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">{f.employee_name}</div>
                     <div className="text-xs text-gray-400">{new Date(f.submitted_at).toLocaleDateString('he-IL')}</div>
                   </div>
                 </div>
-                {statusBadge(f.status)}
+                <div className="shrink-0">{statusBadge(f.status)}</div>
               </div>
             ))}
           </div>
@@ -184,29 +184,29 @@ export default function Admin101() {
             </div>
           ) : (
             <div className="overflow-y-auto max-h-[600px]">
-              <div className="p-4 border-b border-gray-100 sticky top-0 bg-white z-10">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <h2 className="text-sm font-medium">{selected.employee_name}</h2>
+              <div className="p-3 sm:p-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+                <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-medium truncate">{selected.employee_name}</h2>
                     <div className="flex items-center gap-2 mt-1">{statusBadge(selected.status)}</div>
                   </div>
                   {selected.status === 'pending' && (
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 w-full sm:w-auto">
                       <button onClick={() => updateStatus(selected.id, 'approved')}
-                        className="btn btn-success text-xs py-1.5 px-3">✅ אשר</button>
+                        className="btn btn-success text-xs py-1.5 px-3 flex-1 sm:flex-none justify-center">✅ אשר</button>
                       <button onClick={() => updateStatus(selected.id, 'rejected')}
-                        className="btn btn-danger text-xs py-1.5 px-3">❌ דחה</button>
+                        className="btn btn-danger text-xs py-1.5 px-3 flex-1 sm:flex-none justify-center">❌ דחה</button>
                     </div>
                   )}
                   {selected.status === 'approved' && (
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 w-full sm:w-auto">
                       <button onClick={() => setCancelConfirm(true)}
-                        className="btn text-xs py-1.5 px-3">↩️ בטל אישור</button>
+                        className="btn text-xs py-1.5 px-3 flex-1 sm:flex-none justify-center">↩️ בטל אישור</button>
                     </div>
                   )}
                 </div>
                 {/* כפתורי הורדה ומייל */}
-                <div className="flex gap-2 mt-2">
+                <div className="flex flex-col sm:flex-row gap-2 mt-2">
                   <button onClick={handleDownloadPDF} disabled={pdfLoading}
                     className="flex-1 flex items-center justify-center gap-1.5 text-xs border border-brand-200 text-brand-600 hover:bg-brand-50 rounded-lg py-2 transition-colors">
                     <Download size={13} />
@@ -220,7 +220,7 @@ export default function Admin101() {
                 </div>
               </div>
 
-              <div className="p-4 space-y-4 text-sm">
+              <div className="p-3 sm:p-4 space-y-4 text-sm">
                 <Section title="פרטים אישיים">
                   <Row label="שם פרטי" value={selected.first_name} />
                   <Row label="שם משפחה" value={selected.last_name} />
@@ -335,9 +335,9 @@ function Section({ title, children }) {
 
 function Row({ label, value }) {
   return (
-    <div className="flex justify-between">
-      <span className="text-gray-500 text-xs">{label}</span>
-      <span className="text-gray-800 text-xs font-medium">{value || '—'}</span>
+    <div className="flex justify-between gap-3">
+      <span className="text-gray-500 text-xs shrink-0">{label}</span>
+      <span className="text-gray-800 text-xs font-medium text-left break-words">{value || '—'}</span>
     </div>
   )
 }

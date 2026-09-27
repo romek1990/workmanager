@@ -301,15 +301,15 @@ export default function Form101() {
   ]
 
   return (
-    <div className="p-6 pt-14 md:pt-6 max-w-3xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <FileText size={22} className="text-brand-600" />
+    <div className="p-4 pt-14 md:p-6 max-w-3xl mx-auto">
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <FileText size={22} className="text-brand-600 shrink-0" />
         <div>
           <h1 className="text-lg font-medium">טופס 101</h1>
           <p className="text-xs text-gray-400">הצהרת עובד למס הכנסה — שנת {currentYear}</p>
         </div>
-        {isApproved && <span className="mr-auto flex items-center gap-1.5 text-xs text-green-600 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full"><CheckCircle size={13} />אושר</span>}
-        {isPending && <span className="mr-auto flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full"><Clock size={13} />ממתין לאישור</span>}
+        {isApproved && <span className="sm:mr-auto flex items-center gap-1.5 text-xs text-green-600 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full"><CheckCircle size={13} />אושר</span>}
+        {isPending && <span className="sm:mr-auto flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full"><Clock size={13} />ממתין לאישור</span>}
       </div>
 
       {isCancelled && (
@@ -320,14 +320,14 @@ export default function Form101() {
 
       <div className="space-y-4">
         <Section title="א. פרטי המעסיק">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="שם המעסיק" value="פלורנטין מרקט בע״מ" disabled />
             <Field label="מספר תיק ניכויים" value="911000925" disabled />
           </div>
         </Section>
 
         <Section title="ב. פרטי העובד/ת">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="form-label">שם פרטי <Required /></label>
               <input className="form-control" value={form.first_name} onChange={e => set('first_name', e.target.value)} disabled={disabled} placeholder="ע״פ הרשום בת.ז" />
@@ -381,7 +381,7 @@ export default function Form101() {
               <input type="email" className="form-control" value={form.email} onChange={e => set('email', e.target.value)} disabled={disabled} />
             </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             <RadioGroup label="מין" required value={form.gender} onChange={v => set('gender', v)} options={['זכר', 'נקבה']} disabled={disabled} />
             <div>
               <label className="form-label">מצב משפחתי <Required /></label>
@@ -424,7 +424,7 @@ export default function Form101() {
 
         {isMarried && (
         <Section title="ו. פרטים על בן/בת הזוג">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="form-label">שם פרטי</label>
               <input className="form-control" value={form.spouse_first_name} onChange={e => set('spouse_first_name', e.target.value)} disabled={disabled} />
@@ -463,7 +463,7 @@ export default function Form101() {
                 <span className="text-xs font-medium text-gray-600">ילד {i + 1}</span>
                 {!disabled && <button onClick={() => removeChild(i)} className="text-red-400 hover:text-red-600"><Trash2 size={13} /></button>}
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div>
                   <label className="form-label">שם <Required /></label>
                   <input className="form-control text-sm" value={child.name} onChange={e => updateChild(i, 'name', e.target.value)} disabled={disabled} />
@@ -493,7 +493,7 @@ export default function Form101() {
         <Section title="ד. פרטים על הכנסותי ממעסיק זה">
           <div>
             <label className="form-label">אני מקבל/ת <Required /></label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mt-1">
               {INCOME_TYPES.map(type => (
                 <Checkbox key={type} label={type} checked={form.income_types.includes(type)} onChange={() => !disabled && toggleIncomeType(type)} disabled={disabled} />
               ))}
@@ -523,7 +523,7 @@ export default function Form101() {
                 <Checkbox label={`${ex.num}. ${ex.label}`} checked={form.exemptions.includes(ex.num)} onChange={() => !disabled && toggleExemption(ex.num)} disabled={disabled} />
 
                 {ex.num === 3 && hasEx(3) && (
-                  <div className="grid grid-cols-2 gap-2 mt-1 mr-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 mr-6">
                     <div>
                       <label className="form-label text-xs">שם היישוב המזכה</label>
                       <input className="form-control text-sm" value={form.exemption_3_town} onChange={e => set('exemption_3_town', e.target.value)} disabled={disabled} />
@@ -536,7 +536,7 @@ export default function Form101() {
                 )}
 
                 {ex.num === 4 && hasEx(4) && (
-                  <div className="grid grid-cols-2 gap-2 mt-1 mr-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 mr-6">
                     <div>
                       <label className="form-label text-xs">תאריך עלייה</label>
                       <input type="date" className="form-control text-sm" value={form.exemption_4_aliyah_date} onChange={e => set('exemption_4_aliyah_date', e.target.value)} disabled={disabled} />
@@ -549,7 +549,7 @@ export default function Form101() {
                 )}
 
                 {ex.num === 7 && hasEx(7) && (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1 mr-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1 mr-6">
                     {AGE_GROUPS.map(g => (
                       <div key={g.key}>
                         <label className="form-label text-xs">{g.label}</label>
@@ -560,7 +560,7 @@ export default function Form101() {
                 )}
 
                 {ex.num === 8 && hasEx(8) && (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1 mr-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1 mr-6">
                     {AGE_GROUPS.map(g => (
                       <div key={g.key}>
                         <label className="form-label text-xs">{g.label}</label>
@@ -578,7 +578,7 @@ export default function Form101() {
                 )}
 
                 {ex.num === 14 && hasEx(14) && (
-                  <div className="grid grid-cols-2 gap-2 mt-1 mr-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 mr-6">
                     <div>
                       <label className="form-label text-xs">תאריך תחילת שירות</label>
                       <input type="date" className="form-control text-sm" value={form.exemption_14_service_start} onChange={e => set('exemption_14_service_start', e.target.value)} disabled={disabled} />
@@ -652,8 +652,8 @@ export default function Form101() {
           </h2>
           <div className="space-y-2">
             {history.map(h => (
-              <div key={h.id} className="flex items-center justify-between border border-gray-100 rounded-lg px-3 py-2.5">
-                <div className="flex items-center gap-2">
+              <div key={h.id} className="flex items-center justify-between gap-2 flex-wrap border border-gray-100 rounded-lg px-3 py-2.5">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-medium">שנת {h.year}</span>
                   {h.submitted_at && (
                     <span className="text-xs text-gray-400">
