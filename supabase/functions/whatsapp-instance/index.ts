@@ -15,7 +15,9 @@ const PUBLISHABLE_KEY = "sb_publishable_5a-3ZAXHrNto4disNZxIUQ_VWX4Vj7w";
 const SECRET_KEY = Deno.env.get("SB_SECRET_KEY")!;
 const ID = Deno.env.get("GREEN_API_ID_INSTANCE")!;
 const TOKEN = Deno.env.get("GREEN_API_TOKEN_INSTANCE")!;
-const BASE = `https://api.green-api.com/waInstance${ID}`;
+// Dedicated instance host (first 4 digits of the instance id) — the generic
+// api.green-api.com host returns 403 for this instance. Same as whatsapp-send.
+const BASE = `https://${ID.slice(0, 4)}.api.greenapi.com/waInstance${ID}`;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
