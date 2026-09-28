@@ -3,6 +3,7 @@ import { MessageCircle, Send, Search, User, Users, CheckCheck, PhoneOff, AlertTr
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { Avatar, Modal, Toast, useToast } from '../components/ui'
+import WhatsAppSender from '../components/WhatsAppSender'
 
 const FN_URL = 'https://nwetajywazzpxkdknqsf.supabase.co/functions/v1/whatsapp-send'
 const MAX_LEN = 4000
@@ -129,6 +130,8 @@ export default function WhatsApp() {
           </div>
         </div>
       </div>
+
+      <WhatsAppSender />
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 stagger">
         {/* Recipients */}
