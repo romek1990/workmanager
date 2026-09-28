@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Play, Square, Clock, Banknote, CalendarDays, Plus, MoonStar, CalendarCheck } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { ShiftTypeBadge, StatusBadge, StatCard, CardSection, Table, AlertModal, Modal } from '../components/ui'
-import { calcShiftPay, fmtMoney, calcHours, todayISO } from '../utils/helpers'
+import { calcShiftPay, fmtMoney, calcHours, todayISO, fmtHours, hoursFromMinutes, minutesBetween, localISODate } from '../utils/helpers'
 
 const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
 
@@ -83,7 +83,9 @@ export default function UserHome() {
       const end = new Date()
       const startStr = shiftStart.toTimeString().slice(0, 5)
       const endStr = end.toTimeString().slice(0, 5)
-      const hrs = Math.round(((end - shiftStart) / 3600000) * 10) / 10
+      // count whole clock-minutes, so the hours always match the start/end shown
+      const mins = Math.floor(end.getTime() / 60000) - Math.floor(shiftStart.getTime() / 60000)
+      const hrs = hoursFromMinutes(Math.max(mins, 0))
       const day = shiftStart.getDay()
       const shiftType = day === 6 ? 'saturday' : day === 5 ? 'friday' : 'regular'
 
@@ -91,10 +93,10 @@ export default function UserHome() {
         employee_email: currentUserEmail,
         employee_name: emp?.full_name || currentUser?.name || '',
         employee_id: currentUser?.id,
-        date: shiftStart.toISOString().slice(0, 10),
+        date: localISODate(shiftStart),
         start_time: startStr,
         end_time: endStr,
-        total_hours: Math.max(hrs, 0.5),
+        total_hours: hrs,
         shift_type: shiftType,
         notes: '',
         is_manual: false,
@@ -116,7 +118,7 @@ export default function UserHome() {
       const [eh, em] = manualForm.end_time.split(':').map(Number)
       let mins = (eh * 60 + em) - (sh * 60 + sm)
       if (mins <= 0) mins += 24 * 60
-      const hrs = Math.round((mins / 60) * 10) / 10
+      const hrs = hoursFromMinutes(mins)
 
       await addShift({
         employee_email: currentUserEmail,
@@ -186,7 +188,7 @@ export default function UserHome() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-5 stagger">
-        <StatCard label="שעות החודש" value={totalHours} sub="מאושרות" icon={Clock} accent="amber" />
+        <StatCard label="שעות החודש" value={totalHours} format={fmtHours} sub="מאושרות" icon={Clock} accent="amber" />
         <StatCard label="שכר משוער" value={totalPay} format={fmtMoney} sub="לפני ניכויים" icon={Banknote} accent="lime" delay={80} />
         <StatCard label="סך הכל משמרות שדווחו" value={myShifts.length} sub={`${pendingCount} ממתינות`} icon={CalendarDays} accent="emerald" delay={160} />
         <StatCard label="משמרות שאושרו" value={approvedShifts.length} sub="החודש" icon={CalendarCheck} accent="emerald" delay={240} />
@@ -269,7 +271,7 @@ export default function UserHome() {
           {myShifts.slice(0, 6).map(s => (
             <tr key={s.id} className="hover:bg-gray-50">
               <td className="table-td text-sm">{s.date}</td>
-              <td className="table-td text-sm">{s.total_hours}</td>
+              <td className="table-td text-sm tabular-nums">{fmtHours(s.total_hours)}</td>
               <td className="table-td"><ShiftTypeBadge type={s.shift_type} /></td>
               <td className="table-td"><StatusBadge status={s.status} /></td>
             </tr>

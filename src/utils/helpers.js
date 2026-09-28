@@ -12,12 +12,37 @@ export function calcShiftPay(shift, employee) {
   return shift.total_hours * employee.hourly_rate * (multipliers[shift.shift_type] || 1)
 }
 
-export function calcHours(start, end) {
+// ── Hours are tracked to the minute ──────────────────────────────────
+// total_hours is stored as decimal hours with enough precision to hold whole
+// minutes exactly (7 min → 0.1167); display always goes through fmtHours.
+
+export function minutesBetween(start, end) {
   const [sh, sm] = start.split(':').map(Number)
   const [eh, em] = end.split(':').map(Number)
   let mins = (eh * 60 + em) - (sh * 60 + sm)
   if (mins < 0) mins += 24 * 60 // overnight
-  return Math.round((mins / 60) * 10) / 10
+  return mins
+}
+
+export function hoursFromMinutes(mins) {
+  return Math.round((mins / 60) * 10000) / 10000
+}
+
+export function calcHours(start, end) {
+  return hoursFromMinutes(minutesBetween(start, end))
+}
+
+// 8.5 → "8:30", 0.1167 → "0:07"
+export function fmtHours(h) {
+  const total = Math.round((Number(h) || 0) * 60)
+  const sign = total < 0 ? '-' : ''
+  const abs = Math.abs(total)
+  return `${sign}${Math.floor(abs / 60)}:${String(abs % 60).padStart(2, '0')}`
+}
+
+// local (Israel) calendar date, not UTC
+export function localISODate(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export function getInitials(name = '') {

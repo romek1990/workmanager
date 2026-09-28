@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { Avatar, ShiftTypeBadge, StatusBadge, CardSection, Table, Modal, AlertModal } from '../components/ui'
 import { EMP_TYPE_LABELS } from '../data/mockData'
-import { calcShiftPay, fmtMoney } from '../utils/helpers'
+import { calcShiftPay, fmtMoney, fmtHours } from '../utils/helpers'
 
 const RESET_PW_URL = 'https://nwetajywazzpxkdknqsf.supabase.co/functions/v1/admin-reset-password'
 
@@ -113,7 +113,7 @@ export default function EmployeeProfile() {
 
         <CardSection title="סטטיסטיקות חודשיות">
           <table className="w-full">
-            {[['שעות', totalHours], ['שכר גולמי', fmtMoney(totalPay)], ['בונוסים', fmtMoney(totalBonus)], ['סה"כ', fmtMoney(totalPay + totalBonus)]].map(([k, v]) => (
+            {[['שעות', fmtHours(totalHours)], ['שכר גולמי', fmtMoney(totalPay)], ['בונוסים', fmtMoney(totalBonus)], ['סה"כ', fmtMoney(totalPay + totalBonus)]].map(([k, v]) => (
               <tr key={k} className="border-b border-gray-50 last:border-0">
                 <td className="table-td text-gray-500 text-xs">{k}</td>
                 <td className="table-td text-sm font-semibold text-left">{v}</td>
@@ -128,7 +128,7 @@ export default function EmployeeProfile() {
           {empShifts.slice(0, 8).map(s => (
             <tr key={s.id} className="hover:bg-gray-50">
               <td className="table-td text-sm">{s.date}</td>
-              <td className="table-td text-sm">{s.total_hours}</td>
+              <td className="table-td text-sm tabular-nums">{fmtHours(s.total_hours)}</td>
               <td className="table-td"><ShiftTypeBadge type={s.shift_type} /></td>
               <td className="table-td"><StatusBadge status={s.status} /></td>
               <td className="table-td text-gray-400 text-sm">{s.notes || '—'}</td>

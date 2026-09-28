@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Search, Plus } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { ShiftTypeBadge, StatusBadge, Modal, AlertModal, Table, CardSection } from '../components/ui'
-import { calcHours, todayISO } from '../utils/helpers'
+import { calcHours, todayISO, fmtHours } from '../utils/helpers'
 
 const defaultForm = { employee_email: '', date: todayISO(), start_time: '08:00', end_time: '16:00', shift_type: 'regular', notes: '' }
 const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
@@ -84,7 +84,7 @@ export default function Shifts() {
             <tr key={s.id} className="hover:bg-gray-50">
               <td className="table-td font-medium text-sm">{s.employee_name}</td>
               <td className="table-td text-sm text-gray-500">{s.date}</td>
-              <td className="table-td text-sm">{s.total_hours}</td>
+              <td className="table-td text-sm tabular-nums">{fmtHours(s.total_hours)}</td>
               <td className="table-td"><ShiftTypeBadge type={s.shift_type} /></td>
               <td className="table-td"><StatusBadge status={s.status} /></td>
               <td className="table-td text-sm text-gray-400">{s.notes || '—'}</td>

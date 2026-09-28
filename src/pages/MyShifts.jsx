@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { ChevronRight, ChevronLeft } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import { fmtHours } from '../utils/helpers'
 import { ShiftTypeBadge, StatusBadge, CardSection, Table } from '../components/ui'
 import { MONTH_NAMES } from '../data/mockData'
 
@@ -46,7 +47,7 @@ export default function MyShifts() {
               <td className="table-td text-sm">{s.date}</td>
               <td className="table-td text-sm text-gray-500">{s.start_time}</td>
               <td className="table-td text-sm text-gray-500">{s.end_time}</td>
-              <td className="table-td text-sm font-medium">{s.total_hours}</td>
+              <td className="table-td text-sm font-medium tabular-nums">{fmtHours(s.total_hours)}</td>
               <td className="table-td"><ShiftTypeBadge type={s.shift_type} /></td>
               <td className="table-td"><StatusBadge status={s.status} /></td>
               <td className="table-td text-sm text-gray-400">{s.notes || '—'}</td>
@@ -56,9 +57,9 @@ export default function MyShifts() {
 
         {/* Footer summary */}
         <div className="px-5 py-3 border-t border-gray-100 flex gap-6 text-sm text-gray-500">
-          <span>סה"כ שעות: <strong className="text-gray-800">{totalHours}</strong></span>
+          <span>סה"כ שעות: <strong className="text-gray-800">{fmtHours(totalHours)}</strong></span>
           <span>שעות מאושרות: <strong className="text-green-600">{approved}</strong></span>
-          <span>ממתינות: <strong className="text-amber-600">{totalHours - approved}</strong></span>
+          <span>ממתינות: <strong className="text-amber-600">{fmtHours(totalHours - approved)}</strong></span>
         </div>
       </CardSection>
     </div>

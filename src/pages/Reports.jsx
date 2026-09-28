@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { Table, CardSection } from '../components/ui'
-import { calcShiftPay, fmtMoney, monthStart, monthEnd } from '../utils/helpers'
+import { calcShiftPay, fmtMoney, monthStart, monthEnd, fmtHours } from '../utils/helpers'
 
 
 function getPreset(type) {
@@ -65,7 +65,7 @@ export default function Reports() {
 
   function exportCSV() {
     const lines = [['עובד', 'שעות', 'שכר', 'בונוסים', 'סהכ'].join(',')]
-    rows.forEach(r => lines.push([r.emp.full_name, r.hrs.total, Math.round(r.pay), r.bonus, Math.round(r.total)].join(',')))
+    rows.forEach(r => lines.push([r.emp.full_name, fmtHours(r.hrs.total), Math.round(r.pay), r.bonus, Math.round(r.total)].join(',')))
     const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
@@ -131,7 +131,7 @@ function exportPDF() {
               <td>${r.hrs.friday || 0}</td>
               <td>${r.hrs.saturday || 0}</td>
               <td>${r.hrs.night || 0}</td>
-              <td><strong>${r.hrs.total}</strong></td>
+              <td><strong>${fmtHours(r.hrs.total)}</strong></td>
               <td>${fmtMoney(r.pay)}</td>
               <td>${fmtMoney(r.bonus)}</td>
               <td><strong>${fmtMoney(r.total)}</strong></td>
@@ -198,7 +198,7 @@ function exportEmployeePDF(row) {
             <tr>
               <td>${s.date}</td>
               <td>${SHIFT_TYPE_HE[s.shift_type] || s.shift_type}</td>
-              <td>${s.total_hours}</td>
+              <td>${fmtHours(s.total_hours)}</td>
               <td>${fmtMoney(calcShiftPay(s, row.emp))}</td>
               <td>${s.notes || '—'}</td>
             </tr>
@@ -207,7 +207,7 @@ function exportEmployeePDF(row) {
       </table>
 
       <div class="totals">
-        <p>סה"כ שעות: <strong>${row.hrs.total}</strong></p>
+        <p>סה"כ שעות: <strong>${fmtHours(row.hrs.total)}</strong></p>
         <p>שכר גולמי: <strong>${fmtMoney(row.pay)}</strong></p>
         <p>בונוסים: <strong>${fmtMoney(row.bonus)}</strong></p>
         <p class="grand">💰 סה"כ לתשלום: ${fmtMoney(row.total)}</p>
@@ -284,7 +284,7 @@ function exportEmployeePDF(row) {
                 <td className="table-td text-sm text-center">{r.hrs.friday || 0}</td>
                 <td className="table-td text-sm text-center">{r.hrs.saturday || 0}</td>
                 <td className="table-td text-sm text-center">{r.hrs.night || 0}</td>
-                <td className="table-td text-sm font-medium text-center">{r.hrs.total}</td>
+                <td className="table-td text-sm font-medium text-center">{fmtHours(r.hrs.total)}</td>
                 <td className="table-td text-sm">{fmtMoney(r.pay)}</td>
                 <td className="table-td text-sm text-green-600">{fmtMoney(r.bonus)}</td>
                 <td className="table-td text-sm font-semibold">{fmtMoney(r.total)}</td>
@@ -319,7 +319,7 @@ function exportEmployeePDF(row) {
               <div className="grid grid-cols-3 gap-3 mb-4">
                 <div className="card p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-glass-lg">
                   <div className="text-xs text-gray-500 mb-1">סה"כ שעות</div>
-                  <div className="text-xl font-semibold">{rows.find(r => r.emp.email === detailEmp)?.hrs.total || 0}</div>
+                  <div className="text-xl font-semibold">{fmtHours(rows.find(r => r.emp.email === detailEmp)?.hrs.total || 0)}</div>
                 </div>
                 <div className="card p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-glass-lg">
                   <div className="text-xs text-gray-500 mb-1">שכר גולמי</div>
@@ -336,7 +336,7 @@ function exportEmployeePDF(row) {
                     <tr key={s.id} className="hover:bg-gray-50">
                       <td className="table-td text-sm">{s.date}</td>
                       <td className="table-td text-sm">{SHIFT_TYPE_HE[s.shift_type] || s.shift_type}</td>
-                      <td className="table-td text-sm">{s.total_hours}</td>
+                      <td className="table-td text-sm tabular-nums">{fmtHours(s.total_hours)}</td>
                       <td className="table-td text-sm">{fmtMoney(calcShiftPay(s, detailEmpObj))}</td>
                       <td className="table-td text-sm text-gray-400">{s.notes || '—'}</td>
                     </tr>

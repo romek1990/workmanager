@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Users, Clock, Gift, Hourglass, Sparkles } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { StatCard, ShiftTypeBadge, Avatar, Toast, useToast } from '../components/ui'
-import { fmtMoney } from '../utils/helpers'
+import { fmtMoney, fmtHours } from '../utils/helpers'
 
 const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
 
@@ -114,7 +114,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-[18px] mb-7 stagger">
         <StatCard label="ממתינות לאישור" value={pending.length} sub="משמרות (כלל הזמנים)" icon={Hourglass} accent="amber" />
         <StatCard label='סה"כ בונוסים' value={totalBonus} format={fmtMoney} sub={`${monthLabel(selectedMonth)} ${selectedYear}`} icon={Gift} accent="lime" delay={80} />
-        <StatCard label="שעות בחודש שנבחר" value={totalHours} sub="משמרות מאושרות" icon={Clock} accent="emerald" delay={160} />
+        <StatCard label="שעות בחודש שנבחר" value={totalHours} format={fmtHours} sub="משמרות מאושרות" icon={Clock} accent="emerald" delay={160} />
         <StatCard label="עובדים פעילים" value={activeEmps} sub={`${employees.length - activeEmps} לא פעילים`} icon={Users} accent="coral" delay={240} />
       </div>
 
@@ -161,7 +161,7 @@ export default function Dashboard() {
                       <td className="table-td px-6 tabular-nums font-medium">
                         {fmtTime(s.end_time) || <span className="badge badge-warning">פתוחה</span>}
                       </td>
-                      <td className="table-td px-6 tabular-nums">{s.total_hours}</td>
+                      <td className="table-td px-6 tabular-nums">{fmtHours(s.total_hours)}</td>
                       <td className="table-td px-6"><ShiftTypeBadge type={s.shift_type} /></td>
                       <td className="table-td px-6" style={{ color: 'var(--text-dim)' }}>{s.notes || '—'}</td>
                       <td className="table-td px-6">
@@ -191,7 +191,7 @@ export default function Dashboard() {
                     <ShiftTypeBadge type={s.shift_type} />
                   </div>
                   <div className="text-xs mt-2 tabular-nums" style={{ color: 'var(--text-dim)' }}>
-                    {fmtDate(s.date)} · <span dir="ltr">{fmtTime(s.start_time) || '—'}–{fmtTime(s.end_time) || '?'}</span> · {s.total_hours} שעות{s.notes ? ` · ${s.notes}` : ''}
+                    {fmtDate(s.date)} · <span dir="ltr">{fmtTime(s.start_time) || '—'}–{fmtTime(s.end_time) || '?'}</span> · {fmtHours(s.total_hours)} שעות{s.notes ? ` · ${s.notes}` : ''}
                   </div>
                   <div className="flex gap-2 mt-3">
                     <button disabled={leaving[s.id]} className="btn btn-success flex-1 justify-center py-2 text-xs" onClick={() => resolve(s, 'approved')}>אשר</button>
