@@ -11,6 +11,11 @@ function monthLabel(ym) {
   return HEBREW_MONTHS[m - 1]
 }
 
+// '08:00:00' → '08:00'; open shift (no end) → null
+function fmtTime(t) {
+  return t ? String(t).slice(0, 5) : null
+}
+
 function fmtDate(iso) {
   if (!iso) return '—'
   const [y, m, d] = iso.split('-').map(Number)
@@ -134,7 +139,7 @@ export default function Dashboard() {
               <table className="w-full">
                 <thead>
                   <tr>
-                    {['עובד', 'תאריך', 'שעות', 'סוג', 'הערות', 'פעולות'].map(h => (
+                    {['עובד', 'תאריך', 'התחלה', 'סיום', 'שעות', 'סוג', 'הערות', 'פעולות'].map(h => (
                       <th key={h} className="table-th px-6">{h}</th>
                     ))}
                   </tr>
@@ -152,6 +157,10 @@ export default function Dashboard() {
                         </div>
                       </td>
                       <td className="table-td px-6 tabular-nums" style={{ color: 'var(--text-dim)' }}>{fmtDate(s.date)}</td>
+                      <td className="table-td px-6 tabular-nums font-medium">{fmtTime(s.start_time) || '—'}</td>
+                      <td className="table-td px-6 tabular-nums font-medium">
+                        {fmtTime(s.end_time) || <span className="badge badge-warning">פתוחה</span>}
+                      </td>
                       <td className="table-td px-6 tabular-nums">{s.total_hours}</td>
                       <td className="table-td px-6"><ShiftTypeBadge type={s.shift_type} /></td>
                       <td className="table-td px-6" style={{ color: 'var(--text-dim)' }}>{s.notes || '—'}</td>
@@ -182,7 +191,7 @@ export default function Dashboard() {
                     <ShiftTypeBadge type={s.shift_type} />
                   </div>
                   <div className="text-xs mt-2 tabular-nums" style={{ color: 'var(--text-dim)' }}>
-                    {fmtDate(s.date)} · {s.total_hours} שעות{s.notes ? ` · ${s.notes}` : ''}
+                    {fmtDate(s.date)} · <span dir="ltr">{fmtTime(s.start_time) || '—'}–{fmtTime(s.end_time) || '?'}</span> · {s.total_hours} שעות{s.notes ? ` · ${s.notes}` : ''}
                   </div>
                   <div className="flex gap-2 mt-3">
                     <button disabled={leaving[s.id]} className="btn btn-success flex-1 justify-center py-2 text-xs" onClick={() => resolve(s, 'approved')}>אשר</button>
