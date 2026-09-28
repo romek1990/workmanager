@@ -8,6 +8,12 @@ const EMAILJS_TEMPLATE_ID = 'template_er61rbp'
 const EMAILJS_PUBLIC_KEY = 'O6dGxcOoOfwbY1b2g'
 const SUMMARY_EMAIL = 'yasminkoziar@gmail.com'
 
+// 8.6167 → "8:37" (hours are tracked to the minute)
+function fmtHours(h: number | string) {
+  const total = Math.round((Number(h) || 0) * 60)
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
+
 serve(async () => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
@@ -59,7 +65,7 @@ serve(async () => {
         <td style="padding:8px;border:1px solid #e5e7eb;">${s.date}</td>
         <td style="padding:8px;border:1px solid #e5e7eb;">${s.start_time || '—'}</td>
         <td style="padding:8px;border:1px solid #e5e7eb;">${isOpen ? '⚠️ לא נסגרה' : s.end_time}</td>
-        <td style="padding:8px;border:1px solid #e5e7eb;">${s.total_hours || '—'}</td>
+        <td style="padding:8px;border:1px solid #e5e7eb;">${isOpen || s.total_hours == null ? '—' : fmtHours(s.total_hours)}</td>
         <td style="padding:8px;border:1px solid #e5e7eb;">${statusMap[s.status] || s.status}</td>
         <td style="padding:8px;border:1px solid #e5e7eb;">${s.is_manual ? '📋 ידנית' : '⏰ אוטומטית'}</td>
       </tr>`
