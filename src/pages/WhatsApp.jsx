@@ -16,8 +16,8 @@ const TEMPLATES = [
 ]
 
 // automatic messages (whatsapp-auto) are tagged by kind
-const KIND_LABEL = { schedule: 'סידור שבועי', form101: 'טופס 101', open_shift: 'משמרת פתוחה' }
-const KIND_BADGE = { schedule: 'badge-success', form101: 'badge-warning', open_shift: 'badge-danger' }
+const KIND_LABEL = { schedule: 'סידור שבועי', form101: 'טופס 101', open_shift: 'משמרת פתוחה', shift_reminder: 'תזכורת משמרת' }
+const KIND_BADGE = { schedule: 'badge-success', form101: 'badge-warning', open_shift: 'badge-danger', shift_reminder: 'badge-info' }
 
 function hasPhone(p) {
   return (p || '').replace(/\D/g, '').length >= 9

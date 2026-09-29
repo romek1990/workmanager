@@ -7,6 +7,8 @@
 //   form101     (admin | cron) — reminder to active employees with no pending/approved Form 101 this year.
 //                                 Skips anyone reminded in the last 6 days unless { force: true } (admin only).
 //   open_shifts (admin | cron) — employee whose shift has been open > 12h gets one alert; admins get a bell note.
+//   shift_reminders (admin | cron) — reminder ~1h before a shift in the weekly schedule (once per scheduled shift;
+//                                 skipped if the employee is already clocked in). Uses public.due_shift_reminders().
 //
 // Auth: admin JWT (Authorization header) or the pg_cron secret (x-cron-secret header, checked against Vault).
 // Deployed with verify_jwt=false because cron calls it without a user JWT; auth is enforced below.
@@ -24,6 +26,7 @@ const SITE = "https://workmanager-florentin.com";
 const OPEN_SHIFT_HOURS = 12;
 const FORM101_COOLDOWN_DAYS = 6;
 const DELAY_BETWEEN_MS = 400;
+const REMINDER_LEAD_MINUTES = 60;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -190,6 +193,25 @@ async function jobOpenShifts(admin: any, sender: { id: string | null; name: stri
   return out;
 }
 
+async function jobShiftReminders(admin: any, sender: { id: string | null; name: string }) {
+  const { data: due, error } = await admin.rpc("due_shift_reminders", { p_lead_minutes: REMINDER_LEAD_MINUTES });
+  if (error) throw error;
+  if (!due?.length) return { sent: 0, failed: 0, skipped: 0, results: [] };
+
+  // mark first so an overlapping cron run can't double-send
+  await admin.from("weekly_schedule").update({ reminder_sent_at: new Date().toISOString() }).in("id", due.map((d: any) => d.id));
+
+  const batch: Outgoing[] = due.map((d: any) => {
+    const start = String(d.start_time).slice(0, 5);
+    const end = String(d.end_time).slice(0, 5);
+    return {
+      r: { id: d.employee_id, full_name: d.full_name, phone: d.phone },
+      text: `היי ${firstName(d.full_name)}, תזכורת: המשמרת שלך מתחילה היום ב-${start} (עד ${end}) ⏰${d.notes ? `\n${d.notes}` : ""}\nאל תשכח/י ללחוץ "התחל משמרת" כשמגיעים:\n${SITE}`,
+    };
+  });
+  return deliver(admin, "shift_reminder", sender, batch, false);
+}
+
 // ── entry ─────────────────────────────────────────────────────────────
 
 serve(async (req) => {
@@ -228,6 +250,8 @@ serve(async (req) => {
         return json({ ok: true, ...(await jobForm101(admin, sender, !viaCron && body.force === true)) });
       case "open_shifts":
         return json({ ok: true, ...(await jobOpenShifts(admin, sender)) });
+      case "shift_reminders":
+        return json({ ok: true, ...(await jobShiftReminders(admin, sender)) });
       default:
         return json({ error: "unknown job" }, 400);
     }
