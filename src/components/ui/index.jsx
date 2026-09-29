@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { X, Check } from 'lucide-react'
 import { SHIFT_TYPE_LABELS, STATUS_LABELS } from '../../data/mockData'
 import { shiftTypeBadgeClass, statusBadgeClass, getInitials } from '../../utils/helpers'
@@ -30,11 +31,13 @@ export function Avatar({ name, size = 'md' }) {
 }
 
 // ── Modal ──────────────────────────────────────────────────────────────
+// Modals render into <body> via a portal: a parent with backdrop-filter (the glass
+// cards) would otherwise become the containing block for position:fixed and clip it.
 export function Modal({ open, onClose, title, children, footer }) {
   if (!open) return null
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-ink-900/30 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="bg-white/90 backdrop-blur-xl border border-white rounded-3xl shadow-glass-lg w-full max-w-lg animate-rise">
+      <div className="bg-white/95 backdrop-blur-xl border border-white rounded-3xl shadow-glass-lg w-full max-w-lg max-h-[90vh] overflow-y-auto animate-rise">
         <div className="flex items-center justify-between px-6 py-4 border-b border-black/5">
           <h2 className="text-base font-bold">{title}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
@@ -42,7 +45,8 @@ export function Modal({ open, onClose, title, children, footer }) {
         <div className="px-6 py-5">{children}</div>
         {footer && <div className="px-6 py-4 border-t border-black/5 flex justify-end gap-2">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -152,7 +156,7 @@ export function useToast(ms = 2200) {
 }
 
 export function Toast({ show, message, tone = 'success' }) {
-  return (
+  return createPortal(
     <div
       role="status"
       aria-live="polite"
@@ -160,14 +164,15 @@ export function Toast({ show, message, tone = 'success' }) {
     >
       {tone === 'success' ? <Check size={16} className="text-lime" /> : <X size={16} className="text-coral" />}
       {message}
-    </div>
+    </div>,
+    document.body
   )
 }
 
 // ── Alert Toast ────────────────────────────────────────────────────────
 export function AlertModal({ open, onClose, title, message }) {
   if (!open) return null
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-ink-900/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white/90 backdrop-blur-xl border border-white rounded-3xl shadow-glass-lg w-full max-w-sm text-center p-8 animate-rise">
         <div className="text-4xl mb-3">✅</div>
@@ -175,7 +180,8 @@ export function AlertModal({ open, onClose, title, message }) {
         <p className="text-sm text-gray-500 mb-6">{message}</p>
         <button className="btn btn-primary px-8" onClick={onClose}>סגור</button>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
