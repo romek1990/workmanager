@@ -8,7 +8,11 @@ export function ShiftTypeBadge({ type }) {
   return <span className={`badge ${shiftTypeBadgeClass(type)}`}>{SHIFT_TYPE_LABELS[type] || type}</span>
 }
 
-export function StatusBadge({ status }) {
+// shift: true → a shift's status ('active' means clocked in right now)
+export function StatusBadge({ status, shift = false }) {
+  if (shift && status === 'active') {
+    return <span className="badge badge-success gap-1"><span className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse" />במשמרת</span>
+  }
   return <span className={`badge ${statusBadgeClass(status)}`}>{STATUS_LABELS[status] || status}</span>
 }
 

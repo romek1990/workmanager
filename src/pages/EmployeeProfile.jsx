@@ -130,7 +130,7 @@ export default function EmployeeProfile() {
               <td className="table-td text-sm">{s.date}</td>
               <td className="table-td text-sm tabular-nums">{fmtHours(s.total_hours)}</td>
               <td className="table-td"><ShiftTypeBadge type={s.shift_type} /></td>
-              <td className="table-td"><StatusBadge status={s.status} /></td>
+              <td className="table-td"><StatusBadge status={s.status} shift /></td>
               <td className="table-td text-gray-400 text-sm">{s.notes || '—'}</td>
             </tr>
           ))}

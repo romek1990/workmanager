@@ -45,11 +45,10 @@ function calcHoursStr(start, end) {
 }
 
 export default function UserHome() {
-  const { employees, shifts, bonuses, weeklySchedule, dayNotes, currentUserEmail, currentUser, addShift } = useApp()
+  const { employees, shifts, bonuses, weeklySchedule, dayNotes, currentUserEmail, currentUser, addShift, clockIn, clockOut, refreshShifts } = useApp()
   const emp = employees.find(e => e.email === currentUserEmail)
   const [now, setNow] = useState(new Date())
-  const [active, setActive] = useState(false)
-  const [shiftStart, setShiftStart] = useState(null)
+  const [clockBusy, setClockBusy] = useState(false)
   const [alert, setAlert] = useState(null)
   const [manualModal, setManualModal] = useState(false)
   const [manualForm, setManualForm] = useState(defaultManualForm)
@@ -61,6 +60,17 @@ export default function UserHome() {
   }, [])
 
   const myShifts = shifts.filter(s => s.employee_email === currentUserEmail || s.employee_id === currentUser?.id)
+  // The open shift lives in the database, so it survives refreshes and works across devices
+  const openShift = myShifts.find(s => s.status === 'active')
+  const active = !!openShift
+  const shiftStart = openShift?.clock_in_at ? new Date(openShift.clock_in_at) : null
+
+  // pick up a shift started/ended on another device when returning to the tab
+  useEffect(() => {
+    function onVisible() { if (document.visibilityState === 'visible') refreshShifts?.() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
   const approvedShifts = myShifts.filter(s => s.status === 'approved')
   const totalHours = approvedShifts.reduce((a, s) => a + s.total_hours, 0)
   const totalPay = emp?.employee_type === 'global'
@@ -75,35 +85,21 @@ export default function UserHome() {
   )
   const todayDayOfWeek = new Date().getDay()
 
-  function toggleShift() {
-    if (!active) {
-      setActive(true)
-      setShiftStart(new Date())
-    } else {
-      const end = new Date()
-      const startStr = shiftStart.toTimeString().slice(0, 5)
-      const endStr = end.toTimeString().slice(0, 5)
-      // count whole clock-minutes, so the hours always match the start/end shown
-      const mins = Math.floor(end.getTime() / 60000) - Math.floor(shiftStart.getTime() / 60000)
-      const hrs = hoursFromMinutes(Math.max(mins, 0))
-      const day = shiftStart.getDay()
-      const shiftType = day === 6 ? 'saturday' : day === 5 ? 'friday' : 'regular'
-
-      addShift({
-        employee_email: currentUserEmail,
-        employee_name: emp?.full_name || currentUser?.name || '',
-        employee_id: currentUser?.id,
-        date: localISODate(shiftStart),
-        start_time: startStr,
-        end_time: endStr,
-        total_hours: hrs,
-        shift_type: shiftType,
-        notes: '',
-        is_manual: false,
-      })
-      setActive(false)
-      setShiftStart(null)
-      setAlert({ title: 'משמרת הסתיימה', message: 'המשמרת נרשמה וממתינה לאישור המנהל' })
+  async function toggleShift() {
+    if (clockBusy) return
+    setClockBusy(true)
+    try {
+      if (!active) {
+        const row = await clockIn()
+        setAlert({ title: 'המשמרת התחילה', message: `נרשמה כניסה בשעה ${row.start_time}. אפשר לסגור את הדף — המשמרת נשמרת.` })
+      } else {
+        const row = await clockOut()
+        setAlert({ title: 'משמרת הסתיימה', message: `${row.start_time}–${row.end_time} (${fmtHours(row.total_hours)} שעות) — ממתינה לאישור המנהל` })
+      }
+    } catch (e) {
+      setAlert({ title: 'שגיאה', message: e.message || 'הפעולה נכשלה, נסה שוב' })
+    } finally {
+      setClockBusy(false)
     }
   }
 
@@ -161,18 +157,23 @@ export default function UserHome() {
           {now.toLocaleTimeString('he-IL')}
         </div>
         {active && (
-          <p className="text-sm text-brand-600 mb-3 tabular-nums">⏱ משמרת פעילה: {elapsed()}</p>
+          <p className="text-sm text-brand-600 mb-3 tabular-nums">
+            ⏱ משמרת פעילה מ-{openShift.start_time}: <b>{elapsed()}</b>
+          </p>
         )}
         <div className="flex items-center justify-center gap-3 mt-2">
           <button
             onClick={toggleShift}
-            className={`inline-flex items-center gap-2 px-8 py-3 rounded-xl font-medium text-sm transition-colors ${
+            disabled={clockBusy}
+            className={`disabled:opacity-60 inline-flex items-center gap-2 px-8 py-3 rounded-xl font-medium text-sm transition-colors ${
               active
                 ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
                 : 'bg-brand-600 text-white hover:bg-brand-700'
             }`}
           >
-            {active ? <><Square size={16} />סיים משמרת</> : <><Play size={16} />התחל משמרת</>}
+            {clockBusy
+              ? <><span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />רגע...</>
+              : active ? <><Square size={16} />סיים משמרת</> : <><Play size={16} />התחל משמרת</>}
           </button>
           {!active && (
             <button
@@ -273,7 +274,7 @@ export default function UserHome() {
               <td className="table-td text-sm">{s.date}</td>
               <td className="table-td text-sm tabular-nums">{fmtHours(s.total_hours)}</td>
               <td className="table-td"><ShiftTypeBadge type={s.shift_type} /></td>
-              <td className="table-td"><StatusBadge status={s.status} /></td>
+              <td className="table-td"><StatusBadge status={s.status} shift /></td>
             </tr>
           ))}
         </Table>

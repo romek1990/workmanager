@@ -182,6 +182,46 @@ export function AppProvider({ children }) {
     if (error) throw error
   }
 
+  // ── Clock in / out (times come from the server, see clock_in/clock_out SQL functions) ──
+  function upsertShiftLocal(row) {
+    setShifts(prev => prev.some(s => s.id === row.id) ? prev.map(s => s.id === row.id ? row : s) : [row, ...prev])
+  }
+
+  async function clockIn() {
+    const { data, error } = await supabase.rpc('clock_in')
+    if (error) throw error
+    upsertShiftLocal(data)
+    await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'תחילת משמרת', `התחיל משמרת בשעה ${data.start_time}`)
+    return data
+  }
+
+  async function clockOut() {
+    const { data, error } = await supabase.rpc('clock_out')
+    if (error) throw error
+    upsertShiftLocal(data)
+    await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'סיום משמרת', `סיים משמרת ${data.start_time}–${data.end_time}`)
+    const admins = await supabase.from('profiles').select('id').eq('role', 'admin')
+    for (const admin of admins.data || []) {
+      await addNotification(admin.id, '⏰ משמרת חדשה', `${data.employee_name} סיים משמרת בתאריך ${data.date} — ממתין לאישור`, 'info')
+    }
+    return data
+  }
+
+  async function adminCloseShift(id, endAt) {
+    const { data, error } = await supabase.rpc('admin_close_shift', { p_shift_id: id, p_end_at: endAt.toISOString() })
+    if (error) throw error
+    upsertShiftLocal(data)
+    await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'סגירת משמרת', `סגר משמרת פתוחה של ${data.employee_name} בשעה ${data.end_time}`)
+    return data
+  }
+
+  async function refreshShifts() {
+    let q = supabase.from('shifts').select('*').order('date', { ascending: false })
+    if (currentUser?.role !== 'admin') q = q.eq('employee_id', currentUser?.id)
+    const { data } = await q
+    if (data) setShifts(data)
+  }
+
   async function updateShiftStatus(id, status) {
     const { error } = await supabase.from('shifts').update({ status }).eq('id', id)
     if (!error) {
@@ -304,6 +344,7 @@ export function AppProvider({ children }) {
       login, logout,
       addEmployee, updateEmployee,
       addShift, updateShiftStatus,
+      clockIn, clockOut, adminCloseShift, refreshShifts,
       addBonus, updateBonus,
       addScheduleEntry, deleteScheduleEntry, updateScheduleEntry,
       saveDayNote,

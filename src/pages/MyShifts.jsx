@@ -49,7 +49,7 @@ export default function MyShifts() {
               <td className="table-td text-sm text-gray-500">{s.end_time}</td>
               <td className="table-td text-sm font-medium tabular-nums">{fmtHours(s.total_hours)}</td>
               <td className="table-td"><ShiftTypeBadge type={s.shift_type} /></td>
-              <td className="table-td"><StatusBadge status={s.status} /></td>
+              <td className="table-td"><StatusBadge status={s.status} shift /></td>
               <td className="table-td text-sm text-gray-400">{s.notes || '—'}</td>
             </tr>
           ))}

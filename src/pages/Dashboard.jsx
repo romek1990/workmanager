@@ -3,6 +3,7 @@ import { Users, Clock, Gift, Hourglass, Sparkles } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { StatCard, ShiftTypeBadge, Avatar, Toast, useToast } from '../components/ui'
 import { fmtMoney, fmtHours } from '../utils/helpers'
+import OnShiftNow from '../components/OnShiftNow'
 
 const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
 
@@ -117,6 +118,8 @@ export default function Dashboard() {
         <StatCard label="שעות בחודש שנבחר" value={totalHours} format={fmtHours} sub="משמרות מאושרות" icon={Clock} accent="emerald" delay={160} />
         <StatCard label="עובדים פעילים" value={activeEmps} sub={`${employees.length - activeEmps} לא פעילים`} icon={Users} accent="coral" delay={240} />
       </div>
+
+      <OnShiftNow onToast={showToast} />
 
       {/* Pending shifts */}
       <div className="card animate-rise" style={{ animationDelay: '.32s' }}>

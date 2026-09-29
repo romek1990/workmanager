@@ -86,7 +86,7 @@ export default function Shifts() {
               <td className="table-td text-sm text-gray-500">{s.date}</td>
               <td className="table-td text-sm tabular-nums">{fmtHours(s.total_hours)}</td>
               <td className="table-td"><ShiftTypeBadge type={s.shift_type} /></td>
-              <td className="table-td"><StatusBadge status={s.status} /></td>
+              <td className="table-td"><StatusBadge status={s.status} shift /></td>
               <td className="table-td text-sm text-gray-400">{s.notes || '—'}</td>
               <td className="table-td">
                 {s.status === 'pending' && (
