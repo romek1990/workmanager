@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, ChevronLeft, ChevronRight, MoonStar, Send, Pencil } from 'lucide-react'
+import { Plus, Trash2, ChevronLeft, ChevronRight, MoonStar, Send, Pencil, MessageCircle, Mail } from 'lucide-react'
+import { runWhatsAppJob, summarize } from '../lib/whatsappAuto'
 import emailjs from '@emailjs/browser'
 import { useApp } from '../context/AppContext'
 import { Modal, AlertModal } from '../components/ui'
@@ -51,6 +52,8 @@ export default function WeeklySchedule() {
   const [alert, setAlert] = useState(null)
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
+  const [publishOpen, setPublishOpen] = useState(false)
+  const [channels, setChannels] = useState({ whatsapp: true, email: true })
   const [editingNote, setEditingNote] = useState(null)
   const [noteInput, setNoteInput] = useState('')
   const [editModal, setEditModal] = useState(false)
@@ -202,12 +205,39 @@ export default function WeeklySchedule() {
     return text
   }
 
-  async function handleSendEmails() {
+  function openPublish() {
     if (weekEntries.length === 0) {
       setAlert({ title: 'אין משמרות', message: 'אין משמרות לשלוח לשבוע זה' })
       return
     }
+    setPublishOpen(true)
+  }
+
+  async function publish() {
+    setPublishOpen(false)
     setSending(true)
+    const lines = []
+    try {
+      if (channels.whatsapp) {
+        try {
+          // every active employee gets a message: their own shifts, or "not scheduled this week"
+          const items = activeEmps.map(e => ({
+            employeeId: e.id,
+            shiftsText: weekEntries.some(x => x.employee_id === e.id) ? buildMyShiftsText(e.id).trim() : '',
+          }))
+          lines.push(summarize(await runWhatsAppJob('schedule', { weekLabel: weekDates, items })))
+        } catch (e) {
+          lines.push(`וואטסאפ נכשל: ${e.message}`)
+        }
+      }
+      if (channels.email) lines.push(await sendEmails())
+    } finally {
+      setSending(false)
+    }
+    setAlert({ title: 'הסידור נשלח', message: lines.join('\n') })
+  }
+
+  async function sendEmails() {
     const allShiftsText = buildAllShiftsText()
     const employeeIds = [...new Set(weekEntries.map(e => e.employee_id))]
     let sent = 0
@@ -224,8 +254,7 @@ export default function WeeklySchedule() {
         sent++
       } catch (e) { failed++ }
     }
-    setSending(false)
-    setAlert({ title: 'נשלח!', message: `נשלחו ${sent} מיילים בהצלחה${failed > 0 ? ` (${failed} נכשלו)` : ''}` })
+    return `נשלחו ${sent} מיילים${failed > 0 ? ` (${failed} נכשלו)` : ''}`
   }
 
   function set(k, v) { setForm(p => ({ ...p, [k]: v })) }
@@ -237,9 +266,9 @@ export default function WeeklySchedule() {
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-lg font-medium">סידור שבועי</h1>
         {currentRole === 'admin' && (
-          <button onClick={handleSendEmails} disabled={sending} className="btn btn-primary flex items-center gap-2">
+          <button onClick={openPublish} disabled={sending} className="btn btn-primary flex items-center gap-2">
             <Send size={15} />
-            {sending ? 'שולח מיילים...' : 'שלח סידור לעובדים'}
+            {sending ? 'שולח...' : 'שלח סידור לעובדים'}
           </button>
         )}
       </div>
@@ -408,6 +437,29 @@ export default function WeeklySchedule() {
             <label className="form-label">הערות</label>
             <input className="form-control" value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} placeholder="אופציונלי" />
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={publishOpen}
+        onClose={() => setPublishOpen(false)}
+        title={`שליחת הסידור — שבוע ${weekDates}`}
+        footer={<>
+          <button className="btn" onClick={() => setPublishOpen(false)}>ביטול</button>
+          <button className="btn btn-success" onClick={publish} disabled={!channels.whatsapp && !channels.email}>
+            <Send size={14} /> שלח
+          </button>
+        </>}
+      >
+        <p className="text-sm mb-4">כל עובד פעיל יקבל את המשמרות שלו לשבוע הזה (מי שלא שובץ יקבל הודעה שלא שובץ).</p>
+        <div className="space-y-2">
+          {[['whatsapp', 'וואטסאפ', MessageCircle], ['email', 'מייל (עם הסידור המלא)', Mail]].map(([k, label, Icon]) => (
+            <label key={k} className={`flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-colors ${channels[k] ? 'border-brand-300 bg-brand-500/10' : 'border-black/10 bg-white/60'}`}>
+              <input type="checkbox" className="w-4 h-4 accent-brand-600" checked={channels[k]} onChange={e => setChannels(c => ({ ...c, [k]: e.target.checked }))} />
+              <Icon size={16} className="text-brand-700" />
+              <span className="text-sm font-medium">{label}</span>
+            </label>
+          ))}
         </div>
       </Modal>
 

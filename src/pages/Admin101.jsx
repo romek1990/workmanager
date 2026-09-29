@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { AlertModal, Modal } from '../components/ui'
-import { CheckCircle, XCircle, Eye, FileText, Clock, User, Download, Mail } from 'lucide-react'
+import { CheckCircle, XCircle, Eye, FileText, Clock, User, Download, Mail, MessageCircle } from 'lucide-react'
+import { runWhatsAppJob, summarize } from '../lib/whatsappAuto'
 import { generateForm101PDF, downloadPDF } from '../utils/generateForm101'
 import emailjs from '@emailjs/browser'
 
@@ -16,6 +17,21 @@ export default function Admin101() {
   const [idBackUrl, setIdBackUrl] = useState(null)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [cancelConfirm, setCancelConfirm] = useState(false)
+  const [remindConfirm, setRemindConfirm] = useState(false)
+  const [reminding, setReminding] = useState(false)
+
+  async function sendWhatsAppReminders() {
+    setRemindConfirm(false)
+    setReminding(true)
+    try {
+      const r = await runWhatsAppJob('form101', { force: true })
+      setAlert({ title: 'תזכורות נשלחו', message: r.missing === 0 ? 'כל העובדים הפעילים כבר הגישו טופס' : summarize(r) })
+    } catch (e) {
+      setAlert({ title: 'שגיאה', message: e.message })
+    } finally {
+      setReminding(false)
+    }
+  }
   const currentYear = new Date().getFullYear()
 
   useEffect(() => { loadForms() }, [])
@@ -124,12 +140,18 @@ export default function Admin101() {
 
   return (
     <div className="p-4 md:p-6">
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-wrap items-center gap-3 mb-6">
         <FileText size={22} className="text-brand-600" />
-        <div>
+        <div className="flex-1">
           <h1 className="text-lg font-medium">טפסי 101</h1>
-          <p className="text-xs text-gray-400">ניהול טפסי מס הכנסה — שנת {currentYear}</p>
+          <p className="text-xs text-gray-400">ניהול טפסי מס הכנסה — שנת {currentYear} · תזכורת וואטסאפ אוטומטית נשלחת בכל יום ראשון למי שלא הגיש</p>
         </div>
+        {notSubmitted.length > 0 && (
+          <button className="btn btn-success" onClick={() => setRemindConfirm(true)} disabled={reminding}>
+            <MessageCircle size={15} />
+            {reminding ? 'שולח...' : `שלח תזכורת עכשיו (${notSubmitted.length})`}
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
@@ -317,6 +339,19 @@ export default function Admin101() {
         <p className="text-sm text-gray-600">
           אישור הטופס של <b>{selected?.employee_name}</b> לשנת {currentYear} יבוטל, והעובד יוכל להגיש טופס 101 מעודכן במקומו.
         </p>
+      </Modal>
+
+      <Modal
+        open={remindConfirm}
+        onClose={() => setRemindConfirm(false)}
+        title="תזכורת טופס 101 בוואטסאפ"
+        footer={<>
+          <button className="btn" onClick={() => setRemindConfirm(false)}>ביטול</button>
+          <button className="btn btn-success" onClick={sendWhatsAppReminders}><MessageCircle size={14} /> שלח</button>
+        </>}
+      >
+        <p className="text-sm mb-2">תישלח הודעת וואטסאפ עם קישור למילוי הטופס ל-<b>{notSubmitted.length}</b> עובדים שעוד לא הגישו טופס לשנת {currentYear}:</p>
+        <p className="text-sm text-gray-500">{notSubmitted.map(e => e.full_name).join(', ')}</p>
       </Modal>
 
       <AlertModal open={!!alert} onClose={() => setAlert(null)} title={alert?.title} message={alert?.message} />

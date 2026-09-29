@@ -15,6 +15,10 @@ const TEMPLATES = [
   { label: 'עדכון כללי', text: 'שלום לכולם, ' },
 ]
 
+// automatic messages (whatsapp-auto) are tagged by kind
+const KIND_LABEL = { schedule: 'סידור שבועי', form101: 'טופס 101', open_shift: 'משמרת פתוחה' }
+const KIND_BADGE = { schedule: 'badge-success', form101: 'badge-warning', open_shift: 'badge-danger' }
+
 function hasPhone(p) {
   return (p || '').replace(/\D/g, '').length >= 9
 }
@@ -307,13 +311,13 @@ export default function WhatsApp() {
               return (
                 <div key={h.batch_id} className="px-6 py-3.5 flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
                   <div className="md:w-44 shrink-0 flex items-center gap-2">
-                    <span className={`badge ${h.is_broadcast ? 'badge-info' : 'badge-gray'}`}>
-                      {h.is_broadcast ? 'כללית' : 'אישית'}
+                    <span className={`badge ${KIND_BADGE[h.kind] || (h.is_broadcast ? 'badge-info' : 'badge-gray')}`}>
+                      {KIND_LABEL[h.kind] || (h.is_broadcast ? 'כללית' : 'אישית')}
                     </span>
                     <span className="text-xs tabular-nums" style={{ color: 'var(--text-dim)' }}>{fmtTime(h.created_at)}</span>
                   </div>
                   <div className="md:w-40 shrink-0 text-sm font-medium truncate">
-                    {h.is_broadcast ? `${h.rows.length} נמענים` : h.recipient_name}
+                    {h.rows.length > 1 ? `${h.rows.length} נמענים` : h.recipient_name}
                   </div>
                   <p className="flex-1 min-w-0 text-sm truncate" style={{ color: 'var(--text-dim)' }}>{h.message}</p>
                   <div className="shrink-0 text-xs font-semibold">
