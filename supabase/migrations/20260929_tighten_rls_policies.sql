@@ -1,0 +1,6 @@
+-- Applied to production 2026-09-29 via Supabase MCP (migration: tighten_rls_policies).
+-- shifts: admins all; employees read own + insert own manual 'pending' only (clock via clock_in/clock_out)
+-- bonuses: admins all; employees read own
+-- notifications: own for everyone; admins may notify anyone; employees notify admins via notify_admins()
+-- activity_logs: insert only as yourself
+-- storage id-documents: admins all; employees only their own <uid>/ folder (was open to anyone)

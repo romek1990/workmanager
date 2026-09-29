@@ -244,17 +244,11 @@ export default function Form101() {
 
       await submitForm101(payload)
 
-      const { data: admins } = await supabase.from('profiles').select('id').eq('role', 'admin')
-      if (admins) {
-        for (const admin of admins) {
-          await supabase.from('notifications').insert({
-            user_id: admin.id,
-            title: '📋 טופס 101 חדש',
-            message: `${emp?.full_name} הגיש טופס 101 לשנת ${currentYear} — ממתין לאישור`,
-            type: 'info'
-          })
-        }
-      }
+      await supabase.rpc('notify_admins', {
+        p_title: '📋 טופס 101 חדש',
+        p_message: `${emp?.full_name} הגיש טופס 101 לשנת ${currentYear} — ממתין לאישור`,
+        p_type: 'info',
+      })
 
       await supabase.from('notifications').update({ read: true }).eq('user_id', currentUser.id).ilike('title', '%101%')
       setAlert({ title: 'נשלח בהצלחה!', message: 'הטופס נשלח לאישור המנהל' })

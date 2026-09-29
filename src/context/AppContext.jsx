@@ -58,6 +58,12 @@ export function AppProvider({ children }) {
     if (!error && data) setNotifications(prev => [data, ...prev])
   }
 
+  // Employees can't list admins (RLS), so notifying admins goes through a server function
+  async function notifyAdmins(title, message, type = 'info') {
+    const { error } = await supabase.rpc('notify_admins', { p_title: title, p_message: message, p_type: type })
+    if (error) console.warn('notify_admins failed', error)
+  }
+
   async function markNotificationRead(id) {
     const { error } = await supabase.from('notifications').update({ read: true }).eq('id', id)
     if (!error) setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
@@ -166,17 +172,14 @@ export function AppProvider({ children }) {
       setShifts(prev => [data, ...prev])
       await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'הוספת משמרת', `הוסיף משמרת לעובד ${shift.employee_name} בתאריך ${shift.date}`)
 
-      const admins = await supabase.from('profiles').select('id').eq('role', 'admin')
-      if (admins.data) {
-        for (const admin of admins.data) {
-          const isManual = shift.is_manual
-          await addNotification(
-            admin.id,
-            isManual ? '📋 משמרת ידנית חדשה' : '⏰ משמרת חדשה',
-            `${shift.employee_name} ${isManual ? 'הזין משמרת ידנית' : 'סיים משמרת'} בתאריך ${shift.date} — ממתין לאישור`,
-            isManual ? 'warning' : 'info'
-          )
-        }
+      // only an employee's own entry needs to alert the managers
+      if (currentUser?.role !== 'admin') {
+        const isManual = shift.is_manual
+        await notifyAdmins(
+          isManual ? '📋 משמרת ידנית חדשה' : '⏰ משמרת חדשה',
+          `${shift.employee_name} ${isManual ? 'הזין משמרת ידנית' : 'סיים משמרת'} בתאריך ${shift.date} — ממתין לאישור`,
+          isManual ? 'warning' : 'info'
+        )
       }
     }
     if (error) throw error
@@ -200,10 +203,7 @@ export function AppProvider({ children }) {
     if (error) throw error
     upsertShiftLocal(data)
     await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'סיום משמרת', `סיים משמרת ${data.start_time}–${data.end_time}`)
-    const admins = await supabase.from('profiles').select('id').eq('role', 'admin')
-    for (const admin of admins.data || []) {
-      await addNotification(admin.id, '⏰ משמרת חדשה', `${data.employee_name} סיים משמרת בתאריך ${data.date} — ממתין לאישור`, 'info')
-    }
+    await notifyAdmins('⏰ משמרת חדשה', `${data.employee_name} סיים משמרת ${data.start_time}–${data.end_time} בתאריך ${data.date} — ממתין לאישור`, 'info')
     return data
   }
 
@@ -349,7 +349,7 @@ export function AppProvider({ children }) {
       addScheduleEntry, deleteScheduleEntry, updateScheduleEntry,
       saveDayNote,
       logActivity,
-      addNotification, markNotificationRead, markAllNotificationsRead,
+      addNotification, notifyAdmins, markNotificationRead, markAllNotificationsRead,
       submitForm101,
     }}>
       {children}
