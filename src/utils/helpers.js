@@ -67,10 +67,19 @@ export function todayISO() {
   return new Date().toISOString().slice(0, 10)
 }
 
+// m may be out of range (0 → December of previous year, 13 → January of next)
 export function monthStart(y, m) {
-  return `${y}-${String(m).padStart(2, '0')}-01`
+  return localISODate(new Date(y, m - 1, 1))
 }
 
+// last day of month, in local time (toISOString would shift it back a day in Israel)
 export function monthEnd(y, m) {
-  return new Date(y, m, 0).toISOString().slice(0, 10)
+  return localISODate(new Date(y, m, 0))
+}
+
+// "2026-09-30" → "30.9.2026"
+export function fmtDate(iso) {
+  if (!iso) return '—'
+  const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number)
+  return `${d}.${m}.${y}`
 }

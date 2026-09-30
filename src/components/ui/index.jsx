@@ -50,6 +50,53 @@ export function Modal({ open, onClose, title, children, footer }) {
   )
 }
 
+// ── Page header ────────────────────────────────────────────────────────
+export function PageHeader({ icon: Icon, title, subtitle, children }) {
+  return (
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-3 animate-rise">
+      <div className="flex items-center gap-3">
+        {Icon && (
+          <span className="w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-[0_8px_20px_rgba(15,157,88,0.3)]"
+            style={{ background: 'linear-gradient(135deg, var(--emerald), var(--emerald-light))' }}>
+            <Icon size={21} />
+          </span>
+        )}
+        <div>
+          <h1 className="text-[26px] font-extrabold tracking-tight leading-tight" style={{ color: 'var(--text)' }}>{title}</h1>
+          {subtitle && <p className="text-sm mt-0.5" style={{ color: 'var(--text-dim)' }}>{subtitle}</p>}
+        </div>
+      </div>
+      {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
+    </div>
+  )
+}
+
+// ── Small stat chip (inline numbers above a list) ─────────────────────
+export function StatChip({ label, value, tone = 'default' }) {
+  const tones = {
+    default: 'text-gray-800',
+    green: 'text-brand-700',
+    amber: 'text-amber-700',
+    red: 'text-red-600',
+  }
+  return (
+    <div className="glass rounded-2xl px-4 py-2.5 shadow-glass">
+      <div className="text-[11px] font-semibold" style={{ color: 'var(--text-dim)' }}>{label}</div>
+      <div className={`text-lg font-extrabold tabular-nums ${tones[tone]}`}>{value}</div>
+    </div>
+  )
+}
+
+// ── Search input with icon ────────────────────────────────────────────
+export function SearchInput({ value, onChange, placeholder }) {
+  return (
+    <div className="relative flex-1 min-w-[180px]">
+      <svg className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+      <input className="form-control pr-9" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} />
+    </div>
+  )
+}
+
 // ── Mesh background ────────────────────────────────────────────────
 export function MeshBackground() {
   return (

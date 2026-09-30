@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Plus, UserPlus } from 'lucide-react'
+import { Plus, Users, ChevronLeft, PhoneOff } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { Avatar, StatusBadge, Modal, AlertModal, Table, CardSection } from '../components/ui'
+import { Avatar, StatusBadge, Modal, AlertModal, PageHeader, StatChip, SearchInput } from '../components/ui'
 import { EMP_TYPE_LABELS } from '../data/mockData'
 import { todayISO } from '../utils/helpers'
 
@@ -22,10 +22,17 @@ export default function Employees() {
   const [form, setForm] = useState(defaultForm)
   const [alert, setAlert] = useState(null)
 
-  const filtered = employees.filter(e =>
-    (!search || e.full_name.toLowerCase().includes(search.toLowerCase()) || e.email.includes(search)) &&
-    (!statusFilter || e.status === statusFilter)
-  )
+  const filtered = employees
+    .filter(e =>
+      (!search || (e.full_name || '').toLowerCase().includes(search.toLowerCase()) || (e.email || '').includes(search) || (e.phone || '').replace(/\D/g, '').includes(search.replace(/\D/g, '') || '§')) &&
+      (!statusFilter || e.status === statusFilter)
+    )
+    .sort((a, b) => (a.status === b.status ? (a.full_name || '').localeCompare(b.full_name || '', 'he') : a.status === 'active' ? -1 : 1))
+  const activeCount = employees.filter(e => e.status === 'active').length
+
+  const pay = e => e.employee_type === 'hourly'
+    ? `₪${e.hourly_rate}/שעה`
+    : `₪${Number(e.monthly_salary || 0).toLocaleString('he-IL')}/חודש`
 
   function normPhone(p) {
     const digits = (p || '').replace(/\D/g, '')
@@ -73,43 +80,79 @@ export default function Employees() {
   function set(k, v) { setForm(prev => ({ ...prev, [k]: v })) }
 
   return (
-    <div className="p-4 md:p-6">
-      <h1 className="text-lg font-medium mb-5">ניהול עובדים</h1>
+    <div className="p-4 md:px-10 md:py-8">
+      <PageHeader icon={Users} title="עובדים" subtitle="כל העובדים · לחיצה על עובד פותחת את הפרופיל שלו">
+        <button className="btn btn-primary" onClick={() => setModal(true)}><Plus size={15} />הוסף עובד</button>
+      </PageHeader>
 
-      <CardSection>
-        {/* Search bar */}
-        <div className="flex items-center gap-3 p-4 border-b border-gray-100">
-          <Search size={16} className="text-gray-400" />
-          <input className="flex-1 text-sm outline-none bg-transparent placeholder-gray-400" placeholder="חיפוש לפי שם או אימייל..." value={search} onChange={e => setSearch(e.target.value)} />
-          <select className="text-sm border border-gray-200 rounded-xl px-3 py-1.5 bg-white/70 border-white/80" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+      <div className="flex flex-wrap gap-3 mb-5 stagger">
+        <StatChip label="עובדים פעילים" value={activeCount} tone="green" />
+        <StatChip label="לא פעילים" value={employees.length - activeCount} />
+        <StatChip label="בלי טלפון" value={employees.filter(e => !(e.phone || '').replace(/\D/g, '')).length} tone={employees.some(e => !(e.phone || '').replace(/\D/g, '')) ? 'amber' : 'default'} />
+      </div>
+
+      <div className="card animate-rise" style={{ animationDelay: '.15s' }}>
+        <div className="flex flex-wrap items-center gap-2 p-4 border-b border-black/5">
+          <SearchInput value={search} onChange={setSearch} placeholder="חיפוש לפי שם, אימייל או טלפון..." />
+          <select className="form-control !w-auto" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
             <option value="">כל הסטטוסים</option>
             <option value="active">פעיל</option>
             <option value="inactive">לא פעיל</option>
           </select>
-          <button className="btn btn-primary" onClick={() => setModal(true)}>
-            <Plus size={15} />הוסף עובד
-          </button>
         </div>
 
-        <Table headers={['שם', 'אימייל', 'סוג העסקה', 'שכר', 'סטטוס']}>
-          {filtered.map(e => (
-            <tr key={e.id} className="hover:bg-brand-50 cursor-pointer" onClick={() => navigate(`/employees/${e.id}`)}>
-              <td className="table-td">
-                <div className="flex items-center gap-2.5">
-                  <Avatar name={e.full_name} size="sm" />
-                  <span className="font-medium text-sm">{e.full_name}</span>
-                </div>
-              </td>
-              <td className="table-td text-gray-500 text-sm">{e.email}</td>
-              <td className="table-td text-sm">{EMP_TYPE_LABELS[e.employee_type]}</td>
-              <td className="table-td text-sm">
-                {e.employee_type === 'hourly' ? `₪${e.hourly_rate}/שעה` : `₪${e.monthly_salary.toLocaleString()}/חודש`}
-              </td>
-              <td className="table-td"><StatusBadge status={e.status} /></td>
-            </tr>
-          ))}
-        </Table>
-      </CardSection>
+        {filtered.length === 0 ? (
+          <p className="py-12 text-center text-sm" style={{ color: 'var(--text-dim)' }}>לא נמצאו עובדים</p>
+        ) : (
+          <>
+            {/* desktop */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr>{['שם', 'טלפון', 'אימייל', 'סוג העסקה', 'שכר', 'סטטוס', ''].map((h, i) => <th key={i} className="table-th">{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {filtered.map(e => (
+                    <tr key={e.id} className={`group cursor-pointer transition-colors hover:bg-brand-500/5 ${e.status !== 'active' ? 'opacity-60' : ''}`} onClick={() => navigate(`/employees/${e.id}`)}>
+                      <td className="table-td">
+                        <div className="flex items-center gap-2.5"><Avatar name={e.full_name} size="sm" /><span className="font-medium">{e.full_name}</span></div>
+                      </td>
+                      <td className="table-td tabular-nums" dir="ltr" style={{ textAlign: 'right' }}>
+                        {e.phone || <span className="inline-flex items-center gap-1 text-amber-700 text-xs"><PhoneOff size={12} /> חסר</span>}
+                      </td>
+                      <td className="table-td" style={{ color: 'var(--text-dim)' }}>{e.email}</td>
+                      <td className="table-td">{EMP_TYPE_LABELS[e.employee_type]}</td>
+                      <td className="table-td tabular-nums">{pay(e)}</td>
+                      <td className="table-td"><StatusBadge status={e.status} /></td>
+                      <td className="table-td w-8"><ChevronLeft size={16} className="text-gray-300 group-hover:text-brand-600 transition-colors" /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* mobile */}
+            <div className="md:hidden divide-y divide-black/5">
+              {filtered.map(e => (
+                <button key={e.id} onClick={() => navigate(`/employees/${e.id}`)}
+                  className={`w-full text-right flex items-center gap-3 px-4 py-3.5 active:bg-brand-500/5 ${e.status !== 'active' ? 'opacity-60' : ''}`}>
+                  <Avatar name={e.full_name} size="md" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-sm truncate">{e.full_name}</p>
+                      <StatusBadge status={e.status} />
+                    </div>
+                    <p className="text-xs mt-0.5 tabular-nums truncate" style={{ color: 'var(--text-dim)' }}>
+                      {e.phone || 'אין טלפון'} · {EMP_TYPE_LABELS[e.employee_type]} · {pay(e)}
+                    </p>
+                  </div>
+                  <ChevronLeft size={16} className="text-gray-300 shrink-0" />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Add Employee Modal */}
       <Modal
@@ -122,9 +165,9 @@ export default function Employees() {
         </>}
       >
         {formError && (
-          <div className="mb-4 text-sm text-red-600 bg-red-50 rounded-lg px-4 py-2.5 text-center">{formError}</div>
+          <div className="mb-4 text-sm text-red-600 bg-red-50 rounded-xl px-4 py-2.5 text-center">{formError}</div>
         )}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div><label className="form-label">שם מלא</label><input className="form-control" value={form.full_name} onChange={e => set('full_name', e.target.value)} placeholder="ישראל ישראלי" /></div>
           <div><label className="form-label">אימייל</label><input className="form-control" value={form.email} onChange={e => set('email', e.target.value)} placeholder="israel@example.com" /></div>
           <div><label className="form-label">טלפון</label><input className="form-control" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="050-0000000" /></div>

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
-import { Table, CardSection } from '../components/ui'
-import { calcShiftPay, fmtMoney, monthStart, monthEnd, fmtHours } from '../utils/helpers'
+import { BarChart2, Download, FileText } from 'lucide-react'
+import { StatCard, PageHeader, Avatar } from '../components/ui'
+import { calcShiftPay, fmtMoney, monthStart, monthEnd, fmtHours, fmtDate } from '../utils/helpers'
+import { Clock, Banknote, Gift, Wallet } from 'lucide-react'
 
 
 function getPreset(type) {
@@ -40,13 +42,14 @@ export default function Reports() {
     const hrs = { regular: 0, friday: 0, saturday: 0, night: 0, holiday: 0, total: 0 }
     let pay = emp.employee_type === 'global' ? (empShifts.length ? emp.monthly_salary : 0) : 0
     empShifts.forEach(s => {
-      hrs[s.shift_type] = (hrs[s.shift_type] || 0) + s.total_hours
-      hrs.total += s.total_hours
+      const h = Number(s.total_hours) || 0
+      hrs[s.shift_type] = (hrs[s.shift_type] || 0) + h
+      hrs.total += h
       if (emp.employee_type === 'hourly') pay += calcShiftPay(s, emp)
     })
     const bonus = bonuses
       .filter(b => (b.employee_email === emp.email || b.employee_id === emp.id) && b.date >= from && b.date <= to)
-      .reduce((a, b) => a + b.amount, 0)
+      .reduce((a, b) => a + (Number(b.amount) || 0), 0)
     return { emp, hrs, pay, bonus, total: pay + bonus, shifts: empShifts }
   }).filter(r => r.hrs.total > 0 || r.emp.employee_type === 'global')
 
@@ -99,11 +102,11 @@ function exportPDF() {
     </head>
     <body>
       <h1>📊 WorkManager — דוח חודשי</h1>
-      <p>תקופה: ${from} — ${to}</p>
+      <p>תקופה: ${fmtDate(from)} — ${fmtDate(to)}</p>
       <p>הופק בתאריך: ${new Date().toLocaleDateString('he-IL')}</p>
 
       <div class="summary">
-        <div class="summary-card"><div class="label">סה"כ שעות</div><div class="value">${totals.hrs}</div></div>
+        <div class="summary-card"><div class="label">סה"כ שעות</div><div class="value">${fmtHours(totals.hrs)}</div></div>
         <div class="summary-card"><div class="label">עלות שכר</div><div class="value">${fmtMoney(totals.pay)}</div></div>
         <div class="summary-card"><div class="label">בונוסים</div><div class="value">${fmtMoney(totals.bonus)}</div></div>
         <div class="summary-card"><div class="label">סה"כ לתשלום</div><div class="value">${fmtMoney(totals.total)}</div></div>
@@ -127,10 +130,10 @@ function exportPDF() {
           ${rows.map(r => `
             <tr>
               <td>${r.emp.full_name}</td>
-              <td>${r.hrs.regular || 0}</td>
-              <td>${r.hrs.friday || 0}</td>
-              <td>${r.hrs.saturday || 0}</td>
-              <td>${r.hrs.night || 0}</td>
+              <td>${fmtHours(r.hrs.regular)}</td>
+              <td>${fmtHours(r.hrs.friday)}</td>
+              <td>${fmtHours(r.hrs.saturday)}</td>
+              <td>${fmtHours(r.hrs.night)}</td>
               <td><strong>${fmtHours(r.hrs.total)}</strong></td>
               <td>${fmtMoney(r.pay)}</td>
               <td>${fmtMoney(r.bonus)}</td>
@@ -140,7 +143,7 @@ function exportPDF() {
           <tr class="total-row">
             <td><strong>סה"כ</strong></td>
             <td colspan="4"></td>
-            <td><strong>${totals.hrs}</strong></td>
+            <td><strong>${fmtHours(totals.hrs)}</strong></td>
             <td><strong>${fmtMoney(totals.pay)}</strong></td>
             <td><strong>${fmtMoney(totals.bonus)}</strong></td>
             <td><strong>${fmtMoney(totals.total)}</strong></td>
@@ -178,7 +181,7 @@ function exportEmployeePDF(row) {
     </head>
     <body>
       <h1>📋 דוח עובד — ${row.emp.full_name}</h1>
-      <p>תקופה: ${from} — ${to}</p>
+      <p>תקופה: ${fmtDate(from)} — ${fmtDate(to)}</p>
       <p>סוג העסקה: ${row.emp.employee_type === 'hourly' ? 'שעתי' : 'גלובלי'}</p>
       ${row.emp.employee_type === 'hourly' ? `<p>תעריף שעתי: ₪${row.emp.hourly_rate}/שעה</p>` : ''}
       <p>הופק בתאריך: ${new Date().toLocaleDateString('he-IL')}</p>
@@ -196,7 +199,7 @@ function exportEmployeePDF(row) {
         <tbody>
           ${row.shifts.map(s => `
             <tr>
-              <td>${s.date}</td>
+              <td>${fmtDate(s.date)}</td>
               <td>${SHIFT_TYPE_HE[s.shift_type] || s.shift_type}</td>
               <td>${fmtHours(s.total_hours)}</td>
               <td>${fmtMoney(calcShiftPay(s, row.emp))}</td>
@@ -224,125 +227,151 @@ function exportEmployeePDF(row) {
 
  
 
+  const presets = [['current', 'חודש נוכחי'], ['prev', 'חודש קודם'], ['quarter', '3 חודשים']]
+  const activePreset = presets.find(([k]) => { const [f, t] = getPreset(k); return f === from && t === to })?.[0]
+  const detailRow = rows.find(r => r.emp.email === detailEmp)
+
   return (
-    <div className="p-4 md:p-6">
-      <h1 className="text-lg font-medium mb-5">דוחות</h1>
+    <div className="p-4 md:px-10 md:py-8">
+      <PageHeader icon={BarChart2} title="דוחות" subtitle={`שעות ושכר לפי משמרות מאושרות · ${fmtDate(from)} — ${fmtDate(to)}`}>
+        <button className="btn" onClick={exportCSV}><Download size={15} /> CSV</button>
+        <button className="btn btn-primary" onClick={exportPDF}><FileText size={15} /> PDF כללי</button>
+      </PageHeader>
 
       {/* Period picker */}
-      <div className="card p-5 mb-5">
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="form-label">מתאריך</label>
-            <input type="date" className="form-control" value={from} onChange={e => setFrom(e.target.value)} />
-          </div>
-          <div>
-            <label className="form-label">עד תאריך</label>
-            <input type="date" className="form-control" value={to} onChange={e => setTo(e.target.value)} />
-          </div>
+      <div className="card p-4 mb-5 animate-rise flex flex-wrap items-end gap-3">
+        <div className="flex gap-1 p-1 rounded-2xl bg-black/[0.04]">
+          {presets.map(([k, l]) => (
+            <button key={k} onClick={() => { const [f, t] = getPreset(k); setFrom(f); setTo(t) }}
+              className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition-all ${activePreset === k ? 'bg-white shadow-soft text-brand-700' : 'text-gray-500 hover:text-gray-800'}`}>
+              {l}
+            </button>
+          ))}
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <button className="btn" onClick={() => { const [f, t] = getPreset('current'); setFrom(f); setTo(t) }}>חודש נוכחי</button>
-          <button className="btn" onClick={() => { const [f, t] = getPreset('prev'); setFrom(f); setTo(t) }}>חודש קודם</button>
-          <button className="btn" onClick={() => { const [f, t] = getPreset('quarter'); setFrom(f); setTo(t) }}>רבעון</button>
-          <button className="btn" onClick={exportCSV}>⬇ ייצוא CSV</button>
-          <button className="btn btn-primary" onClick={exportPDF}>📄 ייצוא PDF כללי</button>
+        <div className="flex items-end gap-2 flex-1 min-w-[260px]">
+          <div className="flex-1"><label className="form-label">מתאריך</label><input type="date" className="form-control" value={from} onChange={e => setFrom(e.target.value)} /></div>
+          <div className="flex-1"><label className="form-label">עד תאריך</label><input type="date" className="form-control" value={to} onChange={e => setTo(e.target.value)} /></div>
         </div>
       </div>
 
       {/* Summary numbers */}
-      <div className="grid grid-cols-4 gap-3 mb-5">
-        {[
-          ["סה\"כ שעות", totals.hrs],
-          ['עלות שכר', fmtMoney(totals.pay)],
-          ['בונוסים', fmtMoney(totals.bonus)],
-          ["סה\"כ לתשלום", fmtMoney(totals.total)]
-        ].map(([l, v]) => (
-          <div key={l} className="card p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-glass-lg">
-            <div className="text-xs text-gray-500 mb-1">{l}</div>
-            <div className="text-xl font-semibold text-gray-900">{v}</div>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 stagger">
+        <StatCard label='סה"כ שעות' value={totals.hrs} format={fmtHours} icon={Clock} accent="emerald" />
+        <StatCard label="עלות שכר" value={totals.pay} format={fmtMoney} icon={Banknote} accent="amber" delay={80} />
+        <StatCard label="בונוסים" value={totals.bonus} format={fmtMoney} icon={Gift} accent="lime" delay={160} />
+        <StatCard label='סה"כ לתשלום' value={totals.total} format={fmtMoney} icon={Wallet} accent="coral" delay={240} />
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-4">
-        {[['summary', 'סיכום כללי'], ['detail', 'פירוט לפי עובד']].map(([k, l]) => (
-          <button key={k}
-            className={`px-4 py-2 rounded-lg text-sm border transition-colors ${tab === k ? 'bg-brand-50 text-brand-700 border-brand-200' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-            onClick={() => setTab(k)}>{l}
+      <div className="flex gap-1 p-1 rounded-2xl bg-black/[0.04] w-fit mb-4">
+        {[['summary', 'סיכום לפי עובד'], ['detail', 'פירוט משמרות']].map(([k, l]) => (
+          <button key={k} onClick={() => setTab(k)}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${tab === k ? 'bg-white shadow-soft text-brand-700' : 'text-gray-500 hover:text-gray-800'}`}>
+            {l}
           </button>
         ))}
       </div>
 
       {tab === 'summary' && (
-        <CardSection>
-          <Table headers={['עובד', "שע' רגיל", "שע' שישי", "שע' שבת", "שע' לילה", "סה\"כ שעות", 'שכר', 'בונוסים', "סה\"כ", 'PDF']}>
-            {rows.map(r => (
-              <tr key={r.emp.id} className="hover:bg-gray-50">
-                <td className="table-td font-medium text-sm">{r.emp.full_name}</td>
-                <td className="table-td text-sm text-center">{r.hrs.regular || 0}</td>
-                <td className="table-td text-sm text-center">{r.hrs.friday || 0}</td>
-                <td className="table-td text-sm text-center">{r.hrs.saturday || 0}</td>
-                <td className="table-td text-sm text-center">{r.hrs.night || 0}</td>
-                <td className="table-td text-sm font-medium text-center">{fmtHours(r.hrs.total)}</td>
-                <td className="table-td text-sm">{fmtMoney(r.pay)}</td>
-                <td className="table-td text-sm text-green-600">{fmtMoney(r.bonus)}</td>
-                <td className="table-td text-sm font-semibold">{fmtMoney(r.total)}</td>
-                <td className="table-td">
-                  <button onClick={() => exportEmployeePDF(r)} className="text-xs text-brand-500 hover:text-brand-700 border border-brand-200 rounded px-2 py-0.5">
-                    📄 PDF
-                  </button>
-                </td>
-              </tr>
-            ))}
-            <tr className="bg-brand-500/5 font-semibold">
-              <td className="table-td text-sm">סה"כ</td>
-              <td className="table-td text-sm text-center" colSpan={4}></td>
-              <td className="table-td text-sm text-center">{totals.hrs}</td>
-              <td className="table-td text-sm">{fmtMoney(totals.pay)}</td>
-              <td className="table-td text-sm text-green-600">{fmtMoney(totals.bonus)}</td>
-              <td className="table-td text-sm">{fmtMoney(totals.total)}</td>
-              <td className="table-td"></td>
-            </tr>
-          </Table>
-        </CardSection>
+        <div className="card animate-rise">
+          {rows.length === 0 ? (
+            <p className="py-12 text-center text-sm" style={{ color: 'var(--text-dim)' }}>אין משמרות מאושרות בתקופה הזו</p>
+          ) : (
+            <>
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr>{['עובד', 'רגיל', 'שישי', 'שבת', 'לילה', 'סה"כ שעות', 'שכר', 'בונוסים', 'סה"כ', ''].map((h, i) => <th key={i} className="table-th">{h}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(r => (
+                      <tr key={r.emp.id} className="transition-colors hover:bg-brand-500/5">
+                        <td className="table-td"><div className="flex items-center gap-2.5 font-medium"><Avatar name={r.emp.full_name} size="sm" />{r.emp.full_name}</div></td>
+                        {['regular', 'friday', 'saturday', 'night'].map(k => (
+                          <td key={k} className="table-td tabular-nums" style={{ color: r.hrs[k] ? undefined : 'var(--text-dim)' }}>{r.hrs[k] ? fmtHours(r.hrs[k]) : '—'}</td>
+                        ))}
+                        <td className="table-td tabular-nums font-bold">{fmtHours(r.hrs.total)}</td>
+                        <td className="table-td tabular-nums">{fmtMoney(r.pay)}</td>
+                        <td className="table-td tabular-nums text-brand-700">{r.bonus ? fmtMoney(r.bonus) : '—'}</td>
+                        <td className="table-td tabular-nums font-bold">{fmtMoney(r.total)}</td>
+                        <td className="table-td">
+                          <button onClick={() => exportEmployeePDF(r)} className="btn py-1 px-2.5 text-xs"><FileText size={13} /> PDF</button>
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="bg-brand-500/[0.07] font-bold">
+                      <td className="table-td">סה"כ</td>
+                      <td className="table-td" colSpan={4}></td>
+                      <td className="table-td tabular-nums">{fmtHours(totals.hrs)}</td>
+                      <td className="table-td tabular-nums">{fmtMoney(totals.pay)}</td>
+                      <td className="table-td tabular-nums text-brand-700">{fmtMoney(totals.bonus)}</td>
+                      <td className="table-td tabular-nums">{fmtMoney(totals.total)}</td>
+                      <td className="table-td"></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="md:hidden divide-y divide-black/5">
+                {rows.map(r => (
+                  <div key={r.emp.id} className="px-4 py-3.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 font-medium text-sm"><Avatar name={r.emp.full_name} size="sm" />{r.emp.full_name}</div>
+                      <span className="text-base font-extrabold tabular-nums">{fmtMoney(r.total)}</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-2 text-xs tabular-nums" style={{ color: 'var(--text-dim)' }}>
+                      <span>{fmtHours(r.hrs.total)} שעות · שכר {fmtMoney(r.pay)}{r.bonus ? ` · בונוס ${fmtMoney(r.bonus)}` : ''}</span>
+                      <button onClick={() => exportEmployeePDF(r)} className="btn py-1 px-2 text-xs"><FileText size={12} /> PDF</button>
+                    </div>
+                  </div>
+                ))}
+                <div className="px-4 py-3.5 flex items-center justify-between bg-brand-500/[0.07] font-bold text-sm">
+                  <span>סה"כ · {fmtHours(totals.hrs)} שעות</span>
+                  <span className="tabular-nums">{fmtMoney(totals.total)}</span>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       )}
 
       {tab === 'detail' && (
-        <div>
-          <select className="form-control mb-4 max-w-xs" value={detailEmp} onChange={e => setDetailEmp(e.target.value)}>
+        <div className="animate-rise">
+          <select className="form-control mb-4 sm:max-w-xs" value={detailEmp} onChange={e => setDetailEmp(e.target.value)}>
             <option value="">בחר עובד</option>
             {employees.map(e => <option key={e.id} value={e.email}>{e.full_name}</option>)}
           </select>
+          {!detailEmp && <p className="text-sm py-8 text-center" style={{ color: 'var(--text-dim)' }}>בחר עובד כדי לראות את פירוט המשמרות שלו בתקופה</p>}
           {detailEmp && detailEmpObj && (
             <>
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="card p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-glass-lg">
-                  <div className="text-xs text-gray-500 mb-1">סה"כ שעות</div>
-                  <div className="text-xl font-semibold">{fmtHours(rows.find(r => r.emp.email === detailEmp)?.hrs.total || 0)}</div>
-                </div>
-                <div className="card p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-glass-lg">
-                  <div className="text-xs text-gray-500 mb-1">שכר גולמי</div>
-                  <div className="text-xl font-semibold">{fmtMoney(rows.find(r => r.emp.email === detailEmp)?.pay || 0)}</div>
-                </div>
-                <div className="card p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-glass-lg">
-                  <div className="text-xs text-gray-500 mb-1">סה"כ לתשלום</div>
-                  <div className="text-xl font-semibold text-brand-600">{fmtMoney(rows.find(r => r.emp.email === detailEmp)?.total || 0)}</div>
-                </div>
+              <div className="grid grid-cols-3 gap-3 mb-4 stagger">
+                <StatCard label='סה"כ שעות' value={detailRow?.hrs.total || 0} format={fmtHours} accent="emerald" />
+                <StatCard label="שכר גולמי" value={detailRow?.pay || 0} format={fmtMoney} accent="amber" delay={80} />
+                <StatCard label='סה"כ לתשלום' value={detailRow?.total || 0} format={fmtMoney} accent="coral" delay={160} />
               </div>
-              <CardSection>
-                <Table headers={['תאריך', 'סוג משמרת', 'שעות', 'שכר', 'הערות']}>
-                  {detailShifts.map(s => (
-                    <tr key={s.id} className="hover:bg-gray-50">
-                      <td className="table-td text-sm">{s.date}</td>
-                      <td className="table-td text-sm">{SHIFT_TYPE_HE[s.shift_type] || s.shift_type}</td>
-                      <td className="table-td text-sm tabular-nums">{fmtHours(s.total_hours)}</td>
-                      <td className="table-td text-sm">{fmtMoney(calcShiftPay(s, detailEmpObj))}</td>
-                      <td className="table-td text-sm text-gray-400">{s.notes || '—'}</td>
-                    </tr>
-                  ))}
-                </Table>
-              </CardSection>
+              <div className="card">
+                {detailShifts.length === 0 ? (
+                  <p className="py-10 text-center text-sm" style={{ color: 'var(--text-dim)' }}>אין משמרות מאושרות בתקופה</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead><tr>{['תאריך', 'שעות', 'סוג', 'משך', 'שכר', 'הערות'].map(h => <th key={h} className="table-th">{h}</th>)}</tr></thead>
+                      <tbody>
+                        {[...detailShifts].sort((a, b) => (a.date > b.date ? 1 : -1)).map(s => (
+                          <tr key={s.id} className="hover:bg-brand-500/5">
+                            <td className="table-td tabular-nums">{fmtDate(s.date)}</td>
+                            <td className="table-td tabular-nums" dir="ltr" style={{ textAlign: 'right' }}>{String(s.start_time || '').slice(0, 5)}–{String(s.end_time || '').slice(0, 5)}</td>
+                            <td className="table-td">{SHIFT_TYPE_HE[s.shift_type] || s.shift_type}</td>
+                            <td className="table-td tabular-nums font-medium">{fmtHours(s.total_hours)}</td>
+                            <td className="table-td tabular-nums">{fmtMoney(calcShiftPay(s, detailEmpObj))}</td>
+                            <td className="table-td" style={{ color: 'var(--text-dim)' }}>{s.notes || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
