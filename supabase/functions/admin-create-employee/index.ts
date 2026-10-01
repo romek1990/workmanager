@@ -45,8 +45,10 @@ serve(async (req) => {
       .eq("id", userData.user.id)
       .single();
 
-    if (profileErr || callerProfile?.role !== "admin") {
-      return new Response(JSON.stringify({ error: "Forbidden — admin only" }), {
+    // manager permissions: adding employees needs 'employees' (the super admin has everything)
+    const { data: canEmployees } = await callerClient.rpc("has_perm", { p: "employees" });
+    if (profileErr || callerProfile?.role !== "admin" || canEmployees !== true) {
+      return new Response(JSON.stringify({ error: "אין לך הרשאה להוסיף עובדים" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -119,7 +121,7 @@ serve(async (req) => {
 
     const { data: profileRow, error: upsertErr } = await adminClient
       .from("profiles")
-      .upsert({ id: newId, ...profileFields, role: "user" })
+      .upsert({ id: newId, ...profileFields, role: "user", permissions: [], is_super_admin: false })
       .select()
       .single();
 

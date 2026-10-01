@@ -8,7 +8,8 @@ import { generateForm101PDF, downloadPDF } from '../utils/generateForm101'
 import emailjs from '@emailjs/browser'
 
 export default function Admin101() {
-  const { employees } = useApp()
+  const { employees, can } = useApp()
+  const canForm = can('form101')
   const [forms, setForms] = useState([])
   const [selected, setSelected] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -146,7 +147,7 @@ export default function Admin101() {
           <h1 className="text-lg font-medium">טפסי 101</h1>
           <p className="text-xs text-gray-400">ניהול טפסי מס הכנסה — שנת {currentYear} · תזכורת וואטסאפ אוטומטית נשלחת בכל יום ראשון למי שלא הגיש</p>
         </div>
-        {notSubmitted.length > 0 && (
+        {canForm && notSubmitted.length > 0 && (
           <button className="btn btn-success" onClick={() => setRemindConfirm(true)} disabled={reminding}>
             <MessageCircle size={15} />
             {reminding ? 'שולח...' : `שלח תזכורת עכשיו (${notSubmitted.length})`}
@@ -212,7 +213,7 @@ export default function Admin101() {
                     <h2 className="text-sm font-medium truncate">{selected.employee_name}</h2>
                     <div className="flex items-center gap-2 mt-1">{statusBadge(selected.status)}</div>
                   </div>
-                  {selected.status === 'pending' && (
+                  {canForm && selected.status === 'pending' && (
                     <div className="flex gap-2 w-full sm:w-auto">
                       <button onClick={() => updateStatus(selected.id, 'approved')}
                         className="btn btn-success text-xs py-1.5 px-3 flex-1 sm:flex-none justify-center">✅ אשר</button>
@@ -220,7 +221,7 @@ export default function Admin101() {
                         className="btn btn-danger text-xs py-1.5 px-3 flex-1 sm:flex-none justify-center">❌ דחה</button>
                     </div>
                   )}
-                  {selected.status === 'approved' && (
+                  {canForm && selected.status === 'approved' && (
                     <div className="flex gap-2 w-full sm:w-auto">
                       <button onClick={() => setCancelConfirm(true)}
                         className="btn text-xs py-1.5 px-3 flex-1 sm:flex-none justify-center">↩️ בטל אישור</button>

@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 
 import { useApp } from '../../context/AppContext'
 import { Avatar } from '../ui'
-import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, CalendarDays, Menu, X, Shield, Bell, FileText, MessageCircle } from 'lucide-react'
+import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, CalendarDays, Menu, X, Shield, Bell, FileText, MessageCircle, UserCog } from 'lucide-react'
 
 const baseAdminNav = [
   { to: '/', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
@@ -18,6 +18,7 @@ const baseAdminNav = [
 
 const superAdminNav = [
   ...baseAdminNav,
+  { to: '/managers', label: 'מנהלים', icon: UserCog },
   { to: '/activity-logs', label: 'לוג פעילות', icon: Shield },
 ]
 
@@ -28,14 +29,14 @@ const userNav = [
 ]
 
 export default function Sidebar() {
-  const { currentUser, logout, notifications, unreadCount, markNotificationRead, markAllNotificationsRead } = useApp()
+  const { currentUser, isSuperAdmin, can, logout, notifications, unreadCount, markNotificationRead, markAllNotificationsRead } = useApp()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [bellOpen, setBellOpen] = useState(false)
   const bellRef = useRef(null)
 
   const nav = currentUser?.role === 'admin'
-    ? (currentUser?.email === 'romanyam50@gmail.com' ? superAdminNav : baseAdminNav)
+    ? (isSuperAdmin ? superAdminNav : baseAdminNav.filter(i => i.to !== '/reports' || can('reports')))
     : userNav
 
   function handleLogout() {

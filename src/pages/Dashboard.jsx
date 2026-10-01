@@ -24,7 +24,8 @@ function fmtDate(iso) {
 }
 
 export default function Dashboard() {
-  const { employees, shifts, bonuses, updateShiftStatus } = useApp()
+  const { employees, shifts, bonuses, updateShiftStatus, can } = useApp()
+  const canShifts = can('shifts')
   const now = new Date()
   const thisYear = now.getFullYear()
   const thisMonthNum = now.getMonth() + 1
@@ -169,8 +170,8 @@ export default function Dashboard() {
                       <td className="table-td px-6" style={{ color: 'var(--text-dim)' }}>{s.notes || '—'}</td>
                       <td className="table-td px-6">
                         <div className="flex gap-2">
-                          <button disabled={leaving[s.id]} className="btn btn-success py-1.5 px-4 text-xs rounded-[10px]" onClick={() => resolve(s, 'approved')}>אשר</button>
-                          <button disabled={leaving[s.id]} className="btn btn-danger py-1.5 px-4 text-xs rounded-[10px]" onClick={() => resolve(s, 'rejected')}>דחה</button>
+                          {canShifts && <button disabled={leaving[s.id]} className="btn btn-success py-1.5 px-4 text-xs rounded-[10px]" onClick={() => resolve(s, 'approved')}>אשר</button>}
+                          {canShifts && <button disabled={leaving[s.id]} className="btn btn-danger py-1.5 px-4 text-xs rounded-[10px]" onClick={() => resolve(s, 'rejected')}>דחה</button>}
                         </div>
                       </td>
                     </tr>
@@ -196,10 +197,10 @@ export default function Dashboard() {
                   <div className="text-xs mt-2 tabular-nums" style={{ color: 'var(--text-dim)' }}>
                     {fmtDate(s.date)} · <span dir="ltr">{fmtTime(s.start_time) || '—'}–{fmtTime(s.end_time) || '?'}</span> · {fmtHours(s.total_hours)} שעות{s.notes ? ` · ${s.notes}` : ''}
                   </div>
-                  <div className="flex gap-2 mt-3">
+                  {canShifts && <div className="flex gap-2 mt-3">
                     <button disabled={leaving[s.id]} className="btn btn-success flex-1 justify-center py-2 text-xs" onClick={() => resolve(s, 'approved')}>אשר</button>
                     <button disabled={leaving[s.id]} className="btn btn-danger flex-1 justify-center py-2 text-xs" onClick={() => resolve(s, 'rejected')}>דחה</button>
-                  </div>
+                  </div>}
                 </div>
               ))}
             </div>

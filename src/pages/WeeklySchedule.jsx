@@ -56,7 +56,7 @@ const fmtMins = m => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
 const defaultForm = { employee_id: '', day_of_week: 0, start_time: '08:00', end_time: '16:00', notes: '' }
 
 export default function WeeklySchedule() {
-  const { employees, weeklySchedule, addScheduleEntry, deleteScheduleEntry, updateScheduleEntry, dayNotes, saveDayNote, currentRole } = useApp()
+  const { employees, weeklySchedule, addScheduleEntry, deleteScheduleEntry, updateScheduleEntry, dayNotes, saveDayNote, currentRole, can } = useApp()
   const [weekStart, setWeekStart] = useState(getWeekStart(new Date()))
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState(defaultForm)
@@ -272,7 +272,7 @@ export default function WeeklySchedule() {
   const crosses = isMidnightCross(form.start_time, form.end_time)
   const editCrosses = isMidnightCross(editForm.start_time, editForm.end_time)
 
-  const isAdmin = currentRole === 'admin'
+  const isAdmin = currentRole === 'admin' && can('schedule')
   const todayIdx = getWeekStart(new Date()) === weekStart ? new Date().getDay() : -1
   const empName = entry => entry.profiles?.full_name || activeEmps.find(e => e.id === entry.employee_id)?.full_name || ''
   const dayData = DAYS.map((name, i) => {

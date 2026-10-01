@@ -17,6 +17,9 @@ export function AppProvider({ children }) {
   const [authNotice, setAuthNotice] = useState('') // shown on the login screen (e.g. blocked user)
 
   const currentRole = currentUser?.role || null
+  // manager permissions: the super admin can do everything; other managers only what they were granted
+  const isSuperAdmin = currentUser?.role === 'admin' && !!currentUser?.is_super_admin
+  const can = perm => currentUser?.role === 'admin' && (isSuperAdmin || (currentUser?.permissions || []).includes(perm))
   const currentUserEmail = currentUser?.email || null
   const unreadCount = notifications.filter(n => !n.read).length
 
@@ -35,7 +38,7 @@ export function AppProvider({ children }) {
   async function loadUserProfile(authUser) {
     const { data } = await supabase.from('profiles').select('*').eq('id', authUser.id).single()
     // inactive employees are locked out (also catches a session that was open when they were deactivated)
-    if (data && data.role !== 'admin' && data.status !== 'active') {
+    if (data && !data.is_super_admin && data.status !== 'active') {
       await supabase.auth.signOut()
       setCurrentUser(null)
       setAuthNotice(BLOCKED_MSG)
@@ -133,8 +136,8 @@ export function AppProvider({ children }) {
     setAuthNotice('')
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
-    const { data: profile } = await supabase.from('profiles').select('role, status').eq('id', data.user.id).single()
-    if (profile && profile.role !== 'admin' && profile.status !== 'active') {
+    const { data: profile } = await supabase.from('profiles').select('role, status, is_super_admin').eq('id', data.user.id).single()
+    if (profile && !profile.is_super_admin && profile.status !== 'active') {
       await supabase.auth.signOut()
       throw new Error(BLOCKED_MSG)
     }
@@ -357,7 +360,7 @@ export function AppProvider({ children }) {
       employees, shifts, bonuses, weeklySchedule, dayNotes,
       notifications, unreadCount,
       currentUser, currentRole, currentUserEmail,
-      loading, authNotice,
+      loading, authNotice, isSuperAdmin, can,
       login, logout,
       addEmployee, updateEmployee,
       addShift, updateShiftStatus,

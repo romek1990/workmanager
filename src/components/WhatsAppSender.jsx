@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Smartphone, RefreshCw, QrCode, KeyRound, AlertTriangle, CheckCheck } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { Modal } from './ui'
+import { useApp } from '../context/AppContext'
 
 const FN_URL = 'https://nwetajywazzpxkdknqsf.supabase.co/functions/v1/whatsapp-instance'
 
@@ -37,6 +38,7 @@ const STATE_LABEL = {
 }
 
 export default function WhatsAppSender() {
+  const { isSuperAdmin } = useApp()
   const [status, setStatus] = useState(null) // { state, phone }
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -151,9 +153,9 @@ export default function WhatsAppSender() {
           )}
         </div>
         <button className="btn" onClick={refresh} disabled={loading}><RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> רענן</button>
-        <button className="btn btn-primary" onClick={openModal} disabled={loading}>
+        {isSuperAdmin && <button className="btn btn-primary" onClick={openModal} disabled={loading}>
           {connected ? 'החלף מספר' : 'חבר מספר'}
-        </button>
+        </button>}
       </div>
 
       <Modal open={open} onClose={closeModal} title={step === 'done' ? 'המספר חובר' : 'החלפת מספר השליחה'}>

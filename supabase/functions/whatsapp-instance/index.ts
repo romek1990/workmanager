@@ -66,8 +66,11 @@ serve(async (req) => {
     const admin = createClient(SUPABASE_URL, SECRET_KEY);
     const { data: caller } = await admin.from("profiles").select("role").eq("id", userData.user.id).single();
     if (caller?.role !== "admin") return json({ error: "Forbidden — admin only" }, 403);
+    const { data: isSuper } = await callerClient.rpc("is_super_admin");
 
     const { action, phone } = await req.json().catch(() => ({}));
+    // anyone with 'messages' may see the status; only the super admin may change the number
+    if (action !== "status" && isSuper !== true) return json({ error: "רק מנהל המערכת הראשי יכול להחליף את מספר השליחה" }, 403);
 
     switch (action) {
       case "status": {

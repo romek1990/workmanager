@@ -3,7 +3,7 @@ import { MessageCircle, Send, Search, User, Users, CheckCheck, PhoneOff, AlertTr
 import emailjs from '@emailjs/browser'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
-import { Avatar, Modal, Toast, useToast } from '../components/ui'
+import { Avatar, Modal, Toast, useToast, ReadOnlyBanner } from '../components/ui'
 import WhatsAppSender from '../components/WhatsAppSender'
 
 const FN_URL = 'https://nwetajywazzpxkdknqsf.supabase.co/functions/v1/whatsapp-send'
@@ -38,7 +38,8 @@ function fmtTime(iso) {
 }
 
 export default function WhatsApp() {
-  const { employees, currentUser, logActivity } = useApp()
+  const { employees, currentUser, logActivity, can } = useApp()
+  const canMessages = can('messages')
   const [mode, setMode] = useState('single') // 'single' | 'all'
   const [selectedId, setSelectedId] = useState(null)
   const [search, setSearch] = useState('')
@@ -70,7 +71,7 @@ export default function WhatsApp() {
   const previewName = mode === 'single' ? (selected?.full_name?.split(' ')[0] || 'דניאל') : 'דניאל'
   const preview = message.replaceAll('{שם}', previewName)
 
-  const canSend = anyChannel && !!message.trim() && (!channels.email || !!subject.trim()) && recipientsCount > 0 && !sending && message.length <= MAX_LEN
+  const canSend = canMessages && anyChannel && !!message.trim() && (!channels.email || !!subject.trim()) && recipientsCount > 0 && !sending && message.length <= MAX_LEN
 
   async function loadHistory() {
     const { data } = await supabase
@@ -190,6 +191,7 @@ export default function WhatsApp() {
         </div>
       </div>
 
+      {!canMessages && <ReadOnlyBanner area="הודעות" />}
       <WhatsAppSender />
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 stagger">

@@ -16,7 +16,7 @@ function toLocalInput(d) {
 
 // Live list of employees currently clocked in, with an admin "close shift" action.
 export default function OnShiftNow({ onToast }) {
-  const { shifts, refreshShifts, adminCloseShift } = useApp()
+  const { shifts, refreshShifts, adminCloseShift, can } = useApp()
   const [now, setNow] = useState(new Date())
   const [closing, setClosing] = useState(null) // shift being closed
   const [endAt, setEndAt] = useState('')
@@ -81,9 +81,11 @@ export default function OnShiftNow({ onToast }) {
                 <span className={`inline-flex items-center gap-1 text-sm font-bold tabular-nums ${long ? 'text-red-600' : 'text-brand-700'}`}>
                   <Timer size={14} /> {elapsed(since, now)}
                 </span>
-                <button className="btn btn-danger py-1.5 px-3 text-xs" onClick={() => startClose(s)}>
-                  <Square size={12} /> סגור
-                </button>
+                {can('shifts') && (
+                  <button className="btn btn-danger py-1.5 px-3 text-xs" onClick={() => startClose(s)}>
+                    <Square size={12} /> סגור
+                  </button>
+                )}
               </div>
             )
           })}

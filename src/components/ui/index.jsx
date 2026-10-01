@@ -97,6 +97,16 @@ export function SearchInput({ value, onChange, placeholder }) {
   )
 }
 
+// ── Read-only notice (manager without permission for this area) ────────
+export function ReadOnlyBanner({ area }) {
+  return (
+    <div className="mb-4 flex items-center gap-2 text-sm rounded-2xl px-4 py-2.5 border border-amber-200 bg-amber-50/80 text-amber-800 animate-rise">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+      צפייה בלבד — אין לך הרשאה לשנות {area}. לשינוי הרשאות פנה למנהל המערכת.
+    </div>
+  )
+}
+
 // ── Mesh background ────────────────────────────────────────────────
 export function MeshBackground() {
   return (

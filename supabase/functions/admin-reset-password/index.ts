@@ -80,7 +80,9 @@ serve(async (req) => {
       .select("id, full_name, role")
       .eq("id", userData.user.id)
       .single();
-    if (caller?.role !== "admin") return json({ error: "Forbidden — admin only" }, 403);
+    const { data: canEmployees } = await callerClient.rpc("has_perm", { p: "employees" });
+    const { data: isSuper } = await callerClient.rpc("is_super_admin");
+    if (caller?.role !== "admin" || canEmployees !== true) return json({ error: "אין לך הרשאה לאפס סיסמאות" }, 403);
 
     // ── validate input ──
     const { employeeId } = await req.json().catch(() => ({}));
@@ -88,10 +90,12 @@ serve(async (req) => {
 
     const { data: target, error: targetErr } = await admin
       .from("profiles")
-      .select("id, full_name, email, phone")
+      .select("id, full_name, email, phone, role")
       .eq("id", employeeId)
       .single();
     if (targetErr || !target) return json({ error: "עובד לא נמצא" }, 404);
+    // a manager's password can only be reset by the super admin
+    if (target.role === "admin" && isSuper !== true) return json({ error: "רק מנהל המערכת הראשי יכול לאפס סיסמה של מנהל" }, 403);
 
     // ── invalidate the old password immediately ──
     const { error: updateErr } = await admin.auth.admin.updateUserById(employeeId, {

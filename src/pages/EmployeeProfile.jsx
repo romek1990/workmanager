@@ -12,7 +12,7 @@ const RESET_PW_URL = 'https://nwetajywazzpxkdknqsf.supabase.co/functions/v1/admi
 export default function EmployeeProfile() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { employees, shifts, bonuses, updateEmployee, currentUser, logActivity } = useApp()
+  const { employees, shifts, bonuses, updateEmployee, currentUser, logActivity, can } = useApp()
 
   const emp = employees.find(e => e.id === id)
   const [editModal, setEditModal] = useState(false)
@@ -91,12 +91,14 @@ export default function EmployeeProfile() {
           <p className="text-sm text-gray-400 mt-1">{emp.email} · {emp.phone} · {emp.address}</p>
           <div className="mt-2"><StatusBadge status={emp.status} /></div>
         </div>
-        <button className="btn" onClick={() => setResetConfirm(true)} disabled={resetting}>
-          <KeyRound size={14} />{resetting ? 'מאפס...' : 'איפוס סיסמה'}
-        </button>
-        <button className="btn" onClick={openEdit}>
-          <Pencil size={14} />עריכה
-        </button>
+        {can('employees') && <>
+          <button className="btn" onClick={() => setResetConfirm(true)} disabled={resetting}>
+            <KeyRound size={14} />{resetting ? 'מאפס...' : 'איפוס סיסמה'}
+          </button>
+          <button className="btn" onClick={openEdit}>
+            <Pencil size={14} />עריכה
+          </button>
+        </>}
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-4">

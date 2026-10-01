@@ -18,6 +18,7 @@ import ActivityLogs from './pages/ActivityLogs'
 import Form101 from './pages/Form101'
 import Admin101 from './pages/Admin101'
 import WhatsApp from './pages/WhatsApp'
+import Managers from './pages/Managers'
 import { MeshBackground } from './components/ui'
 
 
@@ -65,6 +66,7 @@ function AppRoutes() {
           <Route path="/reports" element={<ProtectedRoute requiredRole="admin"><Reports /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute requiredRole="admin"><WhatsApp /></ProtectedRoute>} />
           <Route path="/whatsapp" element={<Navigate to="/messages" replace />} />
+          <Route path="/managers" element={<ProtectedRoute requiredRole="admin"><Managers /></ProtectedRoute>} />
           <Route path="/activity-logs" element={<ProtectedRoute requiredRole="admin"><ActivityLogs /></ProtectedRoute>} />
           <Route path="/my-home" element={<ProtectedRoute><UserHome /></ProtectedRoute>} />
           <Route path="/my-shifts" element={<ProtectedRoute><MyShifts /></ProtectedRoute>} />

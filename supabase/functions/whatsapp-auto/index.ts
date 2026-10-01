@@ -239,6 +239,9 @@ serve(async (req) => {
       if (!u?.user) return json({ error: "Invalid session" }, 401);
       const { data: p } = await admin.from("profiles").select("id, full_name, role").eq("id", u.user.id).single();
       if (p?.role !== "admin") return json({ error: "Forbidden — admin only" }, 403);
+      const need = ({ schedule: "schedule", form101: "form101", open_shifts: "shifts", shift_reminders: "schedule" } as Record<string, string>)[job];
+      const { data: allowed } = await callerClient.rpc("has_perm", { p: need || "__none__" });
+      if (allowed !== true) return json({ error: "אין לך הרשאה לפעולה הזו" }, 403);
       sender = { id: p.id, name: p.full_name };
     }
 

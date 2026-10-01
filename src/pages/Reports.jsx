@@ -23,7 +23,7 @@ const SHIFT_TYPE_HE = {
   holiday: 'חג',
 }
 
-export default function Reports() {
+function ReportsInner() {
   const { employees, shifts, bonuses } = useApp()
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -378,4 +378,19 @@ function exportEmployeePDF(row) {
       )}
     </div>
   )
+}
+
+export default function Reports() {
+  const { can } = useApp()
+  if (!can('reports')) {
+    return (
+      <div className="p-4 md:px-10 md:py-8">
+        <PageHeader icon={BarChart2} title="דוחות" subtitle="שעות ושכר" />
+        <div className="card p-10 text-center text-sm" style={{ color: 'var(--text-dim)' }}>
+          אין לך הרשאה לצפות בדוחות ושכר. לפתיחת הרשאה פנה למנהל המערכת.
+        </div>
+      </div>
+    )
+  }
+  return <ReportsInner />
 }

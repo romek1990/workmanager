@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
 import { Pencil } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { AlertModal, Table, CardSection, Modal } from '../components/ui'
+import { AlertModal, Table, CardSection, Modal, ReadOnlyBanner } from '../components/ui'
 import { todayISO } from '../utils/helpers'
 
 export default function Bonuses() {
-  const { employees, bonuses, addBonus, updateBonus } = useApp()
+  const { employees, bonuses, addBonus, updateBonus, can } = useApp()
+  const canBonuses = can('bonuses')
   const [form, setForm] = useState({ employee_email: '', amount: '', date: todayISO(), description: '' })
   const [search, setSearch] = useState('')
   const [alert, setAlert] = useState(null)
@@ -67,8 +68,10 @@ export default function Bonuses() {
     <div className="p-4 md:p-6">
       <h1 className="text-lg font-medium mb-5">בונוסים</h1>
 
+      {!canBonuses && <ReadOnlyBanner area="בונוסים" />}
+
       {/* Add form */}
-      <div className="card p-5 mb-5">
+      {canBonuses && <div className="card p-5 mb-5">
         <h3 className="text-sm font-medium mb-4">הוספת בונוס</h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
@@ -92,7 +95,7 @@ export default function Bonuses() {
           </div>
         </div>
         <button className="btn btn-primary mt-4" onClick={handleAdd}>הוסף בונוס</button>
-      </div>
+      </div>}
 
       <CardSection title="רשימת בונוסים" action={
         <input className="text-xs border border-gray-200 rounded-xl px-3 py-1.5 bg-white/70 border-white/80" placeholder="חיפוש..." value={search} onChange={e => setSearch(e.target.value)} />
@@ -105,9 +108,9 @@ export default function Bonuses() {
               <td className="table-td text-sm text-gray-500">{b.date}</td>
               <td className="table-td text-sm text-gray-500">{b.description}</td>
               <td className="table-td">
-                <button onClick={() => openEdit(b)} className="text-brand-400 hover:text-brand-600">
+                {canBonuses && <button onClick={() => openEdit(b)} className="text-brand-400 hover:text-brand-600">
                   <Pencil size={14} />
-                </button>
+                </button>}
               </td>
             </tr>
           ))}

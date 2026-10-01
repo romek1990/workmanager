@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Users, ChevronLeft, PhoneOff } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { Avatar, StatusBadge, Modal, AlertModal, PageHeader, StatChip, SearchInput } from '../components/ui'
+import { Avatar, StatusBadge, Modal, AlertModal, PageHeader, StatChip, SearchInput, ReadOnlyBanner } from '../components/ui'
 import { EMP_TYPE_LABELS } from '../data/mockData'
 import { todayISO } from '../utils/helpers'
 
@@ -14,7 +14,8 @@ const defaultForm = {
 }
 
 export default function Employees() {
-  const { employees, addEmployee } = useApp()
+  const { employees, addEmployee, can } = useApp()
+  const canEmployees = can('employees')
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -82,8 +83,9 @@ export default function Employees() {
   return (
     <div className="p-4 md:px-10 md:py-8">
       <PageHeader icon={Users} title="עובדים" subtitle="כל העובדים · לחיצה על עובד פותחת את הפרופיל שלו">
-        <button className="btn btn-primary" onClick={() => setModal(true)}><Plus size={15} />הוסף עובד</button>
+        {canEmployees && <button className="btn btn-primary" onClick={() => setModal(true)}><Plus size={15} />הוסף עובד</button>}
       </PageHeader>
+      {!canEmployees && <ReadOnlyBanner area="עובדים" />}
 
       <div className="flex flex-wrap gap-3 mb-5 stagger">
         <StatChip label="עובדים פעילים" value={activeCount} tone="green" />

@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Plus, CalendarClock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { ShiftTypeBadge, StatusBadge, Modal, AlertModal, Avatar, PageHeader, StatChip, SearchInput, Toast, useToast } from '../components/ui'
+import { ShiftTypeBadge, StatusBadge, Modal, AlertModal, Avatar, PageHeader, StatChip, SearchInput, Toast, useToast, ReadOnlyBanner } from '../components/ui'
 import { calcHours, todayISO, fmtHours, fmtDate } from '../utils/helpers'
 
 const defaultForm = { employee_email: '', date: todayISO(), start_time: '08:00', end_time: '16:00', shift_type: 'regular', notes: '' }
@@ -9,7 +9,8 @@ const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מ
 const t5 = t => (t ? String(t).slice(0, 5) : null)
 
 export default function Shifts() {
-  const { employees, shifts, addShift, updateShiftStatus } = useApp()
+  const { employees, shifts, addShift, updateShiftStatus, can } = useApp()
+  const canShifts = can('shifts')
   const now = new Date()
   const thisYear = now.getFullYear()
   const thisMonthNum = now.getMonth() + 1
@@ -70,7 +71,7 @@ export default function Shifts() {
 
   function set(k, v) { setForm(p => ({ ...p, [k]: v })) }
 
-  const actions = s => s.status === 'pending' && (
+  const actions = s => canShifts && s.status === 'pending' && (
     <div className="flex gap-2">
       <button disabled={busy[s.id]} className="btn btn-success py-1.5 px-3.5 text-xs rounded-[10px]" onClick={() => resolve(s, 'approved')}>אשר</button>
       <button disabled={busy[s.id]} className="btn btn-danger py-1.5 px-3.5 text-xs rounded-[10px]" onClick={() => resolve(s, 'rejected')}>דחה</button>
@@ -80,8 +81,9 @@ export default function Shifts() {
   return (
     <div className="p-4 md:px-10 md:py-8">
       <PageHeader icon={CalendarClock} title="משמרות" subtitle="כל המשמרות שדווחו · סינון, אישור והוספה ידנית">
-        <button className="btn btn-primary" onClick={() => setModal(true)}><Plus size={15} />הוסף משמרת</button>
+        {canShifts && <button className="btn btn-primary" onClick={() => setModal(true)}><Plus size={15} />הוסף משמרת</button>}
       </PageHeader>
+      {!canShifts && <ReadOnlyBanner area="משמרות" />}
 
       <div className="flex flex-wrap gap-3 mb-5 stagger">
         <StatChip label="משמרות בתצוגה" value={filtered.length} />
@@ -156,7 +158,7 @@ export default function Shifts() {
                     <ShiftTypeBadge type={s.shift_type} />
                   </div>
                   {s.notes && <p className="text-xs mt-1.5" style={{ color: 'var(--text-dim)' }}>{s.notes}</p>}
-                  {s.status === 'pending' && <div className="mt-3 [&>div]:w-full [&_button]:flex-1 [&_button]:justify-center [&_button]:py-2">{actions(s)}</div>}
+                  {canShifts && s.status === 'pending' && <div className="mt-3 [&>div]:w-full [&_button]:flex-1 [&_button]:justify-center [&_button]:py-2">{actions(s)}</div>}
                 </div>
               ))}
             </div>

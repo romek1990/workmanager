@@ -79,7 +79,8 @@ serve(async (req) => {
       .select("id, full_name, role")
       .eq("id", userData.user.id)
       .single();
-    if (caller?.role !== "admin") return json({ error: "Forbidden — admin only" }, 403);
+    const { data: canMsg } = await callerClient.rpc("has_perm", { p: "messages" });
+    if (caller?.role !== "admin" || canMsg !== true) return json({ error: "אין לך הרשאה לשלוח הודעות" }, 403);
 
     // ── validate input ──
     const { message, mode, employeeId } = await req.json().catch(() => ({}));
