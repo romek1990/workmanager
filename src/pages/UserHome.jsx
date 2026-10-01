@@ -13,11 +13,12 @@ const defaultManualForm = {
   notes: ''
 }
 
+// Sunday of the given date's week, as a local (Israel) YYYY-MM-DD.
+// (toISOString would roll back a day between midnight and 3am)
 function getWeekStart(date) {
   const d = new Date(date)
-  const day = d.getDay()
-  d.setDate(d.getDate() - day)
-  return d.toISOString().split('T')[0]
+  d.setDate(d.getDate() - d.getDay())
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function addDays(dateStr, n) {

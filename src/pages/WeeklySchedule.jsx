@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, ChevronLeft, ChevronRight, MoonStar, Send, Pencil, MessageCircle, Mail } from 'lucide-react'
+import { Plus, Trash2, ChevronLeft, ChevronRight, MoonStar, Send, Pencil, MessageCircle, Mail, CalendarDays } from 'lucide-react'
 import { runWhatsAppJob, summarize } from '../lib/whatsappAuto'
 import emailjs from '@emailjs/browser'
 import { useApp } from '../context/AppContext'
-import { Modal, AlertModal } from '../components/ui'
+import { Modal, AlertModal, PageHeader, StatChip, Avatar } from '../components/ui'
 
 const EMAILJS_SERVICE = 'service_atutffw'
 const EMAILJS_TEMPLATE = 'template_sx0nowk'
@@ -11,17 +11,18 @@ const EMAILJS_PUBLIC_KEY = 'O6dGxcOoOfwbY1b2g'
 
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
 
+// Sunday of the given date's week, as a local (Israel) YYYY-MM-DD.
+// (toISOString would roll back a day between midnight and 3am)
 function getWeekStart(date) {
   const d = new Date(date)
-  const day = d.getDay()
-  d.setDate(d.getDate() - day)
-  return d.toISOString().split('T')[0]
+  d.setDate(d.getDate() - d.getDay())
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function addDays(dateStr, n) {
-  const d = new Date(dateStr)
-  d.setDate(d.getDate() + n)
-  return d.toISOString().split('T')[0]
+  const [y, m, day] = dateStr.split('-').map(Number)
+  const d = new Date(y, m - 1, day + n)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function formatDate(dateStr) {
@@ -41,6 +42,16 @@ function calcHours(start, end) {
   const m = mins % 60
   return m === 0 ? `${h}ש'` : `${h}ש' ${m}ד'`
 }
+
+// minutes of a scheduled shift (overnight shifts wrap past midnight)
+function shiftMinutes(start, end) {
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  let mins = (eh * 60 + em) - (sh * 60 + sm)
+  if (mins <= 0) mins += 24 * 60
+  return mins
+}
+const fmtMins = m => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
 
 const defaultForm = { employee_id: '', day_of_week: 0, start_time: '08:00', end_time: '16:00', notes: '' }
 
@@ -261,53 +272,114 @@ export default function WeeklySchedule() {
   const crosses = isMidnightCross(form.start_time, form.end_time)
   const editCrosses = isMidnightCross(editForm.start_time, editForm.end_time)
 
+  const isAdmin = currentRole === 'admin'
+  const todayIdx = getWeekStart(new Date()) === weekStart ? new Date().getDay() : -1
+  const empName = entry => entry.profiles?.full_name || activeEmps.find(e => e.id === entry.employee_id)?.full_name || ''
+  const dayData = DAYS.map((name, i) => {
+    const entries = weekEntries
+      .filter(e => e.day_of_week === i)
+      .sort((a, b) => (a.start_time < b.start_time ? -1 : 1))
+    return { name, i, date: addDays(weekStart, i), entries, mins: entries.reduce((a, e) => a + shiftMinutes(e.start_time, e.end_time), 0) }
+  })
+  const weekMins = dayData.reduce((a, d) => a + d.mins, 0)
+  const scheduledEmps = new Set(weekEntries.map(e => e.employee_id)).size
+
+  const noteCell = date => {
+    const note = dayNotes.find(n => n.date === date)
+    if (editingNote === date) {
+      return (
+        <div className="flex gap-1 mt-1.5">
+          <input autoFocus className="flex-1 min-w-0 text-xs border border-gray-200 rounded-lg px-1.5 py-0.5 outline-none focus:border-brand-400 font-normal bg-white"
+            value={noteInput} onChange={e => setNoteInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleSaveNote(date); if (e.key === 'Escape') setEditingNote(null) }}
+            placeholder="הערה..." maxLength={30} />
+          <button onClick={() => handleSaveNote(date)} className="text-xs text-brand-600 font-bold hover:text-brand-800">✓</button>
+        </div>
+      )
+    }
+    return (
+      <div onClick={() => isAdmin && startEditNote(date)}
+        className={`text-[11px] rounded-lg px-1.5 py-0.5 mt-1.5 font-medium min-h-[20px] transition-colors ${
+          note ? 'bg-amber-100/80 text-amber-800' : isAdmin ? 'text-gray-300 hover:text-gray-500 hover:bg-white/70 cursor-pointer' : ''
+        }`}>
+        {note ? note.note : isAdmin ? '+ הערה' : ''}
+      </div>
+    )
+  }
+
+  const entryCard = entry => {
+    const night = isMidnightCross(entry.start_time, entry.end_time)
+    return (
+      <div key={entry.id}
+        className={`group relative rounded-xl bg-white/90 border border-black/[0.06] shadow-[0_1px_3px_rgba(15,40,25,0.06)] px-2.5 py-2 text-xs border-r-[3px] ${night ? 'border-r-indigo-400' : 'border-r-brand-500'}`}>
+        <div className={`flex items-center gap-1 font-bold tabular-nums ${night ? 'text-indigo-700' : 'text-brand-800'}`} dir="ltr" style={{ justifyContent: 'flex-end' }}>
+          {night && <span className="text-indigo-400 text-[10px] font-semibold">+1</span>}
+          {entry.start_time.slice(0, 5)}–{entry.end_time.slice(0, 5)}
+          {night && <MoonStar size={11} />}
+        </div>
+        <div className="font-semibold text-gray-800 mt-0.5 truncate">{empName(entry)}</div>
+        <div className="flex items-center justify-between gap-1 mt-0.5 text-gray-400">
+          <span className="tabular-nums">{calcHours(entry.start_time, entry.end_time)}</span>
+          {isAdmin && (
+            <span className="flex gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => openEdit(entry)} className="text-brand-400 hover:text-brand-700" title="עריכה"><Pencil size={12} /></button>
+              <button onClick={() => handleDelete(entry.id)} className="text-red-300 hover:text-red-600" title="מחיקה"><Trash2 size={12} /></button>
+            </span>
+          )}
+        </div>
+        {entry.notes && <div className="text-gray-500 mt-1 pt-1 border-t border-black/5 leading-snug">{entry.notes}</div>}
+      </div>
+    )
+  }
+
+  const addButton = dayIdx => isAdmin && (
+    <button onClick={() => openAdd(dayIdx)}
+      className="w-full flex items-center justify-center gap-1 text-xs text-gray-400 hover:text-brand-700 border border-dashed border-gray-300/80 hover:border-brand-400 hover:bg-white/70 rounded-xl py-1.5 transition-colors">
+      <Plus size={12} /> הוסף
+    </button>
+  )
+
   return (
-    <div className="p-4 md:p-6">
-      <div className="flex items-center justify-between mb-5">
-        <h1 className="text-lg font-medium">סידור שבועי</h1>
-        {currentRole === 'admin' && (
-          <button onClick={openPublish} disabled={sending} className="btn btn-primary flex items-center gap-2">
+    <div className="p-4 md:px-10 md:py-8">
+      <PageHeader icon={CalendarDays} title="סידור שבועי" subtitle={`שבוע ${weekDates}`}>
+        <div className="flex items-center gap-1 glass rounded-2xl p-1 shadow-glass">
+          <button className="p-2 rounded-xl hover:bg-white" onClick={prevWeek} title="שבוע קודם"><ChevronRight size={16} /></button>
+          <button className="px-3 py-1.5 rounded-xl text-sm font-semibold hover:bg-white disabled:text-brand-700 disabled:bg-white disabled:shadow-soft"
+            disabled={todayIdx !== -1} onClick={() => setWeekStart(getWeekStart(new Date()))}>השבוע</button>
+          <button className="p-2 rounded-xl hover:bg-white" onClick={nextWeek} title="שבוע הבא"><ChevronLeft size={16} /></button>
+        </div>
+        {isAdmin && (
+          <button onClick={openPublish} disabled={sending} className="btn btn-primary">
             <Send size={15} />
             {sending ? 'שולח...' : 'שלח סידור לעובדים'}
           </button>
         )}
+      </PageHeader>
+
+      <div className="flex flex-wrap gap-3 mb-5 stagger">
+        <StatChip label="משמרות בשבוע" value={weekEntries.length} />
+        <StatChip label="שעות מתוכננות" value={fmtMins(weekMins)} tone="green" />
+        <StatChip label="עובדים משובצים" value={`${scheduledEmps}/${activeEmps.length}`} />
       </div>
 
-      <div className="flex items-center gap-3 mb-6">
-        <button className="btn" onClick={prevWeek}><ChevronRight size={16} /></button>
-        <span className="text-sm font-medium text-gray-700">שבוע {weekDates}</span>
-        <button className="btn" onClick={nextWeek}><ChevronLeft size={16} /></button>
-        <button className="btn text-xs" onClick={() => setWeekStart(getWeekStart(new Date()))}>השבוע הנוכחי</button>
-      </div>
-
-      <div className="card !overflow-x-auto">
-        <table className="w-full text-sm">
+      {/* desktop: a real 7-column grid */}
+      <div className="card hidden md:block animate-rise" style={{ animationDelay: '.15s' }}>
+        <table className="w-full table-fixed border-separate border-spacing-0 text-sm">
           <thead>
-            <tr className="border-b border-gray-100">
-              {DAYS.map((day, i) => {
-                const date = addDays(weekStart, i)
-                const note = dayNotes.find(n => n.date === date)
+            <tr>
+              {dayData.map(d => {
+                const today = d.i === todayIdx
+                const weekend = d.i >= 5
                 return (
-                  <th key={i} className="px-3 py-2 text-center font-medium text-gray-600 min-w-[140px]">
-                    <div>{day}</div>
-                    <div className="text-xs text-gray-400 font-normal mb-1">{formatDate(date)}</div>
-                    {editingNote === date ? (
-                      <div className="flex gap-1 mt-1">
-                        <input autoFocus className="flex-1 text-xs border border-gray-200 rounded px-1.5 py-0.5 outline-none focus:border-brand-400 font-normal"
-                          value={noteInput} onChange={e => setNoteInput(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') handleSaveNote(date); if (e.key === 'Escape') setEditingNote(null) }}
-                          placeholder="הערה..." maxLength={30} />
-                        <button onClick={() => handleSaveNote(date)} className="text-xs text-brand-500 font-normal hover:text-brand-700">✓</button>
-                      </div>
-                    ) : (
-                      <div onClick={() => currentRole === 'admin' && startEditNote(date)}
-                        className={`text-xs rounded px-1.5 py-0.5 mt-1 font-normal min-h-[20px] transition-colors ${
-                          note ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                          : currentRole === 'admin' ? 'text-gray-300 hover:text-gray-400 hover:bg-gray-50 cursor-pointer' : ''
-                        }`}>
-                        {note ? note.note : currentRole === 'admin' ? '+ הוסף הערה' : ''}
-                      </div>
-                    )}
+                  <th key={d.i}
+                    className={`px-2 pt-3 pb-2 text-center align-top border-b-2 ${d.i < 6 ? 'border-l border-l-black/[0.07]' : ''} ${
+                      today ? 'bg-brand-500/[0.12] border-b-brand-500' : weekend ? 'bg-amber-500/[0.06] border-b-black/10' : 'bg-white/50 border-b-black/10'}`}>
+                    <div className={`text-sm font-extrabold ${today ? 'text-brand-800' : 'text-gray-800'}`}>{d.name}</div>
+                    <div className="flex items-center justify-center gap-1.5 mt-0.5">
+                      <span className="text-xs font-medium tabular-nums text-gray-500">{formatDate(d.date)}</span>
+                      {today && <span className="text-[10px] font-bold text-white bg-brand-600 rounded-full px-1.5 py-px">היום</span>}
+                    </div>
+                    {noteCell(d.date)}
                   </th>
                 )
               })}
@@ -315,55 +387,54 @@ export default function WeeklySchedule() {
           </thead>
           <tbody>
             <tr>
-              {DAYS.map((_, dayIdx) => {
-                const dayEntries = weekEntries.filter(e => e.day_of_week === dayIdx)
-                return (
-                  <td key={dayIdx} className="align-top px-2 py-2 border-l border-gray-50 min-h-[120px]">
-                    <div className="flex flex-col gap-1.5">
-                      {dayEntries.map(entry => {
-                        const night = isMidnightCross(entry.start_time, entry.end_time)
-                        return (
-                          <div key={entry.id} className={`border rounded-lg px-2 py-1.5 text-xs ${night ? 'bg-indigo-50 border-indigo-100' : 'bg-brand-50 border-brand-100'}`}>
-                            <div className="flex items-start justify-between gap-1">
-                              <div>
-                                <div className={`font-medium ${night ? 'text-indigo-800' : 'text-brand-800'}`}>
-                                  {entry.profiles?.full_name || activeEmps.find(e => e.id === entry.employee_id)?.full_name}
-                                </div>
-                                <div className={`flex items-center gap-1 ${night ? 'text-indigo-600' : 'text-brand-600'}`}>
-                                  {night && <MoonStar size={10} />}
-                                  {entry.start_time.slice(0,5)}–{entry.end_time.slice(0,5)}
-                                  {night && <span className="text-indigo-400 text-[10px]">+1</span>}
-                                </div>
-                                <div className="text-gray-400">{calcHours(entry.start_time, entry.end_time)}</div>
-                                {entry.notes && <div className="text-gray-400 mt-0.5">{entry.notes}</div>}
-                              </div>
-                              {currentRole === 'admin' && (
-                                <div className="flex flex-col gap-1">
-                                  <button onClick={() => openEdit(entry)} className="text-brand-300 hover:text-brand-500">
-                                    <Pencil size={11} />
-                                  </button>
-                                  <button onClick={() => handleDelete(entry.id)} className="text-red-300 hover:text-red-500">
-                                    <Trash2 size={11} />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                      {currentRole === 'admin' && (
-                        <button onClick={() => openAdd(dayIdx)}
-                          className="flex items-center justify-center gap-1 text-xs text-gray-400 hover:text-brand-500 border border-dashed border-gray-200 hover:border-brand-300 rounded-lg py-1.5 transition-colors">
-                          <Plus size={12} /> הוסף
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                )
-              })}
+              {dayData.map(d => (
+                <td key={d.i}
+                  className={`align-top p-2 h-[300px] ${d.i < 6 ? 'border-l border-black/[0.07]' : ''} ${
+                    d.i === todayIdx ? 'bg-brand-500/[0.05]' : d.i >= 5 ? 'bg-amber-500/[0.03]' : ''}`}>
+                  <div className="flex flex-col gap-2">
+                    {d.entries.map(entryCard)}
+                    {addButton(d.i)}
+                  </div>
+                </td>
+              ))}
             </tr>
           </tbody>
+          <tfoot>
+            <tr>
+              {dayData.map(d => (
+                <td key={d.i}
+                  className={`px-2 py-2 text-center text-[11px] border-t border-black/10 bg-white/40 ${d.i < 6 ? 'border-l border-l-black/[0.07]' : ''}`}>
+                  {d.entries.length
+                    ? <span className="font-semibold text-gray-600 tabular-nums">{d.entries.length} משמרות · {fmtMins(d.mins)} ש'</span>
+                    : <span className="text-gray-300">—</span>}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
         </table>
+      </div>
+
+      {/* mobile: one block per day */}
+      <div className="md:hidden space-y-3 stagger">
+        {dayData.map(d => (
+          <div key={d.i} className={`card ${d.i === todayIdx ? 'ring-2 ring-brand-500/40' : ''}`}>
+            <div className={`flex items-center justify-between px-4 py-2.5 border-b border-black/5 ${d.i === todayIdx ? 'bg-brand-500/[0.1]' : 'bg-white/40'}`}>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-sm">{d.name}</span>
+                <span className="text-xs tabular-nums text-gray-500">{formatDate(d.date)}</span>
+                {d.i === todayIdx && <span className="text-[10px] font-bold text-white bg-brand-600 rounded-full px-1.5 py-px">היום</span>}
+              </div>
+              <span className="text-[11px] font-semibold text-gray-500 tabular-nums">{d.entries.length ? `${d.entries.length} · ${fmtMins(d.mins)} ש'` : ''}</span>
+            </div>
+            <div className="p-3">
+              <div className="-mt-1.5 mb-1">{noteCell(d.date)}</div>
+              <div className="grid grid-cols-2 gap-2">
+                {d.entries.map(entryCard)}
+              </div>
+              {isAdmin && <div className="mt-2">{addButton(d.i)}</div>}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* מודל הוספה */}
