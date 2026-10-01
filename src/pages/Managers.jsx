@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { UserCog, Plus, Pencil, Trash2, KeyRound, Crown, Lock, RotateCcw } from 'lucide-react'
+import { UserCog, Plus, Pencil, Trash2, KeyRound, Crown, Lock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { PageHeader, Avatar, Modal, Toast, useToast } from '../components/ui'
@@ -112,17 +112,6 @@ export default function Managers() {
     })
   }
 
-  function askReset() {
-    askCode({
-      title: 'איפוס כל נתוני הבדיקה',
-      summary: 'יימחקו כל העובדים והמנהלים (חוץ ממך), כל המשמרות, הסידור, הבונוסים, טפסי ה־101, ההודעות, ההתראות ולוג הפעילות. ההגדרות ומספר הוואטסאפ נשארים. הפעולה סופית ואין אפשרות לשחזר.',
-      payload: { action: 'reset' },
-      done: 'כל נתוני הבדיקה נמחקו — המערכת מוכנה לפיילוט',
-      danger: true,
-      reload: true,
-    })
-  }
-
   async function confirmCode() {
     if (!code.trim()) return
     setBusy(true); setCodeErr('')
@@ -130,7 +119,6 @@ export default function Managers() {
       await callFn({ ...pending.payload, code: code.trim() })
       showToast(pending.done)
       setPending(null); setEditing(null)
-      if (pending.reload) { setTimeout(() => window.location.reload(), 1500); return }
       load()
     } catch (e) {
       setCodeErr(e.message)
@@ -185,14 +173,6 @@ export default function Managers() {
         )}
       </div>
 
-      <div className="card mt-6 p-5 flex flex-wrap items-center gap-3 border border-red-200/70">
-        <div className="flex-1 min-w-[220px]">
-          <p className="font-semibold text-sm text-red-700">איפוס נתוני בדיקה</p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-dim)' }}>מוחק את כל העובדים, המשמרות, הסידור וכל שאר הנתונים — לפני תחילת עבודה אמיתית. נשאר רק החשבון שלך.</p>
-        </div>
-        <button className="btn btn-danger" onClick={askReset}><RotateCcw size={14} />אפס את כל הנתונים</button>
-      </div>
-
       {/* add / edit */}
       <Modal open={!!editing} onClose={() => setEditing(null)} title={isNew ? 'הוספת מנהל' : `עריכת ${editing?.full_name || ''}`}
         footer={<>
@@ -245,7 +225,7 @@ export default function Managers() {
         footer={<>
           <button className="btn" onClick={() => setPending(null)} disabled={busy}>ביטול</button>
           <button className={`btn ${pending?.danger ? 'btn-danger' : 'btn-success'}`} onClick={confirmCode} disabled={busy || !code.trim()}>
-            {busy ? 'מאשר...' : pending?.danger ? (pending?.reload ? 'אפס הכל' : 'מחק') : 'אשר'}
+            {busy ? 'מאשר...' : pending?.danger ? 'מחק' : 'אשר'}
           </button>
         </>}>
         <p className="text-sm mb-4">{pending?.summary}</p>
