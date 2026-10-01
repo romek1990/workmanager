@@ -274,9 +274,29 @@ export default function Admin101() {
                   </Section>
                 )}
 
-                {selected.tax_coordination && (
-                  <Section title="תיאום מס">
-                    <Row label="תיאום מס" value="כן" />
+                {(() => {
+                  const reasons = selected.tax_coord_reasons?.length ? selected.tax_coord_reasons : (selected.tax_coordination ? [3] : [])
+                  if (!reasons.length) return null
+                  const R = { 1: 'לא היתה הכנסה מתחילת השנה', 2: 'הכנסות נוספות ממשכורת', 3: 'פקיד השומה אישר תיאום' }
+                  const T = { work: 'עבודה', pension: 'קצבה', scholarship: 'מלגה', other: 'אחר' }
+                  return (
+                    <Section title="ט. תיאום מס">
+                      {reasons.map(n => <Row key={n} label={`סיבה ${n}`} value={R[n]} />)}
+                      {reasons.includes(2) && (selected.tax_coord_employers || []).map((e, i) => (
+                        <div key={i} className="text-xs border-t border-gray-200 pt-2 mt-1 space-y-0.5">
+                          <p className="font-semibold text-gray-700">{e.name || '—'} <span className="font-normal text-gray-400">· {e.address || '—'}</span></p>
+                          <p className="text-gray-500">תיק ניכויים {e.file_number || '—'} · {T[e.income_type] || e.income_type} · הכנסה ₪{e.monthly_income || '—'} · מס שנוכה ₪{e.tax_deducted || '—'}</p>
+                        </div>
+                      ))}
+                    </Section>
+                  )
+                })()}
+
+                {selected.year_changes?.length > 0 && (
+                  <Section title="ז. שינויים במהלך השנה">
+                    {selected.year_changes.map((r, i) => (
+                      <Row key={i} label={(r.change_date || '').split('-').reverse().join('/') || '—'} value={`${r.details || '—'}${r.notified_date ? ` (דווח ${r.notified_date.split('-').reverse().join('/')})` : ''}`} />
+                    ))}
                   </Section>
                 )}
 

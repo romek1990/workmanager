@@ -119,7 +119,17 @@ function makeDrawers(page, font) {
     text('√', (x0 + x1) / 2, topToY(baselineTop), size, { align: 'center' })
   }
 
-  return { text, digitsInCells, checkboxX, checkboxXRelative, checkMark }
+  // text centered on cx, shrunk (down to minSize) and then truncated to fit maxW
+  const fitText = (str, cx, y, maxW, size = 8, minSize = 5.5) => {
+    if (str === '' || str == null) return
+    let t = String(str)
+    let sz = size
+    while (sz > minSize && font.widthOfTextAtSize(t, sz) > maxW) sz -= 0.25
+    while (t.length > 1 && font.widthOfTextAtSize(t, sz) > maxW) t = t.slice(0, -1)
+    text(t, cx, y, sz, { align: 'center' })
+  }
+
+  return { text, digitsInCells, checkboxX, checkboxXRelative, checkMark, fitText }
 }
 
 // ===========================================================================
@@ -374,6 +384,50 @@ const H_CHECKBOXES = {
   16: [510.7, 449.4, 521.4, 463.4],
 }
 
+// ---------------------------------------------------------------------------
+// Section ז (changes during the year) — bottom of page 1, three table rows.
+// Calibrated from the template's text positions (the printed "/ /" of the
+// notification-date column sit at x 144.8 / 157.7, row glyph tops 770.6 /
+// 787.6 / 803.9, size 10 → baselines top + 10).
+// ---------------------------------------------------------------------------
+const Z_ROW_BASELINES = [780.6, 797.6, 813.9]
+
+function fillSectionZ(page, font, data) {
+  const rows = (data.year_changes || []).filter((r) => r && (r.change_date || r.details)).slice(0, 3)
+  if (!rows.length) return
+  const D = makeDrawers(page, font)
+  rows.forEach((r, i) => {
+    const y = topToY(Z_ROW_BASELINES[i])
+    // תאריך השינוי (header 488.9–533.3)
+    D.fitText(dateToSlashed(r.change_date), 511.1, y, 46, 8)
+    // פרטי השינוי (between the date and notification columns)
+    D.fitText(fixDigits(r.details || ''), 336.0, y, 280, 8)
+    // תאריך ההודעה — around the printed slashes: DD | MM | YYYY
+    const nd = r.notified_date || ''
+    if (nd) {
+      const [yy, mm, dd] = String(nd).slice(0, 10).split('-')
+      D.text(dd, 137.0, y, 8.5, { align: 'center' })
+      D.text(mm, 152.9, y, 8.5, { align: 'center' })
+      D.text(yy, 171.2, y, 8.5, { align: 'center' })
+    }
+  })
+}
+
+async function placeSectionZSignatures(pdfDoc, page1, data) {
+  const rows = (data.year_changes || []).filter((r) => r && (r.change_date || r.details)).slice(0, 3)
+  const sig = data.signature
+  if (!rows.length || !sig || !sig.startsWith('data:image')) return
+  try {
+    const png = await pdfDoc.embedPng(await fetch(sig).then((r) => r.arrayBuffer()))
+    const scale = Math.min(50 / png.width, 12 / png.height)
+    rows.forEach((_, i) => {
+      page1.drawImage(png, { x: 47, y: topToY(Z_ROW_BASELINES[i]) - 2, width: png.width * scale, height: png.height * scale })
+    })
+  } catch (e) {
+    console.warn('section ז signature embed failed', e)
+  }
+}
+
 function fillPage2(page, font, data) {
   const D = makeDrawers(page, font)
 
@@ -457,9 +511,32 @@ function fillPage2(page, font, data) {
     )
   }
 
-  // Section ט (tax coordination) — checkbox 3 ("פקיד השומה אישר תיאום")
-  if (data.tax_coordination) {
-    D.checkboxXRelative(512.4, 589.0, 523.1, 603.0)
+  // Section ט (tax coordination). Checkbox glyph tops from the template:
+  // 1 → 477.4, 2 → 506.3, 3 → 587.0 (boxes are drawn at glyph top + 2).
+  const reasons = Array.isArray(data.tax_coord_reasons) && data.tax_coord_reasons.length
+    ? data.tax_coord_reasons
+    : (data.tax_coordination ? [3] : [])
+  if (reasons.includes(1)) D.checkboxXRelative(512.4, 479.4, 523.1, 493.4)
+  if (reasons.includes(2)) D.checkboxXRelative(512.4, 508.3, 523.1, 522.3)
+  if (reasons.includes(3)) D.checkboxXRelative(512.4, 589.0, 523.1, 603.0)
+
+  // ט2 — other salary payers table, 3 rows. Row glyph tops 545.3 / 559.1 /
+  // 572.8 (size 12 → baselines top + 12). The deductions-file column has a
+  // printed leading "9" at x≈235; the remaining 8 digits follow it.
+  if (reasons.includes(2)) {
+    const T_BASELINES = [557.3, 571.1, 584.8]
+    const INCOME_TYPE = { work: 'עבודה', pension: 'קצבה', scholarship: 'מלגה', other: 'אחר' }
+    ;(data.tax_coord_employers || []).slice(0, 3).forEach((e, i) => {
+      if (!e) return
+      const y = topToY(T_BASELINES[i])
+      D.fitText(fixDigits(e.name || ''), 488.0, y, 82, 8)
+      D.fitText(fixDigits(e.address || ''), 362.0, y, 110, 7.5)
+      const file = String(e.file_number || '').replace(/\D/g, '').replace(/^9(?=\d{8}$)/, '')
+      if (file) D.text(file, 242.5, y, 9)
+      D.fitText(INCOME_TYPE[e.income_type] || e.income_type || '', 202.0, y, 42, 8)
+      if (e.monthly_income) D.fitText(String(e.monthly_income), 136.7, y, 52, 8.5)
+      if (e.tax_deducted) D.fitText(String(e.tax_deducted), 64.4, y, 56, 8.5)
+    })
   }
 
   // Section י (declaration) — date on the date line (baseline y=185.99 bottom-up)
@@ -520,6 +597,8 @@ export async function generateForm101PDF(data) {
 
   const pages = pdfDoc.getPages()
   fillPage1(pages[0], font, data)
+  fillSectionZ(pages[0], font, data)
+  await placeSectionZSignatures(pdfDoc, pages[0], data)
   if (pages[1]) {
     fillPage2(pages[1], font, data)
     await placeSignature(pdfDoc, pages[1], data.signature)

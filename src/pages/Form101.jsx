@@ -59,8 +59,20 @@ const defaultForm = {
   exemption_7_children: {},
   exemption_8_children: {},
   tax_coordination: false,
+  tax_coord_reasons: [],
+  tax_coord_employers: [],
+  year_changes: [],
   signature: '',
 }
+
+const TAX_COORD_OPTIONS = [
+  { num: 1, label: 'לא היתה לי הכנסה מתחילת שנת המס הנוכחית עד לתחילת עבודתי אצל מעסיק זה', hint: 'יש לצרף הוכחה (למשל אישור משטרת הגבולות על שהייה בחו"ל, אישור מחלה). דמי לידה ודמי אבטלה נחשבים הכנסה.' },
+  { num: 2, label: 'יש לי הכנסות נוספות ממשכורת (פירוט בטבלה)' },
+  { num: 3, label: 'פקיד השומה אישר תיאום לפי אישור מצורף' },
+]
+const INCOME_TYPE_OPTIONS = [['work', 'עבודה'], ['pension', 'קצבה'], ['scholarship', 'מלגה'], ['other', 'אחר']]
+const emptyEmployer = { name: '', address: '', file_number: '', income_type: 'work', monthly_income: '', tax_deducted: '' }
+const emptyChange = { change_date: '', details: '', notified_date: '' }
 
 export default function Form101() {
   const { currentUser, currentUserEmail, employees, submitForm101 } = useApp()
@@ -141,6 +153,9 @@ export default function Form101() {
         exemption_7_children: data.exemption_7_children || {},
         exemption_8_children: data.exemption_8_children || {},
         tax_coordination: data.tax_coordination ?? false,
+        tax_coord_reasons: (data.tax_coord_reasons && data.tax_coord_reasons.length) ? data.tax_coord_reasons : (data.tax_coordination ? [3] : []),
+        tax_coord_employers: data.tax_coord_employers || [],
+        year_changes: data.year_changes || [],
         signature: data.signature || '',
       })
     } else {
@@ -198,6 +213,27 @@ export default function Form101() {
     }))
   }
 
+  function toggleTaxReason(num) {
+    setForm(p => {
+      const has = p.tax_coord_reasons.includes(num)
+      const reasons = has ? p.tax_coord_reasons.filter(n => n !== num) : [...p.tax_coord_reasons, num].sort()
+      // opening reason 2 starts the employers table with one empty row
+      const employers = num === 2 && !has && p.tax_coord_employers.length === 0 ? [{ ...emptyEmployer }] : p.tax_coord_employers
+      return { ...p, tax_coord_reasons: reasons, tax_coord_employers: employers }
+    })
+  }
+
+  // edit a row inside an array field (tax_coord_employers / year_changes)
+  function setRow(field, i, key, value) {
+    setForm(p => ({ ...p, [field]: p[field].map((r, j) => (j === i ? { ...r, [key]: value } : r)) }))
+  }
+  function addRow(field, empty) {
+    setForm(p => (p[field].length >= 3 ? p : { ...p, [field]: [...p[field], { ...empty }] }))
+  }
+  function removeRow(field, i) {
+    setForm(p => ({ ...p, [field]: p[field].filter((_, j) => j !== i) }))
+  }
+
   function setChildCount(field, ageKey, value) {
     setForm(p => ({ ...p, [field]: { ...p[field], [ageKey]: value } }))
   }
@@ -209,6 +245,11 @@ export default function Form101() {
     }
     if (form.income_types.length === 0) {
       setAlert({ title: 'שגיאה', message: 'יש לסמן לפחות סוג הכנסה אחד' })
+      return
+    }
+
+    if (form.tax_coord_reasons.includes(2) && !form.tax_coord_employers.some(e => e.name?.trim())) {
+      setAlert({ title: 'שגיאה', message: 'בתיאום מס סימנת "יש לי הכנסות נוספות" — יש למלא לפחות מעסיק אחד בטבלה' })
       return
     }
 
@@ -234,6 +275,13 @@ export default function Form101() {
         employee_name: emp?.full_name || currentUser.name,
         employee_email: currentUserEmail,
         ...form,
+        // keep the legacy flag in sync (it meant reason 3)
+        tax_coordination: form.tax_coord_reasons.includes(3),
+        tax_coord_employers: form.tax_coord_reasons.includes(2) ? form.tax_coord_employers.filter(e => e.name?.trim() || e.file_number?.trim()) : [],
+        // a change row gets today's date as its notification date
+        year_changes: form.year_changes
+          .filter(r => r.change_date || r.details?.trim())
+          .map(r => ({ ...r, notified_date: r.notified_date || new Date().toISOString().slice(0, 10) })),
         signature,
         id_front_url: idFrontUrl,
         id_back_url: idBackUrl,
@@ -510,6 +558,30 @@ export default function Form101() {
           />
         </Section>
 
+        <Section title="ז. שינויים במהלך השנה">
+          <p className="text-xs text-gray-500 mb-3">
+            מלא/י רק אם חל שינוי בפרטים אחרי שהגשת את הטופס (למשל לידת ילד, שינוי מצב משפחתי, כתובת או הכנסה נוספת). עד 3 שינויים — תאריך ההודעה נרשם אוטומטית.
+          </p>
+          <div className="space-y-3">
+            {form.year_changes.map((r, i) => (
+              <div key={i} className="rounded-xl border border-gray-200 bg-white/60 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-gray-600">שינוי {i + 1}{r.notified_date ? ` · דווח ב-${r.notified_date.split('-').reverse().join('/')}` : ''}</span>
+                  {!disabled && <button type="button" onClick={() => removeRow('year_changes', i)} className="text-xs text-red-500 hover:text-red-700">הסר</button>}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div><label className="form-label text-xs">תאריך השינוי</label><input type="date" className="form-control text-sm" value={r.change_date} onChange={ev => setRow('year_changes', i, 'change_date', ev.target.value)} disabled={disabled} /></div>
+                  <div className="sm:col-span-2"><label className="form-label text-xs">פרטי השינוי</label><input className="form-control text-sm" maxLength={90} placeholder="למשל: נולד ילד, עברתי דירה לחיפה" value={r.details} onChange={ev => setRow('year_changes', i, 'details', ev.target.value)} disabled={disabled} /></div>
+                </div>
+              </div>
+            ))}
+            {!disabled && form.year_changes.length < 3 && (
+              <button type="button" onClick={() => addRow('year_changes', emptyChange)} className="text-xs font-semibold text-brand-700 hover:text-brand-900">+ הוסף שינוי</button>
+            )}
+            {disabled && form.year_changes.length === 0 && <p className="text-xs text-gray-400">לא דווחו שינויים</p>}
+          </div>
+        </Section>
+
         <Section title="ח. אני מבקש/ת פטור או זיכוי ממס">
           <div className="space-y-2">
             {EXEMPTION_OPTIONS.map(ex => (
@@ -595,8 +667,47 @@ export default function Form101() {
           </div>
         </Section>
 
-        <Section title="ט. תיאום מס">
-          <Checkbox label="צירוף/עריכת תיאום מס" checked={form.tax_coordination} onChange={v => !disabled && set('tax_coordination', v)} disabled={disabled} />
+        <Section title="ט. אני מבקש/ת תיאום מס בגלל הסיבות הבאות">
+          <p className="text-xs text-gray-500 mb-3">רק אם רלוונטי — מי שעובד רק כאן ואין לו הכנסה נוספת לא צריך לסמן כלום.</p>
+          <div className="space-y-3">
+            {TAX_COORD_OPTIONS.map(opt => (
+              <div key={opt.num}>
+                <Checkbox label={`${opt.num}. ${opt.label}`} checked={form.tax_coord_reasons.includes(opt.num)} onChange={() => !disabled && toggleTaxReason(opt.num)} disabled={disabled} />
+                {opt.hint && form.tax_coord_reasons.includes(opt.num) && (
+                  <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mt-1.5 mr-6">{opt.hint}</p>
+                )}
+
+                {opt.num === 2 && form.tax_coord_reasons.includes(2) && (
+                  <div className="mt-2 mr-6 space-y-3">
+                    {form.tax_coord_employers.map((e, i) => (
+                      <div key={i} className="rounded-xl border border-gray-200 bg-white/60 p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-semibold text-gray-600">מעסיק / משלם משכורת {i + 1}</span>
+                          {!disabled && <button type="button" onClick={() => removeRow('tax_coord_employers', i)} className="text-xs text-red-500 hover:text-red-700">הסר</button>}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div><label className="form-label text-xs">שם</label><input className="form-control text-sm" value={e.name} onChange={ev => setRow('tax_coord_employers', i, 'name', ev.target.value)} disabled={disabled} /></div>
+                          <div><label className="form-label text-xs">כתובת</label><input className="form-control text-sm" value={e.address} onChange={ev => setRow('tax_coord_employers', i, 'address', ev.target.value)} disabled={disabled} /></div>
+                          <div><label className="form-label text-xs">מספר תיק ניכויים</label><input className="form-control text-sm tabular-nums" dir="ltr" inputMode="numeric" maxLength={9} placeholder="9XXXXXXXX" value={e.file_number} onChange={ev => setRow('tax_coord_employers', i, 'file_number', ev.target.value.replace(/\D/g, ''))} disabled={disabled} /></div>
+                          <div>
+                            <label className="form-label text-xs">סוג ההכנסה</label>
+                            <select className="form-control text-sm" value={e.income_type} onChange={ev => setRow('tax_coord_employers', i, 'income_type', ev.target.value)} disabled={disabled}>
+                              {INCOME_TYPE_OPTIONS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                            </select>
+                          </div>
+                          <div><label className="form-label text-xs">הכנסה חודשית (₪)</label><input className="form-control text-sm tabular-nums" inputMode="decimal" value={e.monthly_income} onChange={ev => setRow('tax_coord_employers', i, 'monthly_income', ev.target.value)} disabled={disabled} /></div>
+                          <div><label className="form-label text-xs">המס שנוכה (₪, לפי התלושים)</label><input className="form-control text-sm tabular-nums" inputMode="decimal" value={e.tax_deducted} onChange={ev => setRow('tax_coord_employers', i, 'tax_deducted', ev.target.value)} disabled={disabled} /></div>
+                        </div>
+                      </div>
+                    ))}
+                    {!disabled && form.tax_coord_employers.length < 3 && (
+                      <button type="button" onClick={() => addRow('tax_coord_employers', emptyEmployer)} className="text-xs font-semibold text-brand-700 hover:text-brand-900">+ הוסף מעסיק נוסף</button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </Section>
 
         <Section title="י. הצהרה">
