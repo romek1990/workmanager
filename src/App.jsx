@@ -11,7 +11,6 @@ import EmployeeProfile from './pages/EmployeeProfile'
 import Shifts from './pages/Shifts'
 import Bonuses from './pages/Bonuses'
 import Reports from './pages/Reports'
-import Messages from './pages/Messages'
 import UserHome from './pages/UserHome'
 import MyShifts from './pages/MyShifts'
 import WeeklySchedule from './pages/WeeklySchedule'
@@ -64,8 +63,8 @@ function AppRoutes() {
           <Route path="/weekly-schedule" element={<ProtectedRoute requiredRole="admin"><WeeklySchedule /></ProtectedRoute>} />
           <Route path="/bonuses" element={<ProtectedRoute requiredRole="admin"><Bonuses /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute requiredRole="admin"><Reports /></ProtectedRoute>} />
-          <Route path="/messages" element={<ProtectedRoute requiredRole="admin"><Messages /></ProtectedRoute>} />
-          <Route path="/whatsapp" element={<ProtectedRoute requiredRole="admin"><WhatsApp /></ProtectedRoute>} />
+          <Route path="/messages" element={<ProtectedRoute requiredRole="admin"><WhatsApp /></ProtectedRoute>} />
+          <Route path="/whatsapp" element={<Navigate to="/messages" replace />} />
           <Route path="/activity-logs" element={<ProtectedRoute requiredRole="admin"><ActivityLogs /></ProtectedRoute>} />
           <Route path="/my-home" element={<ProtectedRoute><UserHome /></ProtectedRoute>} />
           <Route path="/my-shifts" element={<ProtectedRoute><MyShifts /></ProtectedRoute>} />

@@ -5,3 +5,5 @@ alter table public.shifts add column if not exists open_alert_sent_at timestampt
 -- pg_cron jobs calling the whatsapp-auto Edge Function with header x-cron-secret:
 --   whatsapp-open-shift-alerts  '*/30 * * * *'  {"job":"open_shifts"}
 --   whatsapp-form101-weekly     '0 7 * * 0'     {"job":"form101"}   (Sunday 10:00 IDT / 09:00 IST)
+-- 2026-10-01 (migration: messages_log_admin_insert_email): whatsapp_messages.channel ('whatsapp'|'email');
+--   admins may insert rows with channel='email' (emails are sent from the browser via EmailJS)

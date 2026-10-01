@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { MessageCircle, Send, Search, User, Users, CheckCheck, PhoneOff, AlertTriangle, History } from 'lucide-react'
+import { MessageCircle, Send, Search, User, Users, CheckCheck, PhoneOff, AlertTriangle, History, Mail } from 'lucide-react'
+import emailjs from '@emailjs/browser'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { Avatar, Modal, Toast, useToast } from '../components/ui'
@@ -7,6 +8,10 @@ import WhatsAppSender from '../components/WhatsAppSender'
 
 const FN_URL = 'https://nwetajywazzpxkdknqsf.supabase.co/functions/v1/whatsapp-send'
 const MAX_LEN = 4000
+
+// email goes out from the browser through EmailJS (same template the old Messages page used)
+const EMAILJS = { service: 'service_atutffw', template: 'template_er61rbp', publicKey: 'O6dGxcOoOfwbY1b2g' }
+const hasEmail = e => /\S+@\S+\.\S+/.test(e?.email || '')
 
 const TEMPLATES = [
   { label: 'תזכורת סידור', text: 'היי {שם}, הסידור לשבוע הבא פורסם במערכת. נא לבדוק את המשמרות שלך 🙏' },
@@ -18,6 +23,11 @@ const TEMPLATES = [
 // automatic messages (whatsapp-auto) are tagged by kind
 const KIND_LABEL = { schedule: 'סידור שבועי', form101: 'טופס 101', open_shift: 'משמרת פתוחה', shift_reminder: 'תזכורת משמרת' }
 const KIND_BADGE = { schedule: 'badge-success', form101: 'badge-warning', open_shift: 'badge-danger', shift_reminder: 'badge-info' }
+
+const CHANNELS = [
+  { key: 'whatsapp', label: 'וואטסאפ', icon: MessageCircle },
+  { key: 'email', label: 'מייל', icon: Mail },
+]
 
 function hasPhone(p) {
   return (p || '').replace(/\D/g, '').length >= 9
@@ -33,6 +43,8 @@ export default function WhatsApp() {
   const [selectedId, setSelectedId] = useState(null)
   const [search, setSearch] = useState('')
   const [message, setMessage] = useState('')
+  const [subject, setSubject] = useState('')
+  const [channels, setChannels] = useState({ whatsapp: true, email: false })
   const [sending, setSending] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [result, setResult] = useState(null)
@@ -48,12 +60,17 @@ export default function WhatsApp() {
   )
   const selected = active.find(e => e.id === selectedId)
   const withPhone = active.filter(e => hasPhone(e.phone))
-  const recipientsCount = mode === 'all' ? withPhone.length : (selected && hasPhone(selected.phone) ? 1 : 0)
+  const withEmail = active.filter(hasEmail)
+  // reachable = can get the message on at least one chosen channel
+  const reachable = e => (channels.whatsapp && hasPhone(e.phone)) || (channels.email && hasEmail(e))
+  const reachableAll = active.filter(reachable)
+  const recipientsCount = mode === 'all' ? reachableAll.length : (selected && reachable(selected) ? 1 : 0)
+  const anyChannel = channels.whatsapp || channels.email
 
   const previewName = mode === 'single' ? (selected?.full_name?.split(' ')[0] || 'דניאל') : 'דניאל'
   const preview = message.replaceAll('{שם}', previewName)
 
-  const canSend = !!message.trim() && recipientsCount > 0 && !sending && message.length <= MAX_LEN
+  const canSend = anyChannel && !!message.trim() && (!channels.email || !!subject.trim()) && recipientsCount > 0 && !sending && message.length <= MAX_LEN
 
   async function loadHistory() {
     const { data } = await supabase
@@ -77,38 +94,76 @@ export default function WhatsApp() {
     setMessage(m => (m.endsWith(' ') || !m ? m : m + ' ') + '{שם}')
   }
 
+  async function sendWhatsApp() {
+    const { data: sess } = await supabase.auth.getSession()
+    const token = sess?.session?.access_token
+    if (!token) throw new Error('יש להתחבר מחדש למערכת')
+    const res = await fetch(FN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ message, mode, employeeId: mode === 'single' ? selectedId : undefined }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(body.error || `שגיאה ${res.status}`)
+    return body
+  }
+
+  async function sendEmails() {
+    const targets = (mode === 'all' ? active : [selected]).filter(Boolean)
+    const batchId = crypto.randomUUID()
+    const rows = []
+    const results = []
+    for (const e of targets) {
+      const first = (e.full_name || '').split(' ')[0]
+      const text = message.replaceAll('{שם}', first)
+      const base = { batch_id: batchId, channel: 'email', kind: 'manual', sent_by: currentUser?.id, sent_by_name: currentUser?.name,
+        recipient_id: e.id, recipient_name: e.full_name, phone: e.email, message: `${subject}\n${text}`, is_broadcast: mode === 'all' }
+      if (!hasEmail(e)) { rows.push({ ...base, status: 'skipped', error: 'no_email' }); results.push({ id: e.id, name: e.full_name, status: 'skipped' }); continue }
+      try {
+        await emailjs.send(EMAILJS.service, EMAILJS.template,
+          { to_email: e.email, employee_name: e.full_name, subject: subject.replaceAll('{שם}', first), body: text },
+          { publicKey: EMAILJS.publicKey })
+        rows.push({ ...base, status: 'sent' }); results.push({ id: e.id, name: e.full_name, status: 'sent' })
+      } catch (err) {
+        rows.push({ ...base, status: 'failed', error: String(err?.text || err).slice(0, 300) }); results.push({ id: e.id, name: e.full_name, status: 'failed' })
+      }
+    }
+    if (rows.length) await supabase.from('whatsapp_messages').insert(rows)
+    return {
+      summary: { sent: results.filter(r => r.status === 'sent').length, failed: results.filter(r => r.status === 'failed').length, skipped: results.filter(r => r.status === 'skipped').length },
+      results,
+    }
+  }
+
   async function send() {
     setConfirmOpen(false)
     setSending(true)
     setResult(null)
+    const out = {}
     try {
-      const { data: s } = await supabase.auth.getSession()
-      const token = s?.session?.access_token
-      if (!token) throw new Error('יש להתחבר מחדש למערכת')
-      const res = await fetch(FN_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ message, mode, employeeId: mode === 'single' ? selectedId : undefined }),
-      })
-      const body = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(body.error || `שגיאה ${res.status}`)
-
-      setResult(body)
-      const { sent, failed } = body.summary
-      if (failed === 0) {
-        showToast(mode === 'all' ? `נשלח ל-${sent} עובדים` : `ההודעה נשלחה ל${selected?.full_name}`)
-        setMessage('')
-      } else {
-        showToast(`נשלחו ${sent}, נכשלו ${failed}`, 'error')
+      if (channels.whatsapp) {
+        try { out.whatsapp = await sendWhatsApp() } catch (e) { out.whatsapp = { error: e.message } }
       }
+      if (channels.email) {
+        try { out.email = await sendEmails() } catch (e) { out.email = { error: e.message } }
+      }
+      setResult(out)
+      const parts = Object.values(out)
+      const ok = parts.every(p => !p.error && !(p.summary?.failed))
+      const sentTotal = parts.reduce((a, p) => a + (p.summary?.sent || 0), 0)
+      if (ok && sentTotal > 0) {
+        showToast(mode === 'all' ? `נשלחו ${sentTotal} הודעות` : `ההודעה נשלחה ל${selected?.full_name}`)
+        setMessage(''); setSubject('')
+      } else {
+        showToast(sentTotal ? 'חלק מההודעות לא נשלחו — ראה פירוט' : 'השליחה נכשלה', 'error')
+      }
+      const via = [channels.whatsapp && 'וואטסאפ', channels.email && 'מייל'].filter(Boolean).join(' + ')
       logActivity?.(
         currentUser?.id, currentUser?.name, currentUser?.email,
-        'שליחת וואטסאפ',
-        mode === 'all' ? `הודעה כללית נשלחה ל-${sent} עובדים` : `הודעה נשלחה ל${selected?.full_name}`
+        'שליחת הודעה',
+        mode === 'all' ? `הודעה כללית (${via}) — ${sentTotal} נשלחו` : `הודעה (${via}) ל${selected?.full_name}`
       )
       loadHistory()
-    } catch (e) {
-      showToast(e.message || 'השליחה נכשלה', 'error')
     } finally {
       setSending(false)
     }
@@ -129,8 +184,8 @@ export default function WhatsApp() {
             <MessageCircle size={24} />
           </span>
           <div>
-            <h1 className="text-[28px] font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>וואטסאפ</h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--text-dim)' }}>שליחת הודעה לעובד או הודעה כללית לכל העובדים</p>
+            <h1 className="text-[28px] font-extrabold tracking-tight" style={{ color: 'var(--text)' }}>הודעות</h1>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--text-dim)' }}>הודעה לעובד או לכל העובדים — בוואטסאפ, במייל או בשניהם</p>
           </div>
         </div>
       </div>
@@ -175,7 +230,7 @@ export default function WhatsApp() {
                   <p className="text-center text-sm py-8" style={{ color: 'var(--text-dim)' }}>לא נמצאו עובדים</p>
                 )}
                 {filtered.map(e => {
-                  const ok = hasPhone(e.phone)
+                  const ok = reachable(e)
                   const isSel = e.id === selectedId
                   return (
                     <button
@@ -188,7 +243,7 @@ export default function WhatsApp() {
                       <div className="min-w-0 flex-1">
                         <p className={`text-sm truncate ${isSel ? 'font-bold text-brand-800' : 'font-medium'}`}>{e.full_name}</p>
                         <p className="text-xs truncate tabular-nums" dir="ltr" style={{ color: 'var(--text-dim)', textAlign: 'right' }}>
-                          {ok ? e.phone : 'אין מספר טלפון'}
+                          {[channels.whatsapp && (hasPhone(e.phone) ? e.phone : 'אין טלפון'), channels.email && (hasEmail(e) ? e.email : 'אין מייל')].filter(Boolean).join(' · ') || '—'}
                         </p>
                       </div>
                       {!ok && <PhoneOff size={14} className="text-gray-400 shrink-0" />}
@@ -202,16 +257,22 @@ export default function WhatsApp() {
             <div className="p-5">
               <div className="rounded-2xl p-5 text-center" style={{ background: 'rgba(37,211,102,0.08)' }}>
                 <Users size={28} className="mx-auto mb-2 text-brand-600" />
-                <p className="text-3xl font-extrabold tabular-nums">{withPhone.length}</p>
+                <p className="text-3xl font-extrabold tabular-nums">{reachableAll.length}</p>
                 <p className="text-sm mt-1" style={{ color: 'var(--text-dim)' }}>עובדים פעילים יקבלו את ההודעה</p>
+                <p className="text-xs mt-2" style={{ color: 'var(--text-dim)' }}>
+                  {channels.whatsapp && `${withPhone.length} בוואטסאפ`}{channels.whatsapp && channels.email && ' · '}{channels.email && `${withEmail.length} במייל`}
+                </p>
               </div>
-              {active.length > withPhone.length && (
+              {channels.whatsapp && active.length > withPhone.length && (
                 <div className="mt-4 flex items-start gap-2 text-xs rounded-xl p-3" style={{ background: 'rgba(255,176,32,0.14)', color: '#8a5a00' }}>
                   <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                  <span>
-                    {active.length - withPhone.length} עובדים בלי מספר טלפון ולא יקבלו:{' '}
-                    {active.filter(e => !hasPhone(e.phone)).map(e => e.full_name).join(', ')}
-                  </span>
+                  <span>בלי טלפון (לא יקבלו וואטסאפ): {active.filter(e => !hasPhone(e.phone)).map(e => e.full_name).join(', ')}</span>
+                </div>
+              )}
+              {channels.email && active.length > withEmail.length && (
+                <div className="mt-2 flex items-start gap-2 text-xs rounded-xl p-3" style={{ background: 'rgba(255,176,32,0.14)', color: '#8a5a00' }}>
+                  <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                  <span>בלי מייל: {active.filter(e => !hasEmail(e)).map(e => e.full_name).join(', ')}</span>
                 </div>
               )}
             </div>
@@ -225,9 +286,25 @@ export default function WhatsApp() {
             <span className="text-xs" style={{ color: 'var(--text-dim)' }}>
               {mode === 'single'
                 ? (selected ? <>אל: <b className="text-gray-800">{selected.full_name}</b></> : 'בחר עובד מהרשימה')
-                : <>אל: <b className="text-gray-800">כל העובדים ({withPhone.length})</b></>}
+                : <>אל: <b className="text-gray-800">כל העובדים ({reachableAll.length})</b></>}
             </span>
           </div>
+
+          <div className="flex gap-2 mb-3">
+            {CHANNELS.map(({ key, label, icon: Icon }) => (
+              <button key={key} onClick={() => { setChannels(c => ({ ...c, [key]: !c[key] })); setResult(null) }}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-2xl text-sm font-semibold border transition-all ${channels[key] ? 'border-brand-400 bg-brand-500/10 text-brand-800' : 'border-black/10 bg-white/50 text-gray-500 hover:text-gray-800'}`}>
+                <span className={`w-4 h-4 rounded-md border flex items-center justify-center ${channels[key] ? 'bg-brand-600 border-brand-600' : 'border-gray-300 bg-white'}`}>
+                  {channels[key] && <CheckCheck size={11} className="text-white" />}
+                </span>
+                <Icon size={15} /> {label}
+              </button>
+            ))}
+          </div>
+
+          {channels.email && (
+            <input className="form-control mb-3" value={subject} onChange={e => setSubject(e.target.value)} placeholder="נושא המייל (חובה למייל)" />
+          )}
 
           <div className="flex flex-wrap gap-2 mb-3">
             {TEMPLATES.map(t => (
@@ -276,19 +353,25 @@ export default function WhatsApp() {
             >
               {sending
                 ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> שולח...</>
-                : <><Send size={16} /> {mode === 'all' ? `שלח לכולם (${withPhone.length})` : 'שלח'}</>}
+                : <><Send size={16} /> {mode === 'all' ? `שלח לכולם (${reachableAll.length})` : 'שלח'}</>}
             </button>
           </div>
 
           {result && (
-            <div className="mt-4 rounded-2xl p-4 text-sm animate-rise" style={{ background: result.summary.failed ? 'rgba(255,90,95,0.1)' : 'rgba(15,157,88,0.08)' }}>
-              <p className="font-bold mb-1">
-                נשלחו {result.summary.sent}
-                {result.summary.failed > 0 && ` · נכשלו ${result.summary.failed}`}
-                {result.summary.skipped > 0 && ` · דולגו ${result.summary.skipped} (אין טלפון)`}
-              </p>
-              {result.results.filter(r => r.status === 'failed').map(r => (
-                <p key={r.id} className="text-xs text-red-600">✗ {r.name}</p>
+            <div className="mt-4 space-y-2 animate-rise">
+              {Object.entries(result).map(([ch, r]) => (
+                <div key={ch} className="rounded-2xl p-4 text-sm" style={{ background: r.error || r.summary?.failed ? 'rgba(255,90,95,0.1)' : 'rgba(15,157,88,0.08)' }}>
+                  <p className="font-bold mb-1">
+                    {ch === 'email' ? 'מייל' : 'וואטסאפ'}: {r.error ? `נכשל — ${r.error}` : <>
+                      נשלחו {r.summary.sent}
+                      {r.summary.failed > 0 && ` · נכשלו ${r.summary.failed}`}
+                      {r.summary.skipped > 0 && ` · דולגו ${r.summary.skipped} (${ch === 'email' ? 'אין מייל' : 'אין טלפון'})`}
+                    </>}
+                  </p>
+                  {(r.results || []).filter(x => x.status === 'failed').map(x => (
+                    <p key={x.id} className="text-xs text-red-600">✗ {x.name}</p>
+                  ))}
+                </div>
               ))}
             </div>
           )}
@@ -314,12 +397,13 @@ export default function WhatsApp() {
                     <span className={`badge ${KIND_BADGE[h.kind] || (h.is_broadcast ? 'badge-info' : 'badge-gray')}`}>
                       {KIND_LABEL[h.kind] || (h.is_broadcast ? 'כללית' : 'אישית')}
                     </span>
+                    {h.channel === 'email' ? <Mail size={13} className="text-sky-600" /> : <MessageCircle size={13} className="text-brand-600" />}
                     <span className="text-xs tabular-nums" style={{ color: 'var(--text-dim)' }}>{fmtTime(h.created_at)}</span>
                   </div>
                   <div className="md:w-40 shrink-0 text-sm font-medium truncate">
                     {h.rows.length > 1 ? `${h.rows.length} נמענים` : h.recipient_name}
                   </div>
-                  <p className="flex-1 min-w-0 text-sm truncate" style={{ color: 'var(--text-dim)' }}>{h.message}</p>
+                  <p className="flex-1 min-w-0 text-sm truncate" style={{ color: 'var(--text-dim)' }}>{String(h.message || '').replace(/\n/g, ' · ')}</p>
                   <div className="shrink-0 text-xs font-semibold">
                     {failed > 0
                       ? <span className="text-red-600">{sent} נשלחו · {failed} נכשלו</span>
@@ -338,10 +422,14 @@ export default function WhatsApp() {
         title="שליחה לכל העובדים"
         footer={<>
           <button className="btn" onClick={() => setConfirmOpen(false)}>ביטול</button>
-          <button className="btn btn-success" onClick={send}><Send size={14} /> שלח ל-{withPhone.length} עובדים</button>
+          <button className="btn btn-success" onClick={send}><Send size={14} /> שלח ל-{reachableAll.length} עובדים</button>
         </>}
       >
-        <p className="text-sm mb-3">ההודעה תישלח בוואטסאפ ל-<b>{withPhone.length}</b> עובדים פעילים. לא ניתן לבטל אחרי השליחה.</p>
+        <p className="text-sm mb-3">
+          ההודעה תישלח ל-<b>{reachableAll.length}</b> עובדים פעילים
+          ({[channels.whatsapp && `${withPhone.length} בוואטסאפ`, channels.email && `${withEmail.length} במייל`].filter(Boolean).join(', ')}). לא ניתן לבטל אחרי השליחה.
+        </p>
+        {channels.email && <p className="text-sm mb-2"><b>נושא:</b> {subject}</p>}
         <div className="rounded-xl p-3 text-sm whitespace-pre-wrap max-h-48 overflow-y-auto" style={{ background: '#D9FDD3' }}>{preview}</div>
       </Modal>
 

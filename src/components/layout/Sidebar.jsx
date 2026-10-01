@@ -13,8 +13,7 @@ const baseAdminNav = [
   { to: '/weekly-schedule', label: 'סידור שבועי', icon: CalendarDays },
   { to: '/bonuses', label: 'בונוסים', icon: Gift },
   { to: '/reports', label: 'דוחות', icon: BarChart2 },
-  { to: '/messages', label: 'הודעות', icon: Mail },
-  { to: '/whatsapp', label: 'וואטסאפ', icon: MessageCircle },
+  { to: '/messages', label: 'הודעות', icon: MessageCircle },
 ]
 
 const superAdminNav = [
