@@ -7,6 +7,7 @@
 // POST { action: "create", full_name, email, phone?, permissions: string[], code }
 // POST { action: "update", id, permissions?, status?, full_name?, phone?, code }
 // POST { action: "delete", id, code }
+// POST { action: "reset", code }  — wipes all data except the super admin
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -92,6 +93,26 @@ serve(async (req) => {
       await admin.auth.resetPasswordForEmail(email, { redirectTo: `${SITE}/set-password` });
       await log("הוספת מנהל", `הוסיף את ${full_name} כמנהל (${permissions.join(", ") || "צפייה בלבד"})`);
       return json({ ok: true, id: created.user.id });
+    }
+
+    if (action === "reset") {
+      // wipe all test data before going live: keeps only the super admin + system settings
+      const tables = ["notifications", "whatsapp_messages", "day_notes", "weekly_schedule", "bonuses", "form_101", "shifts", "activity_logs"];
+      const counts: Record<string, number> = {};
+      for (const t of tables) {
+        const { error, count } = await admin.from(t).delete({ count: "exact" }).not("id", "is", null);
+        if (error) return json({ error: `${t}: ${error.message}` }, 500);
+        counts[t] = count || 0;
+      }
+      const { data: others } = await admin.from("profiles").select("id").or("is_super_admin.is.null,is_super_admin.eq.false");
+      let users = 0;
+      for (const p of others || []) {
+        const { error } = await admin.auth.admin.deleteUser(p.id);
+        if (!error) users++;
+      }
+      counts.users = users;
+      await log("איפוס נתונים", `נמחקו כל נתוני הבדיקה לפני הפיילוט: ${JSON.stringify(counts)}`);
+      return json({ ok: true, counts });
     }
 
     if (action === "update" || action === "delete") {
