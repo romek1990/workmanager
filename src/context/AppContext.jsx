@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase'
 
 const AppContext = createContext(null)
 
+export const BLOCKED_MSG = 'המשתמש חסום. נא לפנות למנהל'
+
 export function AppProvider({ children }) {
   const [employees, setEmployees] = useState([])
   const [shifts, setShifts] = useState([])
@@ -12,6 +14,7 @@ export function AppProvider({ children }) {
   const [notifications, setNotifications] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [authNotice, setAuthNotice] = useState('') // shown on the login screen (e.g. blocked user)
 
   const currentRole = currentUser?.role || null
   const currentUserEmail = currentUser?.email || null
@@ -31,6 +34,14 @@ export function AppProvider({ children }) {
 
   async function loadUserProfile(authUser) {
     const { data } = await supabase.from('profiles').select('*').eq('id', authUser.id).single()
+    // inactive employees are locked out (also catches a session that was open when they were deactivated)
+    if (data && data.role !== 'admin' && data.status !== 'active') {
+      await supabase.auth.signOut()
+      setCurrentUser(null)
+      setAuthNotice(BLOCKED_MSG)
+      setLoading(false)
+      return
+    }
     if (data) {
       setCurrentUser({ ...data, name: data.full_name })
       await logActivity(authUser.id, data.full_name, authUser.email, 'התחברות', 'התחבר למערכת')
@@ -119,8 +130,14 @@ export function AppProvider({ children }) {
   }
 
   async function login(email, password) {
+    setAuthNotice('')
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
+    const { data: profile } = await supabase.from('profiles').select('role, status').eq('id', data.user.id).single()
+    if (profile && profile.role !== 'admin' && profile.status !== 'active') {
+      await supabase.auth.signOut()
+      throw new Error(BLOCKED_MSG)
+    }
     return data
   }
 
@@ -340,7 +357,7 @@ export function AppProvider({ children }) {
       employees, shifts, bonuses, weeklySchedule, dayNotes,
       notifications, unreadCount,
       currentUser, currentRole, currentUserEmail,
-      loading,
+      loading, authNotice,
       login, logout,
       addEmployee, updateEmployee,
       addShift, updateShiftStatus,

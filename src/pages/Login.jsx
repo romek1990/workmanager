@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext'
 import { useNavigate } from 'react-router-dom'
 
 export default function Login() {
-  const { login } = useApp()
+  const { login, authNotice } = useApp()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -53,7 +53,11 @@ export default function Login() {
                 </button>
               </div>
             </div>
-            {error && <div className="mb-4 text-sm text-red-600 bg-red-50 rounded-lg px-4 py-2.5 text-center">{error}</div>}
+            {(error || authNotice) && (
+              <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-center font-medium">
+                {(error || authNotice) === 'Invalid login credentials' ? 'אימייל או סיסמא שגויים' : (error || authNotice)}
+              </div>
+            )}
             <button type="submit" disabled={loading} className="w-full btn btn-primary py-2.5 justify-center text-sm font-medium">
               {loading ? 'מתחבר...' : 'כניסה'}
             </button>
