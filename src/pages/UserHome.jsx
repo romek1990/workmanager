@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Play, Square, Clock, Banknote, CalendarDays, Plus, MoonStar, CalendarCheck } from 'lucide-react'
-import { useApp } from '../context/AppContext'
+import { useApp, clockErrorMessage } from '../context/AppContext'
 import { ShiftTypeBadge, StatusBadge, StatCard, CardSection, Table, AlertModal, Modal } from '../components/ui'
 import { calcShiftPay, fmtMoney, calcHours, todayISO, fmtHours, hoursFromMinutes, minutesBetween, localISODate } from '../utils/helpers'
 
@@ -98,7 +98,7 @@ export default function UserHome() {
         setAlert({ title: 'משמרת הסתיימה', message: `${row.start_time}–${row.end_time} (${fmtHours(row.total_hours)} שעות) — ממתינה לאישור המנהל` })
       }
     } catch (e) {
-      setAlert({ title: 'שגיאה', message: e.message || 'הפעולה נכשלה, נסה שוב' })
+      setAlert({ title: 'לא נרשם', message: clockErrorMessage(e) })
     } finally {
       setClockBusy(false)
     }

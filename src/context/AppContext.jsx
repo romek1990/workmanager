@@ -3,6 +3,29 @@ import { supabase } from '../lib/supabase'
 
 const AppContext = createContext(null)
 
+// Current GPS position (asks the browser for permission the first time)
+export function getPosition() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error('geo:unsupported'))
+    navigator.geolocation.getCurrentPosition(resolve, err => reject(new Error(err.code === 1 ? 'geo:denied' : 'geo:unavailable')), {
+      enableHighAccuracy: true, timeout: 15000, maximumAge: 20000,
+    })
+  })
+}
+
+// Friendly Hebrew message for clock-in/out failures
+export function clockErrorMessage(e) {
+  const m = String(e?.message || '')
+  if (m.includes('geo:denied')) return 'כדי להירשם למשמרת צריך לאשר גישה למיקום. בהגדרות הדפדפן אפשר את המיקום לאתר ונסה שוב.'
+  if (m.includes('geo:')) return 'לא הצלחנו לקבל את המיקום שלך. ודא שה-GPS דלוק ונסה שוב.'
+  if (m.includes('location required')) return 'נדרש מיקום כדי להירשם למשמרת. רענן את הדף ונסה שוב.'
+  const far = m.match(/too far:(\d+)/)
+  if (far) return `אתה נמצא כ-${Number(far[1]) >= 1000 ? (Number(far[1]) / 1000).toFixed(1) + ' ק"מ' : far[1] + ' מטר'} מהחנות. אפשר להירשם למשמרת רק מהחנות.`
+  if (m.includes('no open shift')) return 'אין משמרת פתוחה.'
+  if (m.includes('user blocked')) return 'המשתמש חסום. נא לפנות למנהל'
+  return 'הפעולה נכשלה, נסה שוב'
+}
+
 export const BLOCKED_MSG = 'המשתמש חסום. נא לפנות למנהל'
 
 export function AppProvider({ children }) {
@@ -210,8 +233,17 @@ export function AppProvider({ children }) {
     setShifts(prev => prev.some(s => s.id === row.id) ? prev.map(s => s.id === row.id ? row : s) : [row, ...prev])
   }
 
+  // Location check: only asks for GPS when the manager turned the store check on
+  async function clockLocation() {
+    const { data: st } = await supabase.from('store_settings').select('geofence_enabled').eq('id', 1).maybeSingle()
+    if (!st?.geofence_enabled) return { p_lat: null, p_lng: null, p_acc: null }
+    const pos = await getPosition()
+    return { p_lat: pos.coords.latitude, p_lng: pos.coords.longitude, p_acc: pos.coords.accuracy }
+  }
+
   async function clockIn() {
-    const { data, error } = await supabase.rpc('clock_in')
+    const loc = await clockLocation()
+    const { data, error } = await supabase.rpc('clock_in_geo', loc)
     if (error) throw error
     upsertShiftLocal(data)
     await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'תחילת משמרת', `התחיל משמרת בשעה ${data.start_time}`)
@@ -219,7 +251,8 @@ export function AppProvider({ children }) {
   }
 
   async function clockOut() {
-    const { data, error } = await supabase.rpc('clock_out')
+    const loc = await clockLocation()
+    const { data, error } = await supabase.rpc('clock_out_geo', loc)
     if (error) throw error
     upsertShiftLocal(data)
     await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'סיום משמרת', `סיים משמרת ${data.start_time}–${data.end_time}`)

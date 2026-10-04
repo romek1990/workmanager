@@ -14,7 +14,7 @@ const baseAdminNav = [
   { to: '/bonuses', label: 'בונוסים', icon: Gift },
   { to: '/reports', label: 'דוחות', icon: BarChart2 },
   { to: '/messages', label: 'הודעות', icon: MessageCircle },
-  { to: '/qr-codes', label: 'קודי QR', icon: QrCode },
+  { to: '/qr-codes', label: 'QR ומיקום', icon: QrCode },
 ]
 
 const superAdminNav = [

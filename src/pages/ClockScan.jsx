@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { LogIn, LogOut, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
-import { useApp } from '../context/AppContext'
+import { useApp, clockErrorMessage } from '../context/AppContext'
 import { fmtHours } from '../utils/helpers'
 import { supabase } from '../lib/supabase'
 
@@ -48,12 +48,7 @@ export default function ClockScan() {
           setState({ phase: 'done', title: 'המשמרת הסתיימה', big: `${row.start_time}–${row.end_time}`, text: `${fmtHours(row.total_hours)} שעות · נשלח לאישור המנהל` })
         }
       } catch (e) {
-        const msg = String(e?.message || '')
-        setState({
-          phase: 'error',
-          title: 'הרישום נכשל',
-          text: msg.includes('no open shift') ? 'אין משמרת פתוחה.' : 'משהו השתבש. נסה לסרוק שוב או לרשום מדף הבית.',
-        })
+        setState({ phase: 'error', title: 'הרישום נכשל', text: clockErrorMessage(e), retry: true })
       }
     })()
   }, [currentUser])
@@ -71,14 +66,20 @@ export default function ClockScan() {
           <Icon size={40} className={state.phase === 'working' ? 'animate-spin' : ''} />
         </div>
         {state.phase === 'working' ? (
-          <p className="text-lg font-bold">{isIn ? 'רושם כניסה למשמרת...' : 'רושם יציאה ממשמרת...'}</p>
+          <>
+            <p className="text-lg font-bold">{isIn ? 'רושם כניסה למשמרת...' : 'רושם יציאה ממשמרת...'}</p>
+            <p className="text-xs mt-2" style={{ color: 'var(--text-dim)' }}>אם תתבקש — אשר גישה למיקום</p>
+          </>
         ) : (
           <>
             <h1 className="text-xl font-extrabold mb-1">{state.title}</h1>
             {state.big && <p className="text-4xl font-extrabold tabular-nums my-3" dir="ltr">{state.big}</p>}
             <p className="text-sm" style={{ color: 'var(--text-dim)' }}>{state.text}</p>
             <p className="text-sm font-semibold mt-4">{currentUser?.name}</p>
-            <button className="btn btn-primary w-full justify-center mt-6 py-3" onClick={() => navigate(currentUser?.role === 'admin' ? '/' : '/my-home', { replace: true })}>
+            {state.retry && (
+              <button className="btn btn-success w-full justify-center mt-6 py-3" onClick={() => window.location.reload()}>נסה שוב</button>
+            )}
+            <button className={`btn ${state.retry ? '' : 'btn-primary'} w-full justify-center ${state.retry ? 'mt-2' : 'mt-6'} py-3`} onClick={() => navigate(currentUser?.role === 'admin' ? '/' : '/my-home', { replace: true })}>
               לדף הבית
             </button>
           </>

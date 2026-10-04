@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
-import { QrCode, Printer, LogIn, LogOut, Download } from 'lucide-react'
-import { PageHeader } from '../components/ui'
+import { QrCode, Printer, LogIn, LogOut, Download, MapPin, Crosshair } from 'lucide-react'
+import { PageHeader, Toast, useToast } from '../components/ui'
+import { useApp, getPosition } from '../context/AppContext'
+import { supabase } from '../lib/supabase'
 
 const SITE = 'https://workmanager-florentin.com'
 const CODES = [
@@ -36,6 +38,93 @@ function printSheet(imgs) {
   w.document.close()
 }
 
+
+function GeofenceSettings() {
+  const { can, currentUser } = useApp()
+  const canEdit = can('shifts')
+  const [st, setSt] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [acc, setAcc] = useState(null)
+  const [toast, showToast] = useToast(2600)
+
+  useEffect(() => {
+    supabase.from('store_settings').select('*').eq('id', 1).maybeSingle().then(({ data }) => setSt(data))
+  }, [])
+
+  async function save(patch, msg) {
+    setBusy(true)
+    const { data, error } = await supabase.from('store_settings')
+      .update({ ...patch, updated_at: new Date().toISOString(), updated_by: currentUser?.id }).eq('id', 1).select().single()
+    setBusy(false)
+    if (error) return showToast('השמירה נכשלה', 'error')
+    setSt(data); showToast(msg)
+  }
+
+  async function useHere() {
+    setBusy(true)
+    try {
+      const pos = await getPosition()
+      setAcc(Math.round(pos.coords.accuracy))
+      await save({ store_lat: pos.coords.latitude, store_lng: pos.coords.longitude }, 'מיקום החנות נשמר')
+    } catch (e) {
+      setBusy(false)
+      showToast(String(e.message).includes('denied') ? 'יש לאשר גישה למיקום בדפדפן' : 'לא הצלחנו לקבל מיקום', 'error')
+    }
+  }
+
+  if (!st) return null
+  const hasLoc = st.store_lat != null
+  const mapUrl = hasLoc ? `https://www.google.com/maps?q=${st.store_lat},${st.store_lng}` : null
+
+  return (
+    <div className="card p-6 mt-5">
+      <div className="flex flex-wrap items-start gap-3 mb-4">
+        <span className="w-10 h-10 rounded-xl bg-brand-500/10 text-brand-700 flex items-center justify-center"><MapPin size={20} /></span>
+        <div className="flex-1 min-w-[200px]">
+          <h2 className="font-bold">בדיקת מיקום</h2>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-dim)' }}>
+            כשהבדיקה פעילה, עובד יכול להיכנס או לצאת ממשמרת רק כשהוא נמצא בחנות — גם בסריקת QR וגם בכפתור באפליקציה.
+          </p>
+        </div>
+        <label className={`inline-flex items-center gap-2 text-sm font-semibold ${canEdit && hasLoc ? 'cursor-pointer' : 'opacity-50'}`}>
+          <input type="checkbox" className="w-5 h-5 accent-emerald-600" checked={st.geofence_enabled} disabled={!canEdit || !hasLoc || busy}
+            onChange={e => save({ geofence_enabled: e.target.checked }, e.target.checked ? 'בדיקת המיקום הופעלה' : 'בדיקת המיקום כובתה')} />
+          {st.geofence_enabled ? 'פעיל' : 'כבוי'}
+        </label>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div className="rounded-xl bg-white/60 border border-black/5 p-4">
+          <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>מיקום החנות</p>
+          {hasLoc ? (
+            <p className="text-sm">
+              נשמר · <a className="text-brand-700 font-semibold underline" href={mapUrl} target="_blank" rel="noreferrer">הצג במפה</a>
+              {acc != null && <span className="text-xs" style={{ color: 'var(--text-dim)' }}> (דיוק ±{acc} מ')</span>}
+            </p>
+          ) : (
+            <p className="text-sm text-amber-700">עוד לא הוגדר — עמוד בתוך החנות ולחץ על הכפתור</p>
+          )}
+          {canEdit && (
+            <button className="btn btn-primary text-xs py-1.5 px-3 mt-3" onClick={useHere} disabled={busy}>
+              <Crosshair size={13} />{busy ? 'מאתר...' : 'קבע לפי המיקום הנוכחי שלי'}
+            </button>
+          )}
+        </div>
+        <div className="rounded-xl bg-white/60 border border-black/5 p-4">
+          <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-dim)' }}>טווח מותר מהחנות</p>
+          <select className="form-control" value={st.radius_m} disabled={!canEdit || busy}
+            onChange={e => save({ radius_m: Number(e.target.value) }, 'הטווח עודכן')}>
+            {[50, 100, 150, 200, 300, 500].map(r => <option key={r} value={r}>{r} מטר</option>)}
+          </select>
+          <p className="text-[11px] mt-2" style={{ color: 'var(--text-dim)' }}>מומלץ 150 מטר — GPS בתוך מבנה לא תמיד מדויק.</p>
+        </div>
+      </div>
+      {!canEdit && <p className="text-xs mt-3 text-amber-700">צפייה בלבד — שינוי ההגדרה דורש הרשאת משמרות.</p>}
+      <Toast {...toast} />
+    </div>
+  )
+}
+
 export default function QrCodes() {
   const [imgs, setImgs] = useState({})
 
@@ -50,7 +139,7 @@ export default function QrCodes() {
 
   return (
     <div className="p-4 md:px-10 md:py-8">
-      <PageHeader icon={QrCode} title="קודי QR למשמרות" subtitle="מדפיסים, תולים בחנות — והעובד סורק עם מצלמת הטלפון כדי להיכנס או לצאת ממשמרת">
+      <PageHeader icon={QrCode} title="QR ומיקום" subtitle="מדפיסים, תולים בחנות — והעובד סורק עם מצלמת הטלפון כדי להיכנס או לצאת ממשמרת">
         <button className="btn btn-primary" disabled={!ready} onClick={() => printSheet(imgs)}><Printer size={15} />הדפס</button>
       </PageHeader>
 
@@ -76,6 +165,8 @@ export default function QrCodes() {
           </div>
         ))}
       </div>
+
+      <GeofenceSettings />
 
       <div className="card p-5 mt-5 text-sm leading-relaxed" style={{ color: 'var(--text-dim)' }}>
         <b className="text-gray-800">איך זה עובד:</b> העובד סורק את הקוד במצלמה ← נפתח האתר ← הכניסה/יציאה נרשמת מיד עם שעת השרת.
