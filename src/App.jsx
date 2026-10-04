@@ -1,5 +1,5 @@
 import React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AppProvider, useApp } from './context/AppContext'
 import Sidebar from './components/layout/Sidebar'
 import ProtectedRoute from './components/layout/ProtectedRoute'
@@ -19,9 +19,25 @@ import Form101 from './pages/Form101'
 import Admin101 from './pages/Admin101'
 import WhatsApp from './pages/WhatsApp'
 import Managers from './pages/Managers'
+import ClockScan, { PENDING_CLOCK_KEY } from './pages/ClockScan'
+import QrCodes from './pages/QrCodes'
 import { MeshBackground } from './components/ui'
 
 
+
+// Scanned a QR code while logged out: remember it, log in, then finish the clock-in/out
+function RememberClock() {
+  const { search } = useLocation()
+  try { sessionStorage.setItem(PENDING_CLOCK_KEY, search || '?a=in') } catch {}
+  return <Navigate to="/login" replace />
+}
+
+function HomeRedirect({ role }) {
+  let pending = null
+  try { pending = sessionStorage.getItem(PENDING_CLOCK_KEY) } catch {}
+  if (pending && role !== 'admin') return <Navigate to={`/clock${pending}`} replace />
+  return <Navigate to={role === 'admin' ? '/' : '/my-home'} replace />
+}
 
 function AppRoutes() {
   const { currentUser, loading } = useApp()
@@ -44,6 +60,7 @@ function AppRoutes() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/set-password" element={<SetPassword />} />
+            <Route path="/clock" element={<RememberClock />} />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </div>
@@ -70,7 +87,9 @@ function AppRoutes() {
           <Route path="/activity-logs" element={<ProtectedRoute requiredRole="admin"><ActivityLogs /></ProtectedRoute>} />
           <Route path="/my-home" element={<ProtectedRoute><UserHome /></ProtectedRoute>} />
           <Route path="/my-shifts" element={<ProtectedRoute><MyShifts /></ProtectedRoute>} />
-          <Route path="*" element={<Navigate to={currentUser.role === 'admin' ? '/' : '/my-home'} replace />} />
+          <Route path="/clock" element={<ProtectedRoute><ClockScan /></ProtectedRoute>} />
+          <Route path="/qr-codes" element={<ProtectedRoute requiredRole="admin"><QrCodes /></ProtectedRoute>} />
+          <Route path="*" element={<HomeRedirect role={currentUser.role} />} />
           <Route path="/form-101" element={<ProtectedRoute><Form101 /></ProtectedRoute>} />
 <Route path="/admin-101" element={<ProtectedRoute requiredRole="admin"><Admin101 /></ProtectedRoute>} />
         </Routes>
