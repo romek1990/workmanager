@@ -47,7 +47,7 @@ function calcHoursStr(start, end) {
 
 export default function UserHome() {
   const { employees, shifts, bonuses, weeklySchedule, dayNotes, currentUserEmail, currentUser, addShift, clockIn, clockOut, refreshShifts } = useApp()
-  const emp = employees.find(e => e.email === currentUserEmail)
+  const emp = employees.find(e => e.email === currentUserEmail) || currentUser
   const [now, setNow] = useState(new Date())
   const [clockBusy, setClockBusy] = useState(false)
   const [alert, setAlert] = useState(null)

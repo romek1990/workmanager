@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 
 import { useApp } from '../../context/AppContext'
 import { Avatar } from '../ui'
-import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, CalendarDays, Menu, X, Shield, Bell, FileText, MessageCircle, UserCog, QrCode } from 'lucide-react'
+import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, CalendarDays, Menu, X, Shield, Bell, FileText, MessageCircle, UserCog, QrCode, Timer } from 'lucide-react'
 
 const baseAdminNav = [
   { to: '/', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
@@ -30,14 +30,17 @@ const userNav = [
 ]
 
 export default function Sidebar() {
-  const { currentUser, isSuperAdmin, can, logout, notifications, unreadCount, markNotificationRead, markAllNotificationsRead } = useApp()
+  const { currentUser, isSuperAdmin, isHourlyManager, can, logout, notifications, unreadCount, markNotificationRead, markAllNotificationsRead } = useApp()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [bellOpen, setBellOpen] = useState(false)
   const bellRef = useRef(null)
 
+  const adminNav = isSuperAdmin ? superAdminNav : baseAdminNav.filter(i => i.to !== '/reports' || can('reports'))
   const nav = currentUser?.role === 'admin'
-    ? (isSuperAdmin ? superAdminNav : baseAdminNav.filter(i => i.to !== '/reports' || can('reports')))
+    ? (isHourlyManager
+        ? [adminNav[0], { to: '/my-home', label: 'השעון שלי', icon: Timer, end: true }, { to: '/my-shifts', label: 'המשמרות שלי', icon: CalendarClock }, ...adminNav.slice(1)]
+        : adminNav)
     : userNav
 
   function handleLogout() {

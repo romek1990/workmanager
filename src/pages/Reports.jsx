@@ -24,7 +24,8 @@ const SHIFT_TYPE_HE = {
 }
 
 function ReportsInner() {
-  const { employees, shifts, bonuses } = useApp()
+  const { employees: baseEmployees, shifts, bonuses, hourlyManagers } = useApp()
+  const employees = [...baseEmployees, ...hourlyManagers]
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [tab, setTab] = useState('summary')

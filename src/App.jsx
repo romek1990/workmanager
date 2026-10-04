@@ -32,10 +32,10 @@ function RememberClock() {
   return <Navigate to="/login" replace />
 }
 
-function HomeRedirect({ role }) {
+function HomeRedirect({ role, tracksHours }) {
   let pending = null
   try { pending = sessionStorage.getItem(PENDING_CLOCK_KEY) } catch {}
-  if (pending && role !== 'admin') return <Navigate to={`/clock${pending}`} replace />
+  if (pending && (role !== 'admin' || tracksHours)) return <Navigate to={`/clock${pending}`} replace />
   return <Navigate to={role === 'admin' ? '/' : '/my-home'} replace />
 }
 
@@ -89,7 +89,7 @@ function AppRoutes() {
           <Route path="/my-shifts" element={<ProtectedRoute><MyShifts /></ProtectedRoute>} />
           <Route path="/clock" element={<ProtectedRoute><ClockScan /></ProtectedRoute>} />
           <Route path="/qr-codes" element={<ProtectedRoute requiredRole="admin"><QrCodes /></ProtectedRoute>} />
-          <Route path="*" element={<HomeRedirect role={currentUser.role} />} />
+          <Route path="*" element={<HomeRedirect role={currentUser.role} tracksHours={!!currentUser.tracks_hours} />} />
           <Route path="/form-101" element={<ProtectedRoute><Form101 /></ProtectedRoute>} />
 <Route path="/admin-101" element={<ProtectedRoute requiredRole="admin"><Admin101 /></ProtectedRoute>} />
         </Routes>

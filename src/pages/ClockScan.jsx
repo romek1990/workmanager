@@ -22,7 +22,7 @@ export default function ClockScan() {
     if (ran.current || !currentUser) return
     ran.current = true
 
-    if (currentUser.role === 'admin') {
+    if (currentUser.role === 'admin' && !currentUser.tracks_hours) {
       setState({ phase: 'info', title: 'קוד לעובדים בלבד', text: 'הקוד מיועד לרישום משמרות של עובדים. מנהלים לא נרשמים דרכו.' })
       return
     }
@@ -79,7 +79,7 @@ export default function ClockScan() {
             {state.retry && (
               <button className="btn btn-success w-full justify-center mt-6 py-3" onClick={() => window.location.reload()}>נסה שוב</button>
             )}
-            <button className={`btn ${state.retry ? '' : 'btn-primary'} w-full justify-center ${state.retry ? 'mt-2' : 'mt-6'} py-3`} onClick={() => navigate(currentUser?.role === 'admin' ? '/' : '/my-home', { replace: true })}>
+            <button className={`btn ${state.retry ? '' : 'btn-primary'} w-full justify-center ${state.retry ? 'mt-2' : 'mt-6'} py-3`} onClick={() => navigate(currentUser?.role === 'admin' && !currentUser?.tracks_hours ? '/' : '/my-home', { replace: true })}>
               לדף הבית
             </button>
           </>

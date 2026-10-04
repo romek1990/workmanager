@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { UserCog, Plus, Pencil, Trash2, KeyRound, Crown, Lock } from 'lucide-react'
+import { UserCog, Plus, Pencil, Trash2, KeyRound, Crown, Lock, Clock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { PageHeader, Avatar, Modal, Toast, useToast } from '../components/ui'
@@ -18,7 +18,7 @@ const PERMS = [
 ]
 const permLabel = k => PERMS.find(p => p.key === k)?.label || k
 
-const emptyForm = { full_name: '', email: '', phone: '', permissions: [], status: 'active' }
+const emptyForm = { full_name: '', email: '', phone: '', permissions: [], status: 'active', tracks_hours: false, hourly_rate: '' }
 
 async function callFn(payload) {
   const { data: s } = await supabase.auth.getSession()
@@ -70,7 +70,7 @@ export default function Managers() {
 
   function openNew() { setForm(emptyForm); setEditing('new') }
   function openEdit(m) {
-    setForm({ full_name: m.full_name || '', email: m.email || '', phone: m.phone || '', permissions: m.permissions || [], status: m.status || 'active' })
+    setForm({ full_name: m.full_name || '', email: m.email || '', phone: m.phone || '', permissions: m.permissions || [], status: m.status || 'active', tracks_hours: !!m.tracks_hours, hourly_rate: m.hourly_rate ?? '' })
     setEditing(m)
   }
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -78,7 +78,8 @@ export default function Managers() {
   const allOn = form.permissions.length === PERMS.length
 
   const isNew = editing === 'new'
-  const formOk = form.full_name.trim() && (!isNew || /\S+@\S+\.\S+/.test(form.email))
+  const formOk = form.full_name.trim() && (!isNew || /\S+@\S+\.\S+/.test(form.email)) && (!form.tracks_hours || Number(form.hourly_rate) > 0)
+  const payType = f => f.tracks_hours ? `שעתי ₪${f.hourly_rate}/שעה` : 'גלובלי'
 
   // step 2: ask for the approval code
   function askCode(p) {
@@ -89,15 +90,15 @@ export default function Managers() {
     if (isNew) {
       askCode({
         title: 'אישור הוספת מנהל',
-        summary: `${form.full_name} (${form.email.trim()}) יתווסף כמנהל עם ההרשאות: ${form.permissions.map(permLabel).join(', ') || 'צפייה בלבד'}`,
-        payload: { action: 'create', full_name: form.full_name, email: form.email, phone: form.phone, permissions: form.permissions },
+        summary: `${form.full_name} (${form.email.trim()}) יתווסף כמנהל (${payType(form)}) עם ההרשאות: ${form.permissions.map(permLabel).join(', ') || 'צפייה בלבד'}`,
+        payload: { action: 'create', full_name: form.full_name, email: form.email, phone: form.phone, permissions: form.permissions, tracks_hours: form.tracks_hours, hourly_rate: Number(form.hourly_rate) || 0 },
         done: `${form.full_name} נוסף כמנהל — נשלח אליו מייל להגדרת סיסמה`,
       })
     } else {
       askCode({
         title: 'אישור עדכון מנהל',
-        summary: `עדכון ${form.full_name}: ${form.status === 'active' ? 'פעיל' : 'חסום'} · הרשאות: ${form.permissions.map(permLabel).join(', ') || 'צפייה בלבד'}`,
-        payload: { action: 'update', id: editing.id, full_name: form.full_name, phone: form.phone, permissions: form.permissions, status: form.status },
+        summary: `עדכון ${form.full_name}: ${form.status === 'active' ? 'פעיל' : 'חסום'} · ${payType(form)} · הרשאות: ${form.permissions.map(permLabel).join(', ') || 'צפייה בלבד'}`,
+        payload: { action: 'update', id: editing.id, full_name: form.full_name, phone: form.phone, permissions: form.permissions, status: form.status, tracks_hours: form.tracks_hours, hourly_rate: Number(form.hourly_rate) || 0 },
         done: `הפרטים של ${form.full_name} עודכנו`,
       })
     }
@@ -147,6 +148,7 @@ export default function Managers() {
                     {m.full_name}
                     {m.is_super_admin && <span className="badge badge-success inline-flex items-center gap-1"><Crown size={11} />מנהל ראשי</span>}
                     {m.status !== 'active' && <span className="badge badge-gray inline-flex items-center gap-1"><Lock size={11} />חסום</span>}
+                    {!m.is_super_admin && <span className={`badge ${m.tracks_hours ? 'badge-warning' : 'badge-gray'} inline-flex items-center gap-1`}><Clock size={11} />{m.tracks_hours ? `שעתי · ₪${m.hourly_rate}` : 'גלובלי'}</span>}
                   </p>
                   <p className="text-xs mt-0.5" style={{ color: 'var(--text-dim)' }}>
                     <span dir="ltr">{m.email}</span>{m.phone ? ` · ${m.phone}` : ''} · כניסה אחרונה: {fmtLogin(m.last_sign_in_at)}
@@ -195,6 +197,27 @@ export default function Managers() {
               </select>
             </div>
           )}
+          <div className="col-span-2">
+            <label className="form-label">סוג העסקה</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { v: false, t: 'גלובלי', d: 'משכורת קבועה · לא מדווח שעות' },
+                { v: true, t: 'שעתי', d: 'מדווח שעות כמו עובד · השעות מאושרות על ידך' },
+              ].map(o => (
+                <button key={o.t} type="button" onClick={() => set('tracks_hours', o.v)}
+                  className={`text-right p-3 rounded-xl border transition-colors ${form.tracks_hours === o.v ? 'border-brand-500/40 bg-brand-500/10' : 'border-black/10 bg-white/60 hover:bg-white'}`}>
+                  <span className="block text-sm font-semibold">{o.t}</span>
+                  <span className="block text-[11px]" style={{ color: 'var(--text-dim)' }}>{o.d}</span>
+                </button>
+              ))}
+            </div>
+            {form.tracks_hours && (
+              <div className="mt-3">
+                <label className="form-label">תעריף שעתי (₪)</label>
+                <input className="form-control" type="number" min="1" step="0.5" dir="ltr" value={form.hourly_rate} onChange={e => set('hourly_rate', e.target.value)} placeholder="45" />
+              </div>
+            )}
+          </div>
           <div className="col-span-2">
             <div className="flex items-center justify-between mb-2">
               <label className="form-label !mb-0">הרשאות</label>

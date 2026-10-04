@@ -5,7 +5,7 @@
 //
 // POST { action: "list" }
 // POST { action: "create", full_name, email, phone?, permissions: string[], code }
-// POST { action: "update", id, permissions?, status?, full_name?, phone?, code }
+// POST { action: "update", id, permissions?, status?, full_name?, phone?, tracks_hours?, hourly_rate?, code }
 // POST { action: "delete", id, code }
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -24,6 +24,8 @@ const corsHeaders = {
 };
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+const rate = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n >= 0 && n < 10000 ? n : 0; };
 
 const cleanPerms = (p: unknown) =>
   Array.isArray(p) ? [...new Set(p.filter((x) => typeof x === "string" && PERMISSIONS.includes(x)))] : [];
@@ -49,7 +51,7 @@ serve(async (req) => {
 
     if (action === "list") {
       const { data: rows, error } = await admin
-        .from("profiles").select("id, full_name, email, phone, status, permissions, is_super_admin, created_at")
+        .from("profiles").select("id, full_name, email, phone, status, permissions, is_super_admin, tracks_hours, hourly_rate, created_at")
         .eq("role", "admin").order("is_super_admin", { ascending: false }).order("full_name");
       if (error) throw error;
       // last sign-in from auth
@@ -86,6 +88,8 @@ serve(async (req) => {
       const { error: pErr } = await admin.from("profiles").upsert({
         id: created.user.id, full_name, email, phone: String(body.phone || ""), role: "admin",
         status: "active", permissions, is_super_admin: false,
+        tracks_hours: !!body.tracks_hours, employee_type: body.tracks_hours ? "hourly" : "global",
+        hourly_rate: body.tracks_hours ? rate(body.hourly_rate) : 0,
       });
       if (pErr) return json({ error: pErr.message }, 400);
 
@@ -105,6 +109,11 @@ serve(async (req) => {
         if (body.status === "active" || body.status === "inactive") patch.status = body.status;
         if (typeof body.full_name === "string" && body.full_name.trim()) patch.full_name = body.full_name.trim();
         if (typeof body.phone === "string") patch.phone = body.phone;
+        if (typeof body.tracks_hours === "boolean") {
+          patch.tracks_hours = body.tracks_hours;
+          patch.employee_type = body.tracks_hours ? "hourly" : "global";
+        }
+        if (body.hourly_rate !== undefined) patch.hourly_rate = rate(body.hourly_rate);
         const { error } = await admin.from("profiles").update(patch).eq("id", target.id);
         if (error) throw error;
         await log("עדכון מנהל", `עדכן את ${target.full_name}: ${JSON.stringify(patch)}`);

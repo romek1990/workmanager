@@ -34,6 +34,7 @@ export function AppProvider({ children }) {
   const [bonuses, setBonuses] = useState([])
   const [weeklySchedule, setWeeklySchedule] = useState([])
   const [dayNotes, setDayNotes] = useState([])
+  const [hourlyManagers, setHourlyManagers] = useState([]) // managers who report hours like employees
   const [notifications, setNotifications] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -42,6 +43,9 @@ export function AppProvider({ children }) {
   const currentRole = currentUser?.role || null
   // manager permissions: the super admin can do everything; other managers only what they were granted
   const isSuperAdmin = currentUser?.role === 'admin' && !!currentUser?.is_super_admin
+  const isHourlyManager = currentUser?.role === 'admin' && !!currentUser?.tracks_hours
+  // a manager never approves their own shift — only the super admin does
+  const canResolveShift = s => can('shifts') && (isSuperAdmin || s.employee_id !== currentUser?.id)
   const can = perm => currentUser?.role === 'admin' && (isSuperAdmin || (currentUser?.permissions || []).includes(perm))
   const currentUserEmail = currentUser?.email || null
   const unreadCount = notifications.filter(n => !n.read).length
@@ -127,14 +131,16 @@ export function AppProvider({ children }) {
 
   async function loadAllData(role, userId) {
     if (role === 'admin') {
-      const [emps, shfts, bnss, wkly, notes] = await Promise.all([
+      const [emps, shfts, bnss, wkly, notes, mgrs] = await Promise.all([
         supabase.from('profiles').select('*').neq('role', 'admin'),
         supabase.from('shifts').select('*').order('date', { ascending: false }),
         supabase.from('bonuses').select('*').order('date', { ascending: false }),
         supabase.from('weekly_schedule').select('*, profiles(full_name)').order('week_start'),
         supabase.from('day_notes').select('*'),
+        supabase.from('profiles').select('*').eq('role', 'admin').eq('tracks_hours', true),
       ])
       if (emps.data) setEmployees(emps.data)
+      if (mgrs.data) setHourlyManagers(mgrs.data)
       if (shfts.data) setShifts(shfts.data)
       if (bnss.data) setBonuses(bnss.data)
       if (wkly.data) setWeeklySchedule(wkly.data)
@@ -209,14 +215,14 @@ export function AppProvider({ children }) {
   }
 
   async function addShift(shift) {
-    const emp = employees.find(e => e.email === shift.employee_email)
+    const emp = [...employees, ...hourlyManagers, currentUser].find(e => e?.email === shift.employee_email)
     const { data, error } = await supabase.from('shifts').insert({ ...shift, employee_id: emp?.id, status: 'pending' }).select().single()
     if (!error && data) {
       setShifts(prev => [data, ...prev])
       await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'הוספת משמרת', `הוסיף משמרת לעובד ${shift.employee_name} בתאריך ${shift.date}`)
 
       // only an employee's own entry needs to alert the managers
-      if (currentUser?.role !== 'admin') {
+      if (currentUser?.role !== 'admin' || emp?.id === currentUser?.id) {
         const isManual = shift.is_manual
         await notifyAdmins(
           isManual ? '📋 משמרת ידנית חדשה' : '⏰ משמרת חדשה',
@@ -393,7 +399,7 @@ export function AppProvider({ children }) {
       employees, shifts, bonuses, weeklySchedule, dayNotes,
       notifications, unreadCount,
       currentUser, currentRole, currentUserEmail,
-      loading, authNotice, isSuperAdmin, can,
+      loading, authNotice, isSuperAdmin, can, isHourlyManager, canResolveShift, hourlyManagers,
       login, logout,
       addEmployee, updateEmployee,
       addShift, updateShiftStatus,

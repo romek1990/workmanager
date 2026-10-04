@@ -9,7 +9,7 @@ const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מ
 const t5 = t => (t ? String(t).slice(0, 5) : null)
 
 export default function Shifts() {
-  const { employees, shifts, addShift, updateShiftStatus, can } = useApp()
+  const { employees, shifts, addShift, updateShiftStatus, can, canResolveShift, hourlyManagers } = useApp()
   const canShifts = can('shifts')
   const now = new Date()
   const thisYear = now.getFullYear()
@@ -24,7 +24,7 @@ export default function Shifts() {
   const [busy, setBusy] = useState({}) // shift id → true while approving/rejecting
   const [toast, showToast] = useToast()
 
-  const activeEmps = employees.filter(e => e.status === 'active')
+  const activeEmps = [...employees, ...hourlyManagers].filter(e => e.status === 'active')
 
   const dataYears = shifts.map(s => Number((s.date || '').slice(0, 4))).filter(Boolean)
   const earliestYear = dataYears.length ? Math.min(...dataYears) : thisYear
@@ -57,7 +57,7 @@ export default function Shifts() {
 
   function handleAdd() {
     if (!form.employee_email || !form.date) return
-    const emp = employees.find(e => e.email === form.employee_email)
+    const emp = activeEmps.find(e => e.email === form.employee_email)
     addShift({
       ...form,
       employee_name: emp?.full_name || '',
@@ -71,7 +71,7 @@ export default function Shifts() {
 
   function set(k, v) { setForm(p => ({ ...p, [k]: v })) }
 
-  const actions = s => canShifts && s.status === 'pending' && (
+  const actions = s => canResolveShift(s) && s.status === 'pending' && (
     <div className="flex gap-2">
       <button disabled={busy[s.id]} className="btn btn-success py-1.5 px-3.5 text-xs rounded-[10px]" onClick={() => resolve(s, 'approved')}>אשר</button>
       <button disabled={busy[s.id]} className="btn btn-danger py-1.5 px-3.5 text-xs rounded-[10px]" onClick={() => resolve(s, 'rejected')}>דחה</button>
@@ -158,7 +158,7 @@ export default function Shifts() {
                     <ShiftTypeBadge type={s.shift_type} />
                   </div>
                   {s.notes && <p className="text-xs mt-1.5" style={{ color: 'var(--text-dim)' }}>{s.notes}</p>}
-                  {canShifts && s.status === 'pending' && <div className="mt-3 [&>div]:w-full [&_button]:flex-1 [&_button]:justify-center [&_button]:py-2">{actions(s)}</div>}
+                  {canResolveShift(s) && s.status === 'pending' && <div className="mt-3 [&>div]:w-full [&_button]:flex-1 [&_button]:justify-center [&_button]:py-2">{actions(s)}</div>}
                 </div>
               ))}
             </div>
