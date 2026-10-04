@@ -45,7 +45,10 @@ async function sendInvite(admin: any, person: { id: string; full_name: string; e
   const phone = normalizePhone(person.phone);
   if (phone && GREEN_ID && GREEN_TOKEN) {
     const { data: link, error: linkErr } = await admin.auth.admin.generateLink({ type: "recovery", email: person.email, options: { redirectTo } });
-    const url = link?.properties?.action_link;
+    // our own page + hashed token: the token is only spent when the user presses "save",
+    // so WhatsApp's link preview (which fetches the URL) can't burn it
+    const hashed = link?.properties?.hashed_token;
+    const url = hashed ? `${redirectTo}?t=${hashed}` : null;
     if (!linkErr && url) {
       const first = (person.full_name || "").split(" ")[0] || "";
       const text =

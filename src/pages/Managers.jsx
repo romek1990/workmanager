@@ -58,7 +58,13 @@ export default function Managers() {
     setLoading(true)
     try {
       const r = await callFn({ action: 'list' })
-      setList(r.managers || [])
+      // real logins come from our activity log — auth's last_sign_in also counts link previews
+      const mgrs = r.managers || []
+      const { data: logins } = await supabase.from('activity_logs').select('user_id, created_at')
+        .eq('action', 'התחברות').in('user_id', mgrs.map(m => m.id)).order('created_at', { ascending: false }).limit(500)
+      const last = {}
+      for (const l of logins || []) if (!last[l.user_id]) last[l.user_id] = l.created_at
+      setList(mgrs.map(m => ({ ...m, last_login: last[m.id] || null })))
       setError('')
     } catch (e) {
       setError(e.message)
@@ -163,7 +169,7 @@ export default function Managers() {
                     {!m.is_super_admin && <span className={`badge ${m.tracks_hours ? 'badge-warning' : 'badge-gray'} inline-flex items-center gap-1`}><Clock size={11} />{m.tracks_hours ? `שעתי · ₪${m.hourly_rate}` : 'גלובלי'}</span>}
                   </p>
                   <p className="text-xs mt-0.5" style={{ color: 'var(--text-dim)' }}>
-                    <span dir="ltr">{m.email}</span>{m.phone ? ` · ${m.phone}` : ''} · כניסה אחרונה: {fmtLogin(m.last_sign_in_at)}
+                    <span dir="ltr">{m.email}</span>{m.phone ? ` · ${m.phone}` : ''} · כניסה אחרונה: {fmtLogin(m.last_login)}
                   </p>
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {m.is_super_admin ? (

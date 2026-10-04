@@ -51,11 +51,15 @@ export function AppProvider({ children }) {
   const unreadCount = notifications.filter(n => !n.read).length
 
   useEffect(() => {
+    // On the set-password page the user finishes setting a password first; the page
+    // then reloads the app, so don't switch to the logged-in layout in the middle of it.
+    const onSetPassword = () => window.location.pathname.startsWith('/set-password')
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) loadUserProfile(session.user)
+      if (session && !onSetPassword()) loadUserProfile(session.user)
       else setLoading(false)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session && onSetPassword()) { setLoading(false); return }
       if (session) loadUserProfile(session.user)
       else { setCurrentUser(null); setLoading(false) }
     })
