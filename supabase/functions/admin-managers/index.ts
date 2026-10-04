@@ -7,6 +7,7 @@
 // POST { action: "create", full_name, email, phone?, permissions: string[], code }
 // POST { action: "update", id, permissions?, status?, full_name?, phone?, tracks_hours?, hourly_rate?, code }
 // POST { action: "delete", id, code }
+// POST { action: "invite", id }  — resend the first-login link (WhatsApp, falls back to email)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -14,7 +15,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL = "https://nwetajywazzpxkdknqsf.supabase.co";
 const PUBLISHABLE_KEY = "sb_publishable_5a-3ZAXHrNto4disNZxIUQ_VWX4Vj7w";
 const SECRET_KEY = Deno.env.get("SB_SECRET_KEY")!;
-const SITE = "https://workmanager-florentin.com";
 
 const PERMISSIONS = ["employees", "shifts", "schedule", "bonuses", "form101", "messages", "reports"];
 
@@ -24,6 +24,56 @@ const corsHeaders = {
 };
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+const GREEN_ID = Deno.env.get("GREEN_API_ID_INSTANCE");
+const GREEN_TOKEN = Deno.env.get("GREEN_API_TOKEN_INSTANCE");
+
+function normalizePhone(raw?: string | null): string | null {
+  if (!raw) return null;
+  const digits = String(raw).replace(/\D/g, "");
+  if (digits.length < 9) return null;
+  if (digits.startsWith("972")) return digits;
+  if (digits.startsWith("0")) return "972" + digits.slice(1);
+  return "972" + digits;
+}
+
+// First-login invite: a "set password" link by WhatsApp (reliable), falling back to email.
+// The Supabase default mailer often lands in spam, so WhatsApp is the primary channel.
+// deno-lint-ignore no-explicit-any
+async function sendInvite(admin: any, person: { id: string; full_name: string; email: string; phone?: string | null }, sender: { id: string; full_name: string }, isManager: boolean) {
+  const redirectTo = "https://workmanager-florentin.com/set-password";
+  const phone = normalizePhone(person.phone);
+  if (phone && GREEN_ID && GREEN_TOKEN) {
+    const { data: link, error: linkErr } = await admin.auth.admin.generateLink({ type: "recovery", email: person.email, options: { redirectTo } });
+    const url = link?.properties?.action_link;
+    if (!linkErr && url) {
+      const first = (person.full_name || "").split(" ")[0] || "";
+      const text =
+        `היי ${first} 👋\n` +
+        `נפתח לך משתמש ${isManager ? "מנהל " : ""}במערכת *WorkManager* של פלורנטין מרקט.\n\n` +
+        `להגדרת סיסמה ולכניסה ראשונה לחץ כאן:\n${url}\n\n` +
+        `שם המשתמש שלך: ${person.email}\n` +
+        `⏳ הקישור בתוקף לשעה. אם פג תוקפו — בקש מהמנהל לשלוח שוב.`;
+      try {
+        const host = GREEN_ID.slice(0, 4);
+        const res = await fetch(`https://${host}.api.greenapi.com/waInstance${GREEN_ID}/sendMessage/${GREEN_TOKEN}`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chatId: `${phone}@c.us`, message: text }),
+        });
+        const ok = res.ok;
+        await admin.from("whatsapp_messages").insert({
+          batch_id: crypto.randomUUID(), sent_by: sender.id, sent_by_name: sender.full_name,
+          recipient_id: person.id, recipient_name: person.full_name, phone,
+          message: text.replace(url, "[קישור הגדרת סיסמה]"), is_broadcast: false,
+          status: ok ? "sent" : "failed", error: ok ? null : `GreenAPI ${res.status}`,
+        });
+        if (ok) return { channel: "whatsapp" };
+      } catch (_) { /* fall back to email */ }
+    }
+  }
+  await admin.auth.resetPasswordForEmail(person.email, { redirectTo });
+  return { channel: "email" };
+}
 
 const rate = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n >= 0 && n < 10000 ? n : 0; };
 
@@ -62,6 +112,15 @@ serve(async (req) => {
       return json({ managers: withLogin, permissions: PERMISSIONS });
     }
 
+    // resend the first-login invite (no approval code needed — it changes nothing)
+    if (action === "invite") {
+      const { data: t } = await admin.from("profiles").select("id, full_name, email, phone, role, is_super_admin").eq("id", body.id).single();
+      if (!t || t.role !== "admin" || t.is_super_admin) return json({ error: "המנהל לא נמצא" }, 404);
+      const invite = await sendInvite(admin, t, caller, true);
+      await admin.from("activity_logs").insert({ user_id: caller.id, user_name: caller.full_name, user_email: caller.email, action: "שליחת הזמנה", details: `שלח שוב הזמנת כניסה ל${t.full_name} (${invite.channel})` });
+      return json({ ok: true, invite: invite.channel });
+    }
+
     // ── every change needs the approval code ──
     const { data: codeOk } = await admin.rpc("check_manager_code", { p_code: String(body.code || "") });
     if (codeOk !== true) {
@@ -93,9 +152,9 @@ serve(async (req) => {
       });
       if (pErr) return json({ error: pErr.message }, 400);
 
-      await admin.auth.resetPasswordForEmail(email, { redirectTo: `${SITE}/set-password` });
-      await log("הוספת מנהל", `הוסיף את ${full_name} כמנהל (${permissions.join(", ") || "צפייה בלבד"})`);
-      return json({ ok: true, id: created.user.id });
+      const invite = await sendInvite(admin, { id: created.user.id, full_name, email, phone: String(body.phone || "") }, caller, true);
+      await log("הוספת מנהל", `הוסיף את ${full_name} כמנהל (${permissions.join(", ") || "צפייה בלבד"}) · הזמנה נשלחה ב${invite.channel === "whatsapp" ? "וואטסאפ" : "מייל"}`);
+      return json({ ok: true, id: created.user.id, invite: invite.channel });
     }
 
     if (action === "update" || action === "delete") {

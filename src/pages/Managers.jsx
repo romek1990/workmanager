@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { UserCog, Plus, Pencil, Trash2, KeyRound, Crown, Lock, Clock } from 'lucide-react'
+import { UserCog, Plus, Pencil, Trash2, KeyRound, Crown, Lock, Clock, Send } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { PageHeader, Avatar, Modal, Toast, useToast } from '../components/ui'
@@ -43,6 +43,7 @@ function fmtLogin(iso) {
 export default function Managers() {
   const { isSuperAdmin } = useApp()
   const [list, setList] = useState([])
+  const [inviting, setInviting] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState(null) // null | 'new' | manager row
@@ -113,12 +114,23 @@ export default function Managers() {
     })
   }
 
+  async function resendInvite(m) {
+    setInviting(m.id)
+    try {
+      const r = await callFn({ action: 'invite', id: m.id })
+      showToast(`קישור כניסה נשלח ל${m.full_name} ב${r.invite === 'whatsapp' ? 'וואטסאפ' : 'מייל'}`)
+    } catch (e) {
+      showToast(e.message || 'השליחה נכשלה', 'error')
+    }
+    setInviting(null)
+  }
+
   async function confirmCode() {
     if (!code.trim()) return
     setBusy(true); setCodeErr('')
     try {
-      await callFn({ ...pending.payload, code: code.trim() })
-      showToast(pending.done)
+      const r = await callFn({ ...pending.payload, code: code.trim() })
+      showToast(r?.invite ? `${pending.done} · קישור כניסה נשלח ב${r.invite === 'whatsapp' ? 'וואטסאפ' : 'מייל'}` : pending.done)
       setPending(null); setEditing(null)
       load()
     } catch (e) {
@@ -165,6 +177,9 @@ export default function Managers() {
                 </div>
                 {!m.is_super_admin && (
                   <div className="flex gap-2">
+                    <button className="btn py-1.5 px-3 text-xs" onClick={() => resendInvite(m)} disabled={inviting === m.id} title="שולח קישור להגדרת סיסמה בוואטסאפ (או במייל אם אין טלפון)">
+                      <Send size={13} />{inviting === m.id ? 'שולח...' : 'שלח קישור כניסה'}
+                    </button>
                     <button className="btn py-1.5 px-3 text-xs" onClick={() => openEdit(m)}><Pencil size={13} />עריכה</button>
                     <button className="btn btn-danger py-1.5 px-3 text-xs" onClick={() => askDelete(m)}><Trash2 size={13} />מחיקה</button>
                   </div>

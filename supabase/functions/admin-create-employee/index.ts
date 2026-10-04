@@ -12,6 +12,56 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const GREEN_ID = Deno.env.get("GREEN_API_ID_INSTANCE");
+const GREEN_TOKEN = Deno.env.get("GREEN_API_TOKEN_INSTANCE");
+
+function normalizePhone(raw?: string | null): string | null {
+  if (!raw) return null;
+  const digits = String(raw).replace(/\D/g, "");
+  if (digits.length < 9) return null;
+  if (digits.startsWith("972")) return digits;
+  if (digits.startsWith("0")) return "972" + digits.slice(1);
+  return "972" + digits;
+}
+
+// First-login invite: a "set password" link by WhatsApp (reliable), falling back to email.
+// The Supabase default mailer often lands in spam, so WhatsApp is the primary channel.
+// deno-lint-ignore no-explicit-any
+async function sendInvite(admin: any, person: { id: string; full_name: string; email: string; phone?: string | null }, sender: { id: string; full_name: string }, isManager: boolean) {
+  const redirectTo = "https://workmanager-florentin.com/set-password";
+  const phone = normalizePhone(person.phone);
+  if (phone && GREEN_ID && GREEN_TOKEN) {
+    const { data: link, error: linkErr } = await admin.auth.admin.generateLink({ type: "recovery", email: person.email, options: { redirectTo } });
+    const url = link?.properties?.action_link;
+    if (!linkErr && url) {
+      const first = (person.full_name || "").split(" ")[0] || "";
+      const text =
+        `היי ${first} 👋\n` +
+        `נפתח לך משתמש ${isManager ? "מנהל " : ""}במערכת *WorkManager* של פלורנטין מרקט.\n\n` +
+        `להגדרת סיסמה ולכניסה ראשונה לחץ כאן:\n${url}\n\n` +
+        `שם המשתמש שלך: ${person.email}\n` +
+        `⏳ הקישור בתוקף לשעה. אם פג תוקפו — בקש מהמנהל לשלוח שוב.`;
+      try {
+        const host = GREEN_ID.slice(0, 4);
+        const res = await fetch(`https://${host}.api.greenapi.com/waInstance${GREEN_ID}/sendMessage/${GREEN_TOKEN}`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chatId: `${phone}@c.us`, message: text }),
+        });
+        const ok = res.ok;
+        await admin.from("whatsapp_messages").insert({
+          batch_id: crypto.randomUUID(), sent_by: sender.id, sent_by_name: sender.full_name,
+          recipient_id: person.id, recipient_name: person.full_name, phone,
+          message: text.replace(url, "[קישור הגדרת סיסמה]"), is_broadcast: false,
+          status: ok ? "sent" : "failed", error: ok ? null : `GreenAPI ${res.status}`,
+        });
+        if (ok) return { channel: "whatsapp" };
+      } catch (_) { /* fall back to email */ }
+    }
+  }
+  await admin.auth.resetPasswordForEmail(person.email, { redirectTo });
+  return { channel: "email" };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -41,7 +91,7 @@ serve(async (req) => {
 
     const { data: callerProfile, error: profileErr } = await callerClient
       .from("profiles")
-      .select("role")
+      .select("id, full_name, role")
       .eq("id", userData.user.id)
       .single();
 
@@ -139,11 +189,9 @@ serve(async (req) => {
       type: "warning",
     });
 
-    await adminClient.auth.resetPasswordForEmail(emp.email, {
-      redirectTo: "https://workmanager-florentin.com/set-password",
-    });
+    const invite = await sendInvite(adminClient, { id: newId, full_name: emp.full_name, email: emp.email, phone: emp.phone }, { id: callerProfile?.id, full_name: callerProfile?.full_name }, false);
 
-    return new Response(JSON.stringify({ profile: profileRow }), {
+    return new Response(JSON.stringify({ profile: profileRow, invite: invite.channel }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
