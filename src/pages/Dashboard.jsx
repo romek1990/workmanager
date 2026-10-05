@@ -24,7 +24,9 @@ function fmtDate(iso) {
 }
 
 export default function Dashboard() {
-  const { employees, shifts, bonuses, updateShiftStatus, can, canResolveShift } = useApp()
+  const { employees: staff, managers, shifts, bonuses, updateShiftStatus, can, canResolveShift } = useApp()
+  // managers (except the super admin) count as employees too
+  const employees = [...staff, ...managers]
   const canShifts = can('shifts')
   const now = new Date()
   const thisYear = now.getFullYear()
