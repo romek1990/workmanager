@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { Play, Square, Clock, Banknote, CalendarDays, Plus, MoonStar, CalendarCheck } from 'lucide-react'
+import { Play, Square, Clock, Banknote, CalendarDays, Plus, MoonStar, CalendarCheck, ScanLine } from 'lucide-react'
 import { useApp, clockErrorMessage } from '../context/AppContext'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import QrScanner from '../components/QrScanner'
 import { ShiftTypeBadge, StatusBadge, StatCard, CardSection, Table, AlertModal, Modal } from '../components/ui'
 import { calcShiftPay, fmtMoney, calcHours, todayISO, fmtHours, hoursFromMinutes, minutesBetween, localISODate } from '../utils/helpers'
 
@@ -87,6 +88,9 @@ export default function UserHome() {
   )
   const todayDayOfWeek = new Date().getDay()
 
+  const navigate = useNavigate()
+  const [scanOpen, setScanOpen] = useState(false)
+
   async function toggleShift() {
     if (clockBusy) return
     setClockBusy(true)
@@ -163,7 +167,7 @@ export default function UserHome() {
             ⏱ משמרת פעילה מ-{openShift.start_time}: <b>{elapsed()}</b>
           </p>
         )}
-        <div className="flex items-center justify-center gap-3 mt-2">
+        <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
           <button
             onClick={toggleShift}
             disabled={clockBusy}
@@ -176,6 +180,13 @@ export default function UserHome() {
             {clockBusy
               ? <><span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />רגע...</>
               : active ? <><Square size={16} />סיים משמרת</> : <><Play size={16} />התחל משמרת</>}
+          </button>
+          <button
+            onClick={() => setScanOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-3 rounded-xl font-medium text-sm border border-brand-500/30 text-brand-700 bg-brand-500/5 hover:bg-brand-500/10 transition-colors"
+          >
+            <ScanLine size={16} />
+            סריקת QR
           </button>
           {!active && (
             <button
@@ -267,6 +278,9 @@ export default function UserHome() {
           </div>
         )}
       </div>
+
+      <QrScanner open={scanOpen} onClose={() => setScanOpen(false)}
+        onResult={a => { setScanOpen(false); navigate(`/clock?a=${a}`) }} />
 
       {/* Recent shifts */}
       <CardSection title="משמרות אחרונות" action={<Link to="/my-shifts" className="text-xs font-semibold text-brand-700">שינוי או מחיקה ←</Link>}>
