@@ -233,6 +233,9 @@ export function AppProvider({ children }) {
   }
 
   async function addEmployee(emp) {
+    if (emp?.email) {
+      emp = { ...emp, email: String(emp.email).normalize('NFKC').replace(/[\s\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '').toLowerCase() }
+    }
     const { data: sessionData } = await supabase.auth.getSession()
     const accessToken = sessionData?.session?.access_token
     if (!accessToken) throw new Error('יש להתחבר מחדש למערכת')

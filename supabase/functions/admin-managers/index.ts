@@ -136,7 +136,7 @@ serve(async (req) => {
 
     if (action === "create") {
       const full_name = String(body.full_name || "").trim();
-      const email = String(body.email || "").trim().toLowerCase();
+      const email = String(body.email || "").normalize("NFKC").replace(/[\s\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "").toLowerCase();
       if (!full_name || !/\S+@\S+\.\S+/.test(email)) return json({ error: "יש למלא שם ואימייל תקין" }, 400);
       const { data: exists } = await admin.from("profiles").select("id").ilike("email", email).maybeSingle();
       if (exists) return json({ error: "כבר קיים משתמש עם האימייל הזה" }, 400);

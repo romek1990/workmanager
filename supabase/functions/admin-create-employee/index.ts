@@ -108,6 +108,13 @@ serve(async (req) => {
     }
 
     const emp = await req.json();
+    // strip spaces and invisible direction marks (Hebrew mobile keyboards insert them)
+    if (emp?.email) {
+      emp.email = String(emp.email)
+        .normalize("NFKC")
+        .replace(/[\s\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "")
+        .toLowerCase();
+    }
     if (!emp?.email || !emp?.full_name) {
       return new Response(JSON.stringify({ error: "email and full_name are required" }), {
         status: 400,
