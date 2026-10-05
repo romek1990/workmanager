@@ -51,6 +51,8 @@ export default function MyShifts() {
   const closed = myShifts.filter(s => s.status !== 'active' && s.status !== 'rejected')
   const totalHours = closed.reduce((a, s) => a + (Number(s.total_hours) || 0), 0)
   const approved = closed.filter(s => s.status === 'approved').reduce((a, s) => a + (Number(s.total_hours) || 0), 0)
+  const approvedCount = closed.filter(s => s.status === 'approved').length
+  const rejectedCount = myShifts.filter(s => s.status === 'rejected').length
 
   function openEdit(s) {
     setErr('')
@@ -161,10 +163,18 @@ export default function MyShifts() {
         )}
 
         {/* Footer summary */}
-        <div className="px-5 py-3 border-t border-black/5 flex flex-wrap gap-x-6 gap-y-1 text-sm" style={{ color: 'var(--text-dim)' }}>
-          <span>סה"כ שעות: <strong className="text-gray-800 tabular-nums">{fmtHours(totalHours)}</strong></span>
-          <span>מאושרות: <strong className="text-green-600 tabular-nums">{fmtHours(approved)}</strong></span>
-          <span>ממתינות: <strong className="text-amber-600 tabular-nums">{fmtHours(totalHours - approved)}</strong></span>
+        <div className="px-5 py-3 border-t border-black/5 space-y-1.5 text-sm" style={{ color: 'var(--text-dim)' }}>
+          <div className="flex flex-wrap gap-x-6 gap-y-1">
+            <span>סה"כ משמרות: <strong className="text-gray-800 tabular-nums">{closed.length}</strong></span>
+            <span>מאושרות: <strong className="text-green-600 tabular-nums">{approvedCount}</strong></span>
+            <span>ממתינות: <strong className="text-amber-600 tabular-nums">{closed.length - approvedCount}</strong></span>
+            {rejectedCount > 0 && <span>נדחו: <strong className="text-red-600 tabular-nums">{rejectedCount}</strong></span>}
+          </div>
+          <div className="flex flex-wrap gap-x-6 gap-y-1">
+            <span>סה"כ שעות: <strong className="text-gray-800 tabular-nums">{fmtHours(totalHours)}</strong></span>
+            <span>שעות מאושרות: <strong className="text-green-600 tabular-nums">{fmtHours(approved)}</strong></span>
+            <span>שעות ממתינות: <strong className="text-amber-600 tabular-nums">{fmtHours(totalHours - approved)}</strong></span>
+          </div>
         </div>
       </div>
 
