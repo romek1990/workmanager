@@ -30,7 +30,7 @@ const FORM101_COOLDOWN_DAYS = 6;
 const DELAY_BETWEEN_MS = 400;
 const REMINDER_LEAD_MINUTES = 60;
 const LONG_SHIFT_HOURS = 9;
-const LONG_SHIFT_PHONE = "0509561130"; // gets a report on every unusually long shift
+const LONG_SHIFT_PHONE = "0559561130"; // gets a report on every unusually long shift
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
