@@ -39,7 +39,8 @@ export function AppProvider({ children }) {
   const [weeklySchedule, setWeeklySchedule] = useState([])
   const [dayNotes, setDayNotes] = useState([])
   const [systemLocked, setSystemLocked] = useState(false) // super admin's kill switch
-  const [hourlyManagers, setHourlyManagers] = useState([]) // managers who report hours like employees
+  const [managers, setManagers] = useState([]) // every manager except the super admin
+  const hourlyManagers = managers.filter(m => m.tracks_hours) // managers who report hours like employees
   const [notifications, setNotifications] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -180,10 +181,10 @@ export function AppProvider({ children }) {
         supabase.from('bonuses').select('*').order('date', { ascending: false }),
         supabase.from('weekly_schedule').select('*, profiles(full_name)').order('week_start'),
         supabase.from('day_notes').select('*'),
-        supabase.from('profiles').select('*').eq('role', 'admin').eq('tracks_hours', true),
+        supabase.from('profiles').select('*').eq('role', 'admin').or('is_super_admin.is.null,is_super_admin.eq.false'),
       ])
       if (emps.data) setEmployees(emps.data)
-      if (mgrs.data) setHourlyManagers(mgrs.data)
+      if (mgrs.data) setManagers(mgrs.data)
       if (shfts.data) setShifts(shfts.data)
       if (bnss.data) setBonuses(bnss.data)
       if (wkly.data) setWeeklySchedule(wkly.data)
@@ -470,7 +471,7 @@ export function AppProvider({ children }) {
       employees, shifts, bonuses, weeklySchedule, dayNotes,
       notifications, unreadCount,
       currentUser, currentRole, currentUserEmail,
-      loading, authNotice, isSuperAdmin, can, systemLocked, setSystemLock, isHourlyManager, canResolveShift, hourlyManagers,
+      loading, authNotice, isSuperAdmin, can, systemLocked, setSystemLock, isHourlyManager, canResolveShift, hourlyManagers, managers,
       login, logout,
       addEmployee, updateEmployee,
       addShift, updateShiftStatus,

@@ -14,7 +14,9 @@ const defaultForm = {
 }
 
 export default function Employees() {
-  const { employees, addEmployee, can } = useApp()
+  const { employees: staff, managers, addEmployee, can } = useApp()
+  // managers appear in the list too (all except the super admin)
+  const employees = [...staff, ...managers.map(m => ({ ...m, isManager: true }))]
   const canEmployees = can('employees')
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
@@ -31,7 +33,7 @@ export default function Employees() {
     .sort((a, b) => (a.status === b.status ? (a.full_name || '').localeCompare(b.full_name || '', 'he') : a.status === 'active' ? -1 : 1))
   const activeCount = employees.filter(e => e.status === 'active').length
 
-  const pay = e => e.employee_type === 'hourly'
+  const pay = e => e.isManager && !e.tracks_hours ? 'גלובלי' : e.employee_type === 'hourly'
     ? `₪${e.hourly_rate}/שעה`
     : `₪${Number(e.monthly_salary || 0).toLocaleString('he-IL')}/חודש`
 
@@ -117,7 +119,7 @@ export default function Employees() {
                   {filtered.map(e => (
                     <tr key={e.id} className={`group cursor-pointer transition-colors hover:bg-brand-500/5 ${e.status !== 'active' ? 'opacity-60' : ''}`} onClick={() => navigate(`/employees/${e.id}`)}>
                       <td className="table-td">
-                        <div className="flex items-center gap-2.5"><Avatar name={e.full_name} size="sm" /><span className="font-medium">{e.full_name}</span></div>
+                        <div className="flex items-center gap-2.5"><Avatar name={e.full_name} size="sm" /><span className="font-medium">{e.full_name}</span>{e.isManager && <span className="badge badge-warning text-[10px]">מנהל</span>}</div>
                       </td>
                       <td className="table-td tabular-nums" dir="ltr" style={{ textAlign: 'right' }}>
                         {e.phone || <span className="inline-flex items-center gap-1 text-amber-700 text-xs"><PhoneOff size={12} /> חסר</span>}
@@ -142,6 +144,7 @@ export default function Employees() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-sm truncate">{e.full_name}</p>
+                      {e.isManager && <span className="badge badge-warning text-[10px]">מנהל</span>}
                       <StatusBadge status={e.status} />
                     </div>
                     <p className="text-xs mt-0.5 tabular-nums truncate" style={{ color: 'var(--text-dim)' }}>

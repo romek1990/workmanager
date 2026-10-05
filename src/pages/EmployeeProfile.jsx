@@ -12,9 +12,10 @@ const RESET_PW_URL = 'https://nwetajywazzpxkdknqsf.supabase.co/functions/v1/admi
 export default function EmployeeProfile() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { employees, shifts, bonuses, updateEmployee, currentUser, logActivity, can } = useApp()
+  const { employees, managers, shifts, bonuses, updateEmployee, currentUser, logActivity, can, isSuperAdmin } = useApp()
 
-  const emp = employees.find(e => e.id === id)
+  const mgr = managers.find(e => e.id === id)
+  const emp = employees.find(e => e.id === id) || mgr
   const [editModal, setEditModal] = useState(false)
   const [form, setForm] = useState(null)
   const [alert, setAlert] = useState(null)
@@ -71,7 +72,7 @@ export default function EmployeeProfile() {
 
   const infoRows = [
     ['סוג העסקה', EMP_TYPE_LABELS[emp.employee_type]],
-    ['שכר', emp.employee_type === 'hourly' ? `₪${emp.hourly_rate}/שעה` : `₪${emp.monthly_salary.toLocaleString()}/חודש`],
+    ['שכר', emp.employee_type === 'hourly' ? `₪${emp.hourly_rate}/שעה` : `₪${Number(emp.monthly_salary || 0).toLocaleString()}/חודש`],
     ['מכפיל שישי', `×${emp.friday_rate_multiplier}`],
     ['מכפיל שבת', `×${emp.saturday_rate_multiplier}`],
     ['מכפיל לילה', `×${emp.night_rate_multiplier}`],
@@ -91,7 +92,13 @@ export default function EmployeeProfile() {
           <p className="text-sm text-gray-400 mt-1">{emp.email} · {emp.phone} · {emp.address}</p>
           <div className="mt-2"><StatusBadge status={emp.status} /></div>
         </div>
-        {can('employees') && <>
+        {mgr && (
+          <span className="badge badge-warning">מנהל{isSuperAdmin ? ' · עריכה במסך מנהלים' : ''}</span>
+        )}
+        {mgr && isSuperAdmin && (
+          <button className="btn" onClick={() => navigate('/managers')}><Pencil size={14} />למסך מנהלים</button>
+        )}
+        {!mgr && can('employees') && <>
           <button className="btn" onClick={() => setResetConfirm(true)} disabled={resetting}>
             <KeyRound size={14} />{resetting ? 'מאפס...' : 'איפוס סיסמה'}
           </button>
