@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Plus, CalendarClock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { ShiftTypeBadge, StatusBadge, Modal, AlertModal, Avatar, PageHeader, StatChip, SearchInput, Toast, useToast, ReadOnlyBanner } from '../components/ui'
+import { ShiftTypeBadge, StatusBadge, Modal, AlertModal, Avatar, PageHeader, StatChip, SearchInput, Toast, useToast, ReadOnlyBanner, ManagerBadge } from '../components/ui'
 import { calcHours, todayISO, fmtHours, fmtDate, shiftOverlapMessage } from '../utils/helpers'
 
 const defaultForm = { employee_email: '', date: todayISO(), start_time: '08:00', end_time: '16:00', shift_type: 'regular', notes: '' }
@@ -9,7 +9,7 @@ const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מ
 const t5 = t => (t ? String(t).slice(0, 5) : null)
 
 export default function Shifts() {
-  const { employees, shifts, addShift, updateShiftStatus, can, canResolveShift, hourlyManagers } = useApp()
+  const { employees, shifts, addShift, updateShiftStatus, can, canResolveShift, hourlyManagers, isManager } = useApp()
   const canShifts = can('shifts')
   const now = new Date()
   const thisYear = now.getFullYear()
@@ -129,7 +129,7 @@ export default function Shifts() {
                   {filtered.map(s => (
                     <tr key={s.id} className="transition-colors hover:bg-brand-500/5">
                       <td className="table-td">
-                        <div className="flex items-center gap-2.5 font-medium"><Avatar name={s.employee_name} size="sm" />{s.employee_name}</div>
+                        <div className="flex items-center gap-2.5 font-medium"><Avatar name={s.employee_name} size="sm" />{s.employee_name}<ManagerBadge show={isManager(s.employee_id)} /></div>
                       </td>
                       <td className="table-td tabular-nums" style={{ color: 'var(--text-dim)' }}>{fmtDate(s.date)}</td>
                       <td className="table-td tabular-nums">{t5(s.start_time) || '—'}</td>
@@ -151,7 +151,7 @@ export default function Shifts() {
                 <div key={s.id} className="px-4 py-3.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5 font-medium text-sm min-w-0">
-                      <Avatar name={s.employee_name} size="sm" /><span className="truncate">{s.employee_name}</span>
+                      <Avatar name={s.employee_name} size="sm" /><span className="truncate">{s.employee_name}</span><ManagerBadge show={isManager(s.employee_id)} />
                     </div>
                     <StatusBadge status={s.status} shift />
                   </div>
@@ -180,7 +180,7 @@ export default function Shifts() {
             <label className="form-label">עובד</label>
             <select className="form-control" value={form.employee_email} onChange={e => set('employee_email', e.target.value)}>
               <option value="">בחר עובד</option>
-              {activeEmps.map(e => <option key={e.id} value={e.email}>{e.full_name}</option>)}
+              {activeEmps.map(e => <option key={e.id} value={e.email}>{e.full_name}{isManager(e.id) ? ' (מנהל)' : ''}</option>)}
             </select>
           </div>
           <div><label className="form-label">תאריך</label><input type="date" className="form-control" value={form.date} onChange={e => set('date', e.target.value)} /></div>

@@ -41,6 +41,7 @@ export function AppProvider({ children }) {
   const [systemLocked, setSystemLocked] = useState(false) // super admin's kill switch
   const [managers, setManagers] = useState([]) // every manager except the super admin
   const hourlyManagers = managers.filter(m => m.tracks_hours) // managers who report hours like employees
+  const isManager = id => !!id && managers.some(m => m.id === id)
   const [notifications, setNotifications] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -471,7 +472,7 @@ export function AppProvider({ children }) {
       employees, shifts, bonuses, weeklySchedule, dayNotes,
       notifications, unreadCount,
       currentUser, currentRole, currentUserEmail,
-      loading, authNotice, isSuperAdmin, can, systemLocked, setSystemLock, isHourlyManager, canResolveShift, hourlyManagers, managers,
+      loading, authNotice, isSuperAdmin, can, systemLocked, setSystemLock, isHourlyManager, canResolveShift, hourlyManagers, managers, isManager,
       login, logout,
       addEmployee, updateEmployee,
       addShift, updateShiftStatus,

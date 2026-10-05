@@ -3,7 +3,7 @@ import { MessageCircle, Send, Search, User, Users, CheckCheck, PhoneOff, AlertTr
 import emailjs from '@emailjs/browser'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
-import { Avatar, Modal, Toast, useToast, ReadOnlyBanner } from '../components/ui'
+import { Avatar, Modal, Toast, useToast, ReadOnlyBanner, ManagerBadge } from '../components/ui'
 import WhatsAppSender from '../components/WhatsAppSender'
 
 const FN_URL = 'https://nwetajywazzpxkdknqsf.supabase.co/functions/v1/whatsapp-send'
@@ -38,7 +38,9 @@ function fmtTime(iso) {
 }
 
 export default function WhatsApp() {
-  const { employees, currentUser, logActivity, can } = useApp()
+  const { employees: staff, managers, isManager, currentUser, logActivity, can } = useApp()
+  // managers (except the super admin and the sender) get messages too
+  const employees = useMemo(() => [...staff, ...managers.filter(m => m.id !== currentUser?.id)], [staff, managers, currentUser?.id])
   const canMessages = can('messages')
   const [mode, setMode] = useState('single') // 'single' | 'all'
   const [selectedId, setSelectedId] = useState(null)
@@ -243,7 +245,7 @@ export default function WhatsApp() {
                     >
                       <Avatar name={e.full_name} size="sm" />
                       <div className="min-w-0 flex-1">
-                        <p className={`text-sm truncate ${isSel ? 'font-bold text-brand-800' : 'font-medium'}`}>{e.full_name}</p>
+                        <p className={`text-sm truncate flex items-center gap-1.5 ${isSel ? 'font-bold text-brand-800' : 'font-medium'}`}>{e.full_name}<ManagerBadge show={isManager(e.id)} /></p>
                         <p className="text-xs truncate tabular-nums" dir="ltr" style={{ color: 'var(--text-dim)', textAlign: 'right' }}>
                           {[channels.whatsapp && (hasPhone(e.phone) ? e.phone : 'אין טלפון'), channels.email && (hasEmail(e) ? e.email : 'אין מייל')].filter(Boolean).join(' · ') || '—'}
                         </p>

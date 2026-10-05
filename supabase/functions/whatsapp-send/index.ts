@@ -92,7 +92,10 @@ serve(async (req) => {
 
     // ── recipients ──
     let query = admin.from("profiles").select("id, full_name, phone, status, role");
-    query = mode === "single" ? query.eq("id", employeeId) : query.eq("status", "active").neq("role", "admin");
+    // "all" = every active employee + every manager except the super admin (and not the sender)
+    query = mode === "single"
+      ? query.eq("id", employeeId)
+      : query.eq("status", "active").neq("id", caller.id).or("role.neq.admin,is_super_admin.is.null,is_super_admin.eq.false");
     const { data: recipients, error: recErr } = await query;
     if (recErr) throw recErr;
     if (!recipients?.length) return json({ error: "לא נמצאו נמענים" }, 404);

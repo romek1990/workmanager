@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Timer, Square } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { Avatar, Modal } from './ui'
+import { Avatar, Modal, ManagerBadge } from './ui'
 
 function elapsed(from, now) {
   const mins = Math.max(0, Math.floor((now - from) / 60000))
@@ -16,7 +16,7 @@ function toLocalInput(d) {
 
 // Live list of employees currently clocked in, with an admin "close shift" action.
 export default function OnShiftNow({ onToast }) {
-  const { shifts, refreshShifts, adminCloseShift, can } = useApp()
+  const { shifts, refreshShifts, adminCloseShift, can, isManager } = useApp()
   const [now, setNow] = useState(new Date())
   const [closing, setClosing] = useState(null) // shift being closed
   const [endAt, setEndAt] = useState('')
@@ -73,7 +73,7 @@ export default function OnShiftNow({ onToast }) {
               <div key={s.id} className="flex items-center gap-3 px-6 py-3.5">
                 <Avatar name={s.employee_name} size="sm" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{s.employee_name}</p>
+                  <p className="text-sm font-medium truncate flex items-center gap-1.5">{s.employee_name}<ManagerBadge show={isManager(s.employee_id)} /></p>
                   <p className="text-xs tabular-nums" style={{ color: 'var(--text-dim)' }}>
                     נכנס ב-{s.start_time}{s.date !== toLocalInput(now).slice(0, 10) ? ` (${s.date.split('-').reverse().slice(0, 2).join('.')})` : ''}
                   </p>

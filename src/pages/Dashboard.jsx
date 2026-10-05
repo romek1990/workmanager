@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Users, Clock, Gift, Hourglass, Sparkles } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { StatCard, ShiftTypeBadge, Avatar, Toast, useToast } from '../components/ui'
+import { StatCard, ShiftTypeBadge, Avatar, Toast, useToast, ManagerBadge } from '../components/ui'
 import { fmtMoney, fmtHours } from '../utils/helpers'
 import OnShiftNow from '../components/OnShiftNow'
 
@@ -24,7 +24,7 @@ function fmtDate(iso) {
 }
 
 export default function Dashboard() {
-  const { employees: staff, managers, shifts, bonuses, updateShiftStatus, can, canResolveShift } = useApp()
+  const { employees: staff, managers, isManager, shifts, bonuses, updateShiftStatus, can, canResolveShift } = useApp()
   // managers (except the super admin) count as employees too
   const employees = [...staff, ...managers]
   const canShifts = can('shifts')
@@ -160,6 +160,7 @@ export default function Dashboard() {
                         <div className="flex items-center gap-2.5 font-medium">
                           <Avatar name={s.employee_name} size="sm" />
                           {s.employee_name}
+                          <ManagerBadge show={isManager(s.employee_id)} />
                         </div>
                       </td>
                       <td className="table-td px-6 tabular-nums" style={{ color: 'var(--text-dim)' }}>{fmtDate(s.date)}</td>
@@ -193,6 +194,7 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2.5 font-medium text-sm">
                       <Avatar name={s.employee_name} size="sm" />
                       {s.employee_name}
+                      <ManagerBadge show={isManager(s.employee_id)} />
                     </div>
                     <ShiftTypeBadge type={s.shift_type} />
                   </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { BarChart2, Download, FileText } from 'lucide-react'
-import { StatCard, PageHeader, Avatar } from '../components/ui'
+import { StatCard, PageHeader, Avatar, ManagerBadge } from '../components/ui'
 import { calcShiftPay, fmtMoney, monthStart, monthEnd, fmtHours, fmtDate } from '../utils/helpers'
 import { Clock, Banknote, Gift, Wallet } from 'lucide-react'
 
@@ -24,7 +24,7 @@ const SHIFT_TYPE_HE = {
 }
 
 function ReportsInner() {
-  const { employees: baseEmployees, shifts, bonuses, hourlyManagers } = useApp()
+  const { employees: baseEmployees, shifts, bonuses, hourlyManagers, isManager } = useApp()
   const employees = [...baseEmployees, ...hourlyManagers]
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -130,7 +130,7 @@ function exportPDF() {
         <tbody>
           ${rows.map(r => `
             <tr>
-              <td>${r.emp.full_name}</td>
+              <td>${r.emp.full_name}${isManager(r.emp.id) ? ' (מנהל)' : ''}</td>
               <td>${fmtHours(r.hrs.regular)}</td>
               <td>${fmtHours(r.hrs.friday)}</td>
               <td>${fmtHours(r.hrs.saturday)}</td>
@@ -181,7 +181,7 @@ function exportEmployeePDF(row) {
       </style>
     </head>
     <body>
-      <h1>📋 דוח עובד — ${row.emp.full_name}</h1>
+      <h1>📋 דוח עובד — ${row.emp.full_name}${isManager(row.emp.id) ? ' (מנהל)' : ''}</h1>
       <p>תקופה: ${fmtDate(from)} — ${fmtDate(to)}</p>
       <p>סוג העסקה: ${row.emp.employee_type === 'hourly' ? 'שעתי' : 'גלובלי'}</p>
       ${row.emp.employee_type === 'hourly' ? `<p>תעריף שעתי: ₪${row.emp.hourly_rate}/שעה</p>` : ''}
@@ -287,7 +287,7 @@ function exportEmployeePDF(row) {
                   <tbody>
                     {rows.map(r => (
                       <tr key={r.emp.id} className="transition-colors hover:bg-brand-500/5">
-                        <td className="table-td"><div className="flex items-center gap-2.5 font-medium"><Avatar name={r.emp.full_name} size="sm" />{r.emp.full_name}</div></td>
+                        <td className="table-td"><div className="flex items-center gap-2.5 font-medium"><Avatar name={r.emp.full_name} size="sm" />{r.emp.full_name}<ManagerBadge show={isManager(r.emp.id)} /></div></td>
                         {['regular', 'friday', 'saturday', 'night'].map(k => (
                           <td key={k} className="table-td tabular-nums" style={{ color: r.hrs[k] ? undefined : 'var(--text-dim)' }}>{r.hrs[k] ? fmtHours(r.hrs[k]) : '—'}</td>
                         ))}
@@ -317,7 +317,7 @@ function exportEmployeePDF(row) {
                 {rows.map(r => (
                   <div key={r.emp.id} className="px-4 py-3.5">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2.5 font-medium text-sm"><Avatar name={r.emp.full_name} size="sm" />{r.emp.full_name}</div>
+                      <div className="flex items-center gap-2.5 font-medium text-sm"><Avatar name={r.emp.full_name} size="sm" />{r.emp.full_name}<ManagerBadge show={isManager(r.emp.id)} /></div>
                       <span className="text-base font-extrabold tabular-nums">{fmtMoney(r.total)}</span>
                     </div>
                     <div className="flex items-center justify-between mt-2 text-xs tabular-nums" style={{ color: 'var(--text-dim)' }}>
@@ -340,7 +340,7 @@ function exportEmployeePDF(row) {
         <div className="animate-rise">
           <select className="form-control mb-4 sm:max-w-xs" value={detailEmp} onChange={e => setDetailEmp(e.target.value)}>
             <option value="">בחר עובד</option>
-            {employees.map(e => <option key={e.id} value={e.email}>{e.full_name}</option>)}
+            {employees.map(e => <option key={e.id} value={e.email}>{e.full_name}{isManager(e.id) ? ' (מנהל)' : ''}</option>)}
           </select>
           {!detailEmp && <p className="text-sm py-8 text-center" style={{ color: 'var(--text-dim)' }}>בחר עובד כדי לראות את פירוט המשמרות שלו בתקופה</p>}
           {detailEmp && detailEmpObj && (
