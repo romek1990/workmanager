@@ -276,7 +276,7 @@ export function CardSection({ title, action, children, className = '' }) {
 }
 
 // small tag shown next to a manager's name wherever people are listed
-export function ManagerBadge({ show = true }) {
+export function ManagerBadge({ show = false }) {
   if (!show) return null
   return <span className="badge badge-warning text-[10px] shrink-0">מנהל</span>
 }
