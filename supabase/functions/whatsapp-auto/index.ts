@@ -7,6 +7,8 @@
 //   form101     (admin | cron) — reminder to active employees with no pending/approved Form 101 this year.
 //                                 Skips anyone reminded in the last 6 days unless { force: true } (admin only).
 //   open_shifts (admin | cron) — employee whose shift has been open > 12h gets one alert; admins get a bell note.
+//   long_shifts (admin | cron) — a shift longer than 9h (entered, or still open past 9h) is reported once
+//                                 to the supervisor's WhatsApp (LONG_SHIFT_PHONE).
 //   shift_reminders (admin | cron) — reminder ~1h before a shift in the weekly schedule (once per scheduled shift;
 //                                 skipped if the employee is already clocked in). Uses public.due_shift_reminders().
 //
@@ -27,6 +29,8 @@ const OPEN_SHIFT_HOURS = 12;
 const FORM101_COOLDOWN_DAYS = 6;
 const DELAY_BETWEEN_MS = 400;
 const REMINDER_LEAD_MINUTES = 60;
+const LONG_SHIFT_HOURS = 9;
+const LONG_SHIFT_PHONE = "0509561130"; // gets a report on every unusually long shift
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -193,6 +197,51 @@ async function jobOpenShifts(admin: any, sender: { id: string | null; name: stri
   return out;
 }
 
+const hm = (mins: number) => { const t = Math.max(0, Math.floor(mins)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
+const STATUS_HE: Record<string, string> = { active: "עדיין במשמרת 🟢", pending: "ממתין לאישור", approved: "מאושר" };
+
+async function jobLongShifts(admin: any, sender: { id: string | null; name: string }) {
+  const cutoff = new Date(Date.now() - LONG_SHIFT_HOURS * 3600000).toISOString();
+  const since = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
+  const { data: rows, error } = await admin
+    .from("shifts")
+    .select("id, employee_id, employee_name, date, start_time, end_time, total_hours, status, is_manual, notes, clock_in_at")
+    .is("long_alert_at", null).is("deleted_at", null).gte("date", since)
+    .or(`and(status.eq.active,clock_in_at.lt.${cutoff}),and(status.in.(pending,approved),total_hours.gt.${LONG_SHIFT_HOURS})`);
+  if (error) throw error;
+  if (!rows?.length) return { sent: 0, failed: 0, skipped: 0, results: [] };
+
+  // mark first so an overlapping cron run can't double-send
+  await admin.from("shifts").update({ long_alert_at: new Date().toISOString() }).in("id", rows.map((r: any) => r.id));
+
+  const { data: mgrs } = await admin.from("profiles").select("id").eq("role", "admin").in("id", rows.map((r: any) => r.employee_id));
+  const isMgr = new Set((mgrs || []).map((m: any) => m.id));
+
+  const to: Recipient = { id: null as unknown as string, full_name: "דיווח חריגת שעות", phone: LONG_SHIFT_PHONE };
+  const batch: Outgoing[] = rows.map((s: any) => {
+    const [y, m, d] = String(s.date).split("-");
+    const open = s.status === "active";
+    const mins = open
+      ? (Date.now() - new Date(s.clock_in_at).getTime()) / 60000
+      : (Number(s.total_hours) || 0) * 60;
+    const lines = [
+      `⚠️ *חריגת שעות במשמרת*`,
+      ``,
+      `👤 עובד: ${s.employee_name || ""}${isMgr.has(s.employee_id) ? " (מנהל)" : ""}`,
+      `📅 תאריך: ${d}.${m}.${y}`,
+      `🟢 כניסה: ${String(s.start_time || "").slice(0, 5)}`,
+      `🔴 יציאה: ${open ? "עדיין לא יצא" : String(s.end_time || "").slice(0, 5)}`,
+      `⏱️ משך: ${hm(mins)} שעות${open ? " (ממשיך לרוץ)" : ""}`,
+      `📝 אופן רישום: ${s.is_manual ? "הזנה ידנית" : "שעון נוכחות"}`,
+      `📌 סטטוס: ${STATUS_HE[s.status] || s.status}`,
+    ];
+    if (s.notes) lines.push(`💬 הערות: ${String(s.notes).slice(0, 200)}`);
+    lines.push(``, `משמרת מעל ${LONG_SHIFT_HOURS} שעות — כדאי לבדוק. ${SITE}/shifts`);
+    return { r: to, text: lines.join("\n") };
+  });
+  return deliver(admin, "long_shift", sender, batch, false);
+}
+
 async function jobShiftReminders(admin: any, sender: { id: string | null; name: string }) {
   const { data: due, error } = await admin.rpc("due_shift_reminders", { p_lead_minutes: REMINDER_LEAD_MINUTES });
   if (error) throw error;
@@ -239,7 +288,7 @@ serve(async (req) => {
       if (!u?.user) return json({ error: "Invalid session" }, 401);
       const { data: p } = await admin.from("profiles").select("id, full_name, role").eq("id", u.user.id).single();
       if (p?.role !== "admin") return json({ error: "Forbidden — admin only" }, 403);
-      const need = ({ schedule: "schedule", form101: "form101", open_shifts: "shifts", shift_reminders: "schedule" } as Record<string, string>)[job];
+      const need = ({ schedule: "schedule", form101: "form101", open_shifts: "shifts", long_shifts: "shifts", shift_reminders: "schedule" } as Record<string, string>)[job];
       const { data: allowed } = await callerClient.rpc("has_perm", { p: need || "__none__" });
       if (allowed !== true) return json({ error: "אין לך הרשאה לפעולה הזו" }, 403);
       sender = { id: p.id, name: p.full_name };
@@ -253,6 +302,8 @@ serve(async (req) => {
         return json({ ok: true, ...(await jobForm101(admin, sender, !viaCron && body.force === true)) });
       case "open_shifts":
         return json({ ok: true, ...(await jobOpenShifts(admin, sender)) });
+      case "long_shifts":
+        return json({ ok: true, ...(await jobLongShifts(admin, sender)) });
       case "shift_reminders":
         return json({ ok: true, ...(await jobShiftReminders(admin, sender)) });
       default:
