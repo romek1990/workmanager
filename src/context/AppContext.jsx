@@ -270,6 +270,29 @@ export function AppProvider({ children }) {
     return data
   }
 
+  // Employee fixes / removes their own shift while it is still pending (checked again on the server)
+  async function employeeUpdateShift(id, { date, start_time, end_time, notes }) {
+    const before = shifts.find(s => s.id === id)
+    const { data, error } = await supabase.rpc('employee_update_shift', { p_id: id, p_date: date, p_start: start_time, p_end: end_time, p_notes: notes || '' })
+    if (error) throw error
+    upsertShiftLocal(data)
+    const was = before ? `${before.date} ${before.start_time}–${before.end_time}` : ''
+    await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'עריכת משמרת', `תיקן משמרת ${was} ← ${data.date} ${data.start_time}–${data.end_time}`)
+    await notifyAdmins('✏️ משמרת עודכנה', `${data.employee_name} תיקן משמרת: ${data.date} ${data.start_time}–${data.end_time} — ממתין לאישור`, 'info')
+    return data
+  }
+
+  async function employeeRemoveShift(id) {
+    const s = shifts.find(x => x.id === id)
+    const { error } = await supabase.rpc('employee_remove_shift', { p_id: id })
+    if (error) throw error
+    setShifts(prev => prev.filter(x => x.id !== id))
+    if (s) {
+      await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'מחיקת משמרת', `מחק משמרת ${s.date} ${s.start_time}–${s.end_time || ''}`)
+      await notifyAdmins('🗑️ משמרת נמחקה', `${s.employee_name} מחק משמרת שהוזנה בטעות: ${s.date} ${s.start_time}–${s.end_time || ''}`, 'info')
+    }
+  }
+
   async function adminCloseShift(id, endAt) {
     const { data, error } = await supabase.rpc('admin_close_shift', { p_shift_id: id, p_end_at: endAt.toISOString() })
     if (error) throw error
@@ -407,7 +430,7 @@ export function AppProvider({ children }) {
       login, logout,
       addEmployee, updateEmployee,
       addShift, updateShiftStatus,
-      clockIn, clockOut, adminCloseShift, refreshShifts,
+      clockIn, clockOut, adminCloseShift, refreshShifts, employeeUpdateShift, employeeRemoveShift,
       addBonus, updateBonus,
       addScheduleEntry, deleteScheduleEntry, updateScheduleEntry,
       saveDayNote,

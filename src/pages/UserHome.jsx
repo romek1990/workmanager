@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Play, Square, Clock, Banknote, CalendarDays, Plus, MoonStar, CalendarCheck } from 'lucide-react'
 import { useApp, clockErrorMessage } from '../context/AppContext'
+import { Link } from 'react-router-dom'
 import { ShiftTypeBadge, StatusBadge, StatCard, CardSection, Table, AlertModal, Modal } from '../components/ui'
 import { calcShiftPay, fmtMoney, calcHours, todayISO, fmtHours, hoursFromMinutes, minutesBetween, localISODate } from '../utils/helpers'
 
@@ -268,7 +269,7 @@ export default function UserHome() {
       </div>
 
       {/* Recent shifts */}
-      <CardSection title="משמרות אחרונות">
+      <CardSection title="משמרות אחרונות" action={<Link to="/my-shifts" className="text-xs font-semibold text-brand-700">שינוי או מחיקה ←</Link>}>
         <Table headers={['תאריך', 'שעות', 'סוג', 'סטטוס']} emptyMessage="אין משמרות עדיין">
           {myShifts.slice(0, 6).map(s => (
             <tr key={s.id} className="hover:bg-gray-50">
