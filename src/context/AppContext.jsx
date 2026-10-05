@@ -23,9 +23,11 @@ export function clockErrorMessage(e) {
   if (far) return `אתה נמצא כ-${Number(far[1]) >= 1000 ? (Number(far[1]) / 1000).toFixed(1) + ' ק"מ' : far[1] + ' מטר'} מהחנות. אפשר להירשם למשמרת רק מהחנות.`
   if (m.includes('no open shift')) return 'אין משמרת פתוחה.'
   if (m.includes('user blocked')) return 'המשתמש חסום. נא לפנות למנהל'
+  if (m.includes('system locked')) return 'המערכת סגורה זמנית. נא לפנות למנהל'
   return 'הפעולה נכשלה, נסה שוב'
 }
 
+export const LOCKED_MSG = 'המערכת סגורה זמנית. נא לפנות למנהל'
 export const BLOCKED_MSG = 'המשתמש חסום. נא לפנות למנהל'
 
 export function AppProvider({ children }) {
@@ -34,6 +36,7 @@ export function AppProvider({ children }) {
   const [bonuses, setBonuses] = useState([])
   const [weeklySchedule, setWeeklySchedule] = useState([])
   const [dayNotes, setDayNotes] = useState([])
+  const [systemLocked, setSystemLocked] = useState(false) // super admin's kill switch
   const [hourlyManagers, setHourlyManagers] = useState([]) // managers who report hours like employees
   const [notifications, setNotifications] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
@@ -66,6 +69,30 @@ export function AppProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  // signed-in users are sent out within a minute of the system being locked
+  useEffect(() => {
+    if (!currentUser || currentUser.is_super_admin) return
+    const check = async () => {
+      const { data: locked } = await supabase.rpc('system_locked')
+      if (locked) {
+        await supabase.auth.signOut()
+        setCurrentUser(null)
+        setAuthNotice(LOCKED_MSG)
+      }
+    }
+    const t = setInterval(check, 60000)
+    const onVisible = () => document.visibilityState === 'visible' && check()
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible) }
+  }, [currentUser?.id])
+
+  async function setSystemLock(locked, code) {
+    const { data, error } = await supabase.rpc('set_system_lock', { p_locked: locked, p_code: code })
+    if (error) throw new Error(error.message.includes('bad code') ? 'קוד האישור שגוי' : 'הפעולה נכשלה')
+    setSystemLocked(!!data)
+    return !!data
+  }
+
   async function loadUserProfile(authUser) {
     const { data } = await supabase.from('profiles').select('*').eq('id', authUser.id).single()
     // inactive employees are locked out (also catches a session that was open when they were deactivated)
@@ -76,6 +103,16 @@ export function AppProvider({ children }) {
       setLoading(false)
       return
     }
+    // system-wide lock: everyone but the super admin is sent out
+    const { data: locked } = await supabase.rpc('system_locked')
+    if (locked && !data?.is_super_admin) {
+      await supabase.auth.signOut()
+      setCurrentUser(null)
+      setAuthNotice(LOCKED_MSG)
+      setLoading(false)
+      return
+    }
+    setSystemLocked(!!locked)
     if (data) {
       setCurrentUser({ ...data, name: data.full_name })
       await logActivity(authUser.id, data.full_name, authUser.email, 'התחברות', 'התחבר למערכת')
@@ -170,6 +207,11 @@ export function AppProvider({ children }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
     const { data: profile } = await supabase.from('profiles').select('role, status, is_super_admin').eq('id', data.user.id).single()
+    const { data: locked } = await supabase.rpc('system_locked')
+    if (locked && !profile?.is_super_admin) {
+      await supabase.auth.signOut()
+      throw new Error(LOCKED_MSG)
+    }
     if (profile && !profile.is_super_admin && profile.status !== 'active') {
       await supabase.auth.signOut()
       throw new Error(BLOCKED_MSG)
@@ -426,7 +468,7 @@ export function AppProvider({ children }) {
       employees, shifts, bonuses, weeklySchedule, dayNotes,
       notifications, unreadCount,
       currentUser, currentRole, currentUserEmail,
-      loading, authNotice, isSuperAdmin, can, isHourlyManager, canResolveShift, hourlyManagers,
+      loading, authNotice, isSuperAdmin, can, systemLocked, setSystemLock, isHourlyManager, canResolveShift, hourlyManagers,
       login, logout,
       addEmployee, updateEmployee,
       addShift, updateShiftStatus,

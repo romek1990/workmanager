@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 
 import { useApp } from '../../context/AppContext'
 import { Avatar } from '../ui'
+import SystemLockButton from '../SystemLockButton'
 import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, CalendarDays, Menu, X, Shield, Bell, FileText, MessageCircle, UserCog, QrCode, Timer } from 'lucide-react'
 
 const baseAdminNav = [
@@ -177,6 +178,7 @@ export default function Sidebar() {
             <p className="text-xs text-gray-400">{currentUser?.role === 'admin' ? 'מנהל מערכת' : 'עובד'}</p>
           </div>
         </div>
+        <SystemLockButton />
         <button
           onClick={handleLogout}
           className="w-full text-xs text-center py-1.5 rounded-xl border border-white bg-white/60 text-gray-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 flex items-center justify-center gap-1.5 transition-colors"
