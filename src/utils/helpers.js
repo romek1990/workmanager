@@ -63,8 +63,9 @@ export function fmtMoney(n) {
   return '₪' + Math.round(n).toLocaleString('he-IL')
 }
 
+// today's date in Israel local time (toISOString is UTC and lags until 03:00)
 export function todayISO() {
-  return new Date().toISOString().slice(0, 10)
+  return localISODate()
 }
 
 // m may be out of range (0 → December of previous year, 13 → January of next)

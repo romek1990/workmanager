@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { ChevronRight, ChevronLeft, Pencil, Trash2, CalendarClock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { fmtHours, fmtDate, calcHours, todayISO } from '../utils/helpers'
@@ -12,11 +12,13 @@ function errorText(e) {
   if (m.includes('not pending')) return 'המשמרת כבר טופלה על ידי המנהל ולא ניתן לשנות אותה'
   if (m.includes('future date')) return 'אי אפשר לרשום משמרת בתאריך עתידי'
   if (m.includes('too long')) return 'משמרת לא יכולה להיות ארוכה מ-20 שעות'
+  if (m.includes('bad time')) return 'שעה לא תקינה'
+  if (m.includes('not found')) return 'המשמרת לא נמצאה — רענן את הדף'
   return 'הפעולה נכשלה, נסה שוב'
 }
 
 export default function MyShifts() {
-  const { shifts, currentUserEmail, currentUser, employeeUpdateShift, employeeRemoveShift } = useApp()
+  const { shifts, currentUserEmail, currentUser, employeeUpdateShift, employeeRemoveShift, refreshShifts } = useApp()
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
@@ -26,6 +28,9 @@ export default function MyShifts() {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [toast, showToast] = useToast(2600)
+
+  // pull fresh statuses so approvals/rejections by the manager show up
+  useEffect(() => { refreshShifts?.() }, [])
 
   function changeMonth(dir) {
     let m = month + dir, y = year
@@ -51,6 +56,7 @@ export default function MyShifts() {
 
   async function saveEdit() {
     if (!form.date || !form.start_time || !form.end_time) return
+    if (editInvalid) { setErr(editInvalid); return }
     setBusy(true); setErr('')
     try {
       await employeeUpdateShift(editing.id, form)
@@ -83,7 +89,12 @@ export default function MyShifts() {
     </div>
   )
 
-  const editHours = calcHours(form.start_time, form.end_time)
+  const editHours = form.start_time && form.end_time ? calcHours(form.start_time, form.end_time) : 0
+  const editInvalid =
+    form.start_time && form.start_time === form.end_time ? 'שעת ההתחלה והסיום זהות'
+    : editHours > 20 ? 'משמרת לא יכולה להיות ארוכה מ-20 שעות'
+    : form.date && form.date > todayISO() ? 'אי אפשר לרשום משמרת בתאריך עתידי'
+    : ''
 
   return (
     <div className="p-4 md:px-10 md:py-8">
@@ -157,7 +168,7 @@ export default function MyShifts() {
       <Modal open={!!editing} onClose={() => !busy && setEditing(null)} title="שינוי משמרת"
         footer={<>
           <button className="btn" onClick={() => setEditing(null)} disabled={busy}>ביטול</button>
-          <button className="btn btn-primary" onClick={saveEdit} disabled={busy || !form.date || !form.start_time || !form.end_time}>{busy ? 'שומר...' : 'שמור'}</button>
+          <button className="btn btn-primary" onClick={saveEdit} disabled={busy || !form.date || !form.start_time || !form.end_time || !!editInvalid}>{busy ? 'שומר...' : 'שמור'}</button>
         </>}>
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
@@ -174,7 +185,9 @@ export default function MyShifts() {
           </div>
           <div className="col-span-2 text-xs" style={{ color: 'var(--text-dim)' }}>
             סה"כ: <b className="tabular-nums">{fmtHours(editHours)}</b> שעות
+            {form.start_time && form.end_time && form.end_time < form.start_time && !editInvalid && <span> (משמרת לילה — מסתיימת למחרת)</span>}
           </div>
+          {editInvalid && !err && <p className="col-span-2 text-xs text-red-600">{editInvalid}</p>}
           <div className="col-span-2">
             <label className="form-label">הערות</label>
             <input className="form-control" value={form.notes || ''} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="למשל: שכחתי לצאת מהמשמרת" />
