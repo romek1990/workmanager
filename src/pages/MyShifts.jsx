@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { ChevronRight, ChevronLeft, Pencil, Trash2, CalendarClock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { fmtHours, fmtDate, calcHours, todayISO } from '../utils/helpers'
+import { fmtHours, fmtDate, calcHours, todayISO, monthEstimate } from '../utils/helpers'
+import PayEstimate from '../components/PayEstimate'
 import { ShiftTypeBadge, StatusBadge, Modal, PageHeader, Toast, useToast } from '../components/ui'
 import { MONTH_NAMES } from '../data/mockData'
 
@@ -18,7 +19,7 @@ function errorText(e) {
 }
 
 export default function MyShifts() {
-  const { shifts, currentUserEmail, currentUser, employeeUpdateShift, employeeRemoveShift, refreshShifts } = useApp()
+  const { shifts, bonuses, employees, currentUserEmail, currentUser, employeeUpdateShift, employeeRemoveShift, refreshShifts } = useApp()
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
@@ -44,6 +45,8 @@ export default function MyShifts() {
     .filter(s => (s.employee_email === currentUserEmail || s.employee_id === currentUser?.id) && (s.date || '').startsWith(prefix))
     .sort((a, b) => (a.date === b.date ? t5(a.start_time).localeCompare(t5(b.start_time)) : a.date.localeCompare(b.date)))
 
+  const emp = employees.find(e => e.email === currentUserEmail) || currentUser
+  const est = monthEstimate({ shifts, bonuses, emp: { ...emp, id: currentUser?.id, email: currentUserEmail }, ym: prefix })
   const closed = myShifts.filter(s => s.status !== 'active' && s.status !== 'rejected')
   const totalHours = closed.reduce((a, s) => a + (Number(s.total_hours) || 0), 0)
   const approved = closed.filter(s => s.status === 'approved').reduce((a, s) => a + (Number(s.total_hours) || 0), 0)
@@ -163,6 +166,8 @@ export default function MyShifts() {
           <span>ממתינות: <strong className="text-amber-600 tabular-nums">{fmtHours(totalHours - approved)}</strong></span>
         </div>
       </div>
+
+      <PayEstimate est={est} title={`${MONTH_NAMES[month - 1]} ${year} — שעות ושכר`} className="mt-5" />
 
       {/* edit */}
       <Modal open={!!editing} onClose={() => !busy && setEditing(null)} title="שינוי משמרת"

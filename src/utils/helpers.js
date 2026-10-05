@@ -84,3 +84,28 @@ export function fmtDate(iso) {
   const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number)
   return `${d}.${m}.${y}`
 }
+
+// Estimated gross pay for one month (ym = 'YYYY-MM'): approved + still-pending shifts, plus bonuses.
+// Rejected shifts and a shift that is still open are not counted.
+export function monthEstimate({ shifts = [], bonuses = [], emp, ym }) {
+  const mine = s => !emp || s.employee_id === emp.id || s.employee_email === emp.email
+  const inMonth = shifts.filter(s => mine(s) && (s.date || '').startsWith(ym))
+  const approved = inMonth.filter(s => s.status === 'approved')
+  const pending = inMonth.filter(s => s.status === 'pending')
+  const hrs = list => list.reduce((a, s) => a + (Number(s.total_hours) || 0), 0)
+  const isGlobal = emp?.employee_type === 'global'
+  const pay = list => (isGlobal || !emp ? 0 : list.reduce((a, s) => a + (calcShiftPay(s, emp) || 0), 0))
+  const bonusList = bonuses.filter(b => mine(b) && ((b.date || '').startsWith(ym) || b.month === ym))
+  const bonus = bonusList.reduce((a, b) => a + (Number(b.amount) || 0), 0)
+  const approvedPay = pay(approved)
+  const pendingPay = pay(pending)
+  const basePay = isGlobal ? Number(emp?.monthly_salary) || 0 : approvedPay + pendingPay
+  return {
+    isGlobal,
+    approvedHours: hrs(approved), pendingHours: hrs(pending), hours: hrs(approved) + hrs(pending),
+    approvedCount: approved.length, pendingCount: pending.length,
+    approvedPay, pendingPay, basePay, bonus, bonusList,
+    total: basePay + bonus,
+    rate: Number(emp?.hourly_rate) || 0,
+  }
+}

@@ -3,8 +3,9 @@ import { Play, Square, Clock, Banknote, CalendarDays, Plus, MoonStar, CalendarCh
 import { useApp, clockErrorMessage } from '../context/AppContext'
 import { Link, useNavigate } from 'react-router-dom'
 import QrScanner from '../components/QrScanner'
+import PayEstimate from '../components/PayEstimate'
 import { ShiftTypeBadge, StatusBadge, StatCard, CardSection, Table, AlertModal, Modal } from '../components/ui'
-import { calcShiftPay, fmtMoney, calcHours, todayISO, fmtHours, hoursFromMinutes, minutesBetween, localISODate } from '../utils/helpers'
+import { calcShiftPay, fmtMoney, calcHours, todayISO, fmtHours, hoursFromMinutes, minutesBetween, localISODate, monthEstimate } from '../utils/helpers'
 
 const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
 
@@ -80,6 +81,9 @@ export default function UserHome() {
     ? emp.monthly_salary
     : approvedShifts.reduce((a, s) => a + (calcShiftPay(s, emp) || 0), 0)
   const pendingCount = myShifts.filter(s => s.status === 'pending').length
+  const thisYm = localISODate().slice(0, 7)
+  const monthShifts = myShifts.filter(s => (s.date || '').startsWith(thisYm))
+  const est = monthEstimate({ shifts: myShifts, bonuses, emp: { ...emp, id: currentUser?.id, email: currentUserEmail }, ym: thisYm })
 
   // סידור שבועי
   const weekStart = getWeekStart(new Date())
@@ -201,11 +205,10 @@ export default function UserHome() {
       </div>
 
       {/* Stats */}
+      <PayEstimate est={est} title="החודש שלי — שעות ושכר" className="mb-5 animate-rise" />
       <div className="grid grid-cols-2 gap-3 mb-5 stagger">
-        <StatCard label="שעות החודש" value={totalHours} format={fmtHours} sub="מאושרות" icon={Clock} accent="amber" />
-        <StatCard label="שכר משוער" value={totalPay} format={fmtMoney} sub="לפני ניכויים" icon={Banknote} accent="lime" delay={80} />
-        <StatCard label="סך הכל משמרות שדווחו" value={myShifts.length} sub={`${pendingCount} ממתינות`} icon={CalendarDays} accent="emerald" delay={160} />
-        <StatCard label="משמרות שאושרו" value={approvedShifts.length} sub="החודש" icon={CalendarCheck} accent="emerald" delay={240} />
+        <StatCard label="משמרות שדווחו החודש" value={monthShifts.filter(s => s.status !== 'rejected').length} sub={`${est.pendingCount} ממתינות לאישור`} icon={CalendarDays} accent="emerald" />
+        <StatCard label="משמרות שאושרו" value={est.approvedCount} sub="החודש" icon={CalendarCheck} accent="emerald" delay={80} />
       </div>
 
       {/* סידור שבועי */}
