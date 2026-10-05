@@ -109,3 +109,10 @@ export function monthEstimate({ shifts = [], bonuses = [], emp, ym }) {
     rate: Number(emp?.hourly_rate) || 0,
   }
 }
+
+// Hebrew message for the server's "shift overlap" guard (two shifts of one employee can't share time)
+export function shiftOverlapMessage(e) {
+  const m = String(e?.message || '').match(/shift overlap:(\S+) (\S+)/)
+  if (!m) return null
+  return `יש כבר משמרת שחופפת לשעות האלה (${m[1]} · ${m[2].replace('-', '–')}). אי אפשר לרשום שתי משמרות באותן שעות.`
+}

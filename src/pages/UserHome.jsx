@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import QrScanner from '../components/QrScanner'
 import PayEstimate from '../components/PayEstimate'
 import { ShiftTypeBadge, StatusBadge, StatCard, CardSection, Table, AlertModal, Modal } from '../components/ui'
-import { calcShiftPay, fmtMoney, calcHours, todayISO, fmtHours, hoursFromMinutes, minutesBetween, localISODate, monthEstimate } from '../utils/helpers'
+import { calcShiftPay, fmtMoney, calcHours, todayISO, fmtHours, hoursFromMinutes, minutesBetween, localISODate, monthEstimate, shiftOverlapMessage } from '../utils/helpers'
 
 const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
 
@@ -142,7 +142,7 @@ export default function UserHome() {
       setManualForm(defaultManualForm)
       setAlert({ title: 'משמרת נוספה', message: 'המשמרת נרשמה וממתינה לאישור המנהל' })
     } catch (e) {
-      setAlert({ title: 'שגיאה', message: e.message })
+      setAlert({ title: 'המשמרת לא נרשמה', message: shiftOverlapMessage(e) || e.message })
     }
     setManualLoading(false)
   }

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { shiftOverlapMessage } from '../utils/helpers'
 
 const AppContext = createContext(null)
 
@@ -21,6 +22,7 @@ export function clockErrorMessage(e) {
   if (m.includes('location required')) return 'נדרש מיקום כדי להירשם למשמרת. רענן את הדף ונסה שוב.'
   const far = m.match(/too far:(\d+)/)
   if (far) return `אתה נמצא כ-${Number(far[1]) >= 1000 ? (Number(far[1]) / 1000).toFixed(1) + ' ק"מ' : far[1] + ' מטר'} מהחנות. אפשר להירשם למשמרת רק מהחנות.`
+  if (m.includes('shift overlap')) return shiftOverlapMessage(e)
   if (m.includes('no open shift')) return 'אין משמרת פתוחה.'
   if (m.includes('user blocked')) return 'המשתמש חסום. נא לפנות למנהל'
   if (m.includes('system locked')) return 'המערכת סגורה זמנית. נא לפנות למנהל'

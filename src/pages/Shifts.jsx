@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Plus, CalendarClock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { ShiftTypeBadge, StatusBadge, Modal, AlertModal, Avatar, PageHeader, StatChip, SearchInput, Toast, useToast, ReadOnlyBanner } from '../components/ui'
-import { calcHours, todayISO, fmtHours, fmtDate } from '../utils/helpers'
+import { calcHours, todayISO, fmtHours, fmtDate, shiftOverlapMessage } from '../utils/helpers'
 
 const defaultForm = { employee_email: '', date: todayISO(), start_time: '08:00', end_time: '16:00', shift_type: 'regular', notes: '' }
 const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
@@ -55,18 +55,22 @@ export default function Shifts() {
     }
   }
 
-  function handleAdd() {
+  async function handleAdd() {
     if (!form.employee_email || !form.date) return
     const emp = activeEmps.find(e => e.email === form.employee_email)
-    addShift({
-      ...form,
-      employee_name: emp?.full_name || '',
-      total_hours: calcHours(form.start_time, form.end_time),
-      is_manual: true,
-    })
-    setModal(false)
-    setForm(defaultForm)
-    setAlert({ title: 'משמרת נוספה', message: 'המשמרת נוספה בסטטוס ממתין לאישור' })
+    try {
+      await addShift({
+        ...form,
+        employee_name: emp?.full_name || '',
+        total_hours: calcHours(form.start_time, form.end_time),
+        is_manual: true,
+      })
+      setModal(false)
+      setForm(defaultForm)
+      setAlert({ title: 'משמרת נוספה', message: 'המשמרת נוספה בסטטוס ממתין לאישור' })
+    } catch (e) {
+      setAlert({ title: 'המשמרת לא נוספה', message: shiftOverlapMessage(e)?.replace('אי אפשר לרשום', 'לא ניתן לרשום לעובד') || 'הוספת המשמרת נכשלה' })
+    }
   }
 
   function set(k, v) { setForm(p => ({ ...p, [k]: v })) }

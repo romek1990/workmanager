@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { ChevronRight, ChevronLeft, Pencil, Trash2, CalendarClock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { fmtHours, fmtDate, calcHours, todayISO, monthEstimate } from '../utils/helpers'
+import { fmtHours, fmtDate, calcHours, todayISO, monthEstimate, shiftOverlapMessage } from '../utils/helpers'
 import PayEstimate from '../components/PayEstimate'
 import { ShiftTypeBadge, StatusBadge, Modal, PageHeader, Toast, useToast } from '../components/ui'
 import { MONTH_NAMES } from '../data/mockData'
@@ -10,6 +10,7 @@ const t5 = t => (t ? String(t).slice(0, 5) : '')
 
 function errorText(e) {
   const m = String(e?.message || '')
+  if (m.includes('shift overlap')) return shiftOverlapMessage(e)
   if (m.includes('not pending')) return 'המשמרת כבר טופלה על ידי המנהל ולא ניתן לשנות אותה'
   if (m.includes('future date')) return 'אי אפשר לרשום משמרת בתאריך עתידי'
   if (m.includes('too long')) return 'משמרת לא יכולה להיות ארוכה מ-20 שעות'
