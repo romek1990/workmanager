@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Receipt, Camera, Upload, ChevronDown, ExternalLink, Pencil, Trash2, RefreshCw, Loader2, AlertTriangle, Search, Eye, X, FileText, Truck } from 'lucide-react'
+import { Receipt, Camera, Upload, ChevronDown, ExternalLink, Pencil, Trash2, RefreshCw, Loader2, AlertTriangle, Search, Eye, X, FileText, Truck, Files, Plus, ArrowUp, ArrowDown, ImagePlus } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { PageHeader, Modal, Toast, useToast } from '../components/ui'
@@ -49,6 +49,33 @@ async function prepare(file) {
   } catch { return file }
 }
 
+// one page photo → JPEG data URL (max ~1800px) for the multi-page PDF
+async function toJpeg(file) {
+  const bmp = await createImageBitmap(file)
+  const scale = Math.min(1, 1800 / Math.max(bmp.width, bmp.height))
+  const c = document.createElement('canvas')
+  c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale)
+  const ctx = c.getContext('2d')
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height)
+  ctx.drawImage(bmp, 0, 0, c.width, c.height)
+  return { data: c.toDataURL('image/jpeg', 0.82), w: c.width, h: c.height }
+}
+
+// several page photos → one PDF document (A4, each photo fitted to its page)
+async function pagesToPdf(files) {
+  const { jsPDF } = await import('jspdf')
+  const pdf = new jsPDF({ unit: 'pt', format: 'a4', compress: true })
+  const W = pdf.internal.pageSize.getWidth(), H = pdf.internal.pageSize.getHeight(), M = 14
+  for (let i = 0; i < files.length; i++) {
+    const img = await toJpeg(files[i])
+    const k = Math.min((W - 2 * M) / img.w, (H - 2 * M) / img.h)
+    const w = img.w * k, h = img.h * k
+    if (i) pdf.addPage()
+    pdf.addImage(img.data, 'JPEG', (W - w) / 2, (H - h) / 2, w, h)
+  }
+  return new File([pdf.output('blob')], `מסמך-${files.length}-דפים.pdf`, { type: 'application/pdf' })
+}
+
 function TypeBadge({ type }) {
   const t = TYPES[type]
   const Icon = t.icon
@@ -72,6 +99,30 @@ export default function Invoices() {
   const [toast, showToast] = useToast(3000)
   const fileRef = useRef(null)
   const camRef = useRef(null)
+  // multi-page document: photograph page after page, then save as one PDF
+  const [multi, setMulti] = useState(null) // null | [{ file, url }]
+  const pageCamRef = useRef(null)
+  const pageGalRef = useRef(null)
+  const addPages = list => {
+    const imgs = [...(list || [])].filter(f => f.type.startsWith('image/'))
+    if (!imgs.length) return
+    setMulti(p => [...(p || []), ...imgs.map(f => ({ file: f, url: URL.createObjectURL(f) }))])
+  }
+  const movePage = (i, d) => setMulti(p => { const a = [...p]; const j = i + d; if (j < 0 || j >= a.length) return a; [a[i], a[j]] = [a[j], a[i]]; return a })
+  const dropPage = i => setMulti(p => { URL.revokeObjectURL(p[i].url); return p.filter((_, k) => k !== i) })
+  const closeMulti = () => { multi?.forEach(p => URL.revokeObjectURL(p.url)); setMulti(null) }
+  async function saveMulti() {
+    const pages = multi.map(p => p.file)
+    closeMulti()
+    setUploading(n => n + 1)
+    try {
+      const pdf = await pagesToPdf(pages)
+      await uploadAndScan(pdf, `${pages.length} דפים`)
+    } catch {
+      showToast('יצירת המסמך נכשלה', 'error')
+    }
+    setUploading(n => n - 1)
+  }
 
   async function load() {
     const { data } = await supabase.from('invoices').select('*').order('invoice_date', { ascending: false, nullsFirst: true }).order('created_at', { ascending: false })
@@ -82,35 +133,38 @@ export default function Invoices() {
 
   const upsertRow = r => setRows(prev => prev.some(x => x.id === r.id) ? prev.map(x => (x.id === r.id ? r : x)) : [r, ...prev])
 
+  async function uploadAndScan(file, displayName) {
+    const now = new Date()
+    const ext = file.type === 'application/pdf' ? 'pdf' : (file.name.split('.').pop() || 'jpg').toLowerCase()
+    const path = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${crypto.randomUUID()}.${ext}`
+    const { error: upErr } = await supabase.storage.from('invoices').upload(path, file, { contentType: file.type || 'image/jpeg' })
+    if (upErr) throw upErr
+    const { data: row, error } = await supabase.from('invoices').insert({
+      file_path: path, file_name: displayName || file.name, mime_type: file.type || 'image/jpeg', status: 'processing',
+      month: localISODate().slice(0, 7), uploaded_by: currentUser?.id, uploaded_by_name: currentUser?.name,
+    }).select().single()
+    if (error) throw error
+    upsertRow(row)
+    setOpenMonths(m => ({ ...m, [row.month]: true }))
+    logActivity?.(currentUser?.id, currentUser?.name, currentUser?.email, 'העלאת מסמך ספק', displayName || file.name)
+    try {
+      const done = await scan(row.id)
+      upsertRow(done)
+      setOpenMonths(m => ({ ...m, [done.month]: true }))
+      showToast(`נסרקה ${TYPES[typeOf(done)].label}: ${done.supplier_name || NO_SUPPLIER}${done.total_amount ? ` · ${fmtMoney(done.total_amount)}` : ''}`)
+    } catch (e) {
+      upsertRow({ ...row, status: 'failed' })
+      showToast(e.message, 'error')
+    }
+  }
+
   async function handleFiles(list) {
     const files = [...(list || [])]
     if (!files.length) return
     setUploading(n => n + files.length)
     for (const raw of files) {
       try {
-        const file = await prepare(raw)
-        const now = new Date()
-        const ext = file.type === 'application/pdf' ? 'pdf' : (file.name.split('.').pop() || 'jpg').toLowerCase()
-        const path = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${crypto.randomUUID()}.${ext}`
-        const { error: upErr } = await supabase.storage.from('invoices').upload(path, file, { contentType: file.type || 'image/jpeg' })
-        if (upErr) throw upErr
-        const { data: row, error } = await supabase.from('invoices').insert({
-          file_path: path, file_name: raw.name, mime_type: file.type || 'image/jpeg', status: 'processing',
-          month: localISODate().slice(0, 7), uploaded_by: currentUser?.id, uploaded_by_name: currentUser?.name,
-        }).select().single()
-        if (error) throw error
-        upsertRow(row)
-        setOpenMonths(m => ({ ...m, [row.month]: true }))
-        logActivity?.(currentUser?.id, currentUser?.name, currentUser?.email, 'העלאת מסמך ספק', raw.name)
-        try {
-          const done = await scan(row.id)
-          upsertRow(done)
-          setOpenMonths(m => ({ ...m, [done.month]: true }))
-          showToast(`נסרקה ${TYPES[typeOf(done)].label}: ${done.supplier_name || NO_SUPPLIER}${done.total_amount ? ` · ${fmtMoney(done.total_amount)}` : ''}`)
-        } catch (e) {
-          upsertRow({ ...row, status: 'failed' })
-          showToast(e.message, 'error')
-        }
+        await uploadAndScan(await prepare(raw), raw.name)
       } catch {
         showToast(`העלאת ${raw.name} נכשלה`, 'error')
       }
@@ -278,8 +332,11 @@ export default function Invoices() {
     <div className="p-4 md:px-10 md:py-8">
       <PageHeader icon={Receipt} title="חשבוניות ותעודות משלוח" subtitle="מצלמים מסמך בטלפון — המערכת מזהה אם זו חשבונית או תעודת משלוח, את הספק, התאריך והסכום, ומסדרת לפי חודש וספק">
         <button className="btn btn-primary" onClick={() => camRef.current?.click()}><Camera size={15} />צלם מסמך</button>
+        <button className="btn" onClick={() => setMulti([])}><Files size={15} />מסמך מרובה דפים</button>
         <button className="btn" onClick={() => fileRef.current?.click()}><Upload size={15} />העלה קובץ</button>
       </PageHeader>
+      <input ref={pageCamRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => { addPages(e.target.files); e.target.value = '' }} />
+      <input ref={pageGalRef} type="file" accept="image/*" multiple className="hidden" onChange={e => { addPages(e.target.files); e.target.value = '' }} />
       <input ref={camRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => { handleFiles(e.target.files); e.target.value = '' }} />
       <input ref={fileRef} type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={e => { handleFiles(e.target.files); e.target.value = '' }} />
 
@@ -373,6 +430,32 @@ export default function Invoices() {
           </div>
         </div>
       )}
+
+      <Modal open={multi !== null} onClose={closeMulti} title="מסמך מרובה דפים"
+        footer={<>
+          <button className="btn" onClick={closeMulti}>ביטול</button>
+          <button className="btn btn-primary" onClick={saveMulti} disabled={!multi?.length}>שמור וסרוק{multi?.length ? ` (${multi.length} דפים)` : ''}</button>
+        </>}>
+        <p className="text-sm mb-3" style={{ color: 'var(--text-dim)' }}>צלם את הדפים אחד אחרי השני. בסיום כל הדפים נשמרים כמסמך אחד ונסרקים יחד.</p>
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-4">
+          {(multi || []).map((p, i) => (
+            <div key={p.url} className="relative rounded-xl overflow-hidden border border-black/10 bg-white">
+              <img src={p.url} alt={`דף ${i + 1}`} className="w-full aspect-[3/4] object-cover" />
+              <span className="absolute top-1 right-1 rounded-full bg-ink-900/80 text-white text-[11px] font-bold px-2 py-0.5">{i + 1}</span>
+              <div className="absolute bottom-0 inset-x-0 flex justify-between bg-white/90 p-1">
+                <button className="p-1 disabled:opacity-30" disabled={i === 0} onClick={() => movePage(i, -1)} title="הזז קדימה"><ArrowUp size={14} /></button>
+                <button className="p-1 text-red-600" onClick={() => dropPage(i)} title="הסר דף"><X size={14} /></button>
+                <button className="p-1 disabled:opacity-30" disabled={i === multi.length - 1} onClick={() => movePage(i, 1)} title="הזז אחורה"><ArrowDown size={14} /></button>
+              </div>
+            </div>
+          ))}
+          <button onClick={() => pageCamRef.current?.click()}
+            className="flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-brand-500/40 bg-brand-500/5 text-brand-700 aspect-[3/4] text-xs font-semibold">
+            <Plus size={22} />{multi?.length ? `צלם דף ${multi.length + 1}` : 'צלם דף ראשון'}
+          </button>
+        </div>
+        <button className="btn text-xs py-1.5" onClick={() => pageGalRef.current?.click()}><ImagePlus size={14} />הוסף דפים מהגלריה</button>
+      </Modal>
 
       <Modal open={!!editing} onClose={() => busy !== 'edit' && setEditing(null)} title="פרטי מסמך"
         footer={<>
