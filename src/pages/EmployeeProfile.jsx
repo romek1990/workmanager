@@ -33,14 +33,14 @@ export default function EmployeeProfile() {
   const totalBonus = empBonuses.reduce((a, b) => a + b.amount, 0)
 
   function openEdit() {
-    setForm({ ...emp })
+    setForm({ ...emp, weekend_rate: emp.weekend_rate ?? '' })
     setEditModal(true)
   }
 
   function set(k, v) { setForm(p => ({ ...p, [k]: v })) }
 
   function handleSave() {
-    updateEmployee(emp.id, form)
+    updateEmployee(emp.id, { ...form, weekend_rate: form.employee_type === 'hourly' && Number(form.weekend_rate) > 0 ? Number(form.weekend_rate) : null })
     setEditModal(false)
     setAlert({ title: 'עובד עודכן', message: 'פרטי העובד עודכנו בהצלחה' })
   }
@@ -73,6 +73,7 @@ export default function EmployeeProfile() {
   const infoRows = [
     ['סוג העסקה', EMP_TYPE_LABELS[emp.employee_type]],
     ['שכר', emp.employee_type === 'hourly' ? `₪${emp.hourly_rate}/שעה` : `₪${Number(emp.monthly_salary || 0).toLocaleString()}/חודש`],
+    ...(emp.employee_type === 'hourly' ? [['שכר סופ״ש וחגים', Number(emp.weekend_rate) > 0 ? `₪${emp.weekend_rate}/שעה (קבוע)` : 'כמו שכר רגיל']] : []),
     ['תוספת לילה/סופ״ש/חג', emp.employee_type === 'global' ? '—' : eligibleForPremium(emp) ? `₪${getPayRules().premium} לשעה (שכר מתחת ל-₪${getPayRules().threshold})` : `אין (שכר ₪${getPayRules().threshold} ומעלה)`],
   ]
 
@@ -199,6 +200,13 @@ export default function EmployeeProfile() {
               <div>
                 <label className="form-label">שכר שעתי (₪)</label>
                 <input type="number" className="form-control" value={form.hourly_rate} onChange={e => set('hourly_rate', +e.target.value)} />
+              </div>
+            ) : null}
+            {form.employee_type === 'hourly' ? (
+              <div>
+                <label className="form-label">שכר סופ״ש וחגים (₪ לשעה)</label>
+                <input type="number" min="0" className="form-control" value={form.weekend_rate} onChange={e => set('weekend_rate', e.target.value)} placeholder="ריק = שכר רגיל" />
+                <p className="text-[11px] text-gray-400 mt-1">תעריף קבוע משישי 16:00 עד שבת 16:00, ובחגים מ-16:00 בערב החג עד 16:00 בחג</p>
               </div>
             ) : (
               <div>

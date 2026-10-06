@@ -40,6 +40,9 @@ export default function PayEstimate({ est, title = 'החודש שלי', classNam
             <Row label={`ממתינות לאישור (${est.pendingCount})`} value={fmtMoney(est.pendingPay)} dim />
           </>
         )}
+        {!est.isGlobal && est.weekendRate > 0 && est.weekendHours > 0 && (
+          <Row label={`מתוכן סופ״ש/חג (${fmtHours(est.weekendHours)} ש׳ × ₪${est.weekendRate})`} value={fmtMoney(est.weekendPay)} dim />
+        )}
         {!est.isGlobal && est.premiumEligible && est.premium > 0 && (
           <Row label={<span className="inline-flex items-center gap-1"><Moon size={13} className="text-indigo-600" />מתוכן תוספת לילה/סופ״ש ({fmtHours(est.premiumHours)} ש׳ × ₪{est.premiumRate})</span>} value={fmtMoney(est.premium)} dim />
         )}
@@ -54,7 +57,7 @@ export default function PayEstimate({ est, title = 'החודש שלי', classNam
         <Info size={12} className="mt-0.5 shrink-0" />
         {est.isGlobal
           ? 'הסכום הסופי ייקבע בתלוש השכר.'
-          : `חישוב לפי ${fmtMoney(est.rate)} לשעה${est.premiumEligible ? ` + ₪${est.premiumRate} לכל שעת לילה (00:00–08:00), סופ״ש (שישי 16:00–שבת 16:00) או חג` : ''}. משמרות שעוד לא אושרו עשויות להשתנות, והסכום הסופי ייקבע בתלוש השכר.`}
+          : `חישוב לפי ${fmtMoney(est.rate)} לשעה${est.weekendRate > 0 ? `, בסופ״ש (שישי 16:00–שבת 16:00) ובחג ₪${est.weekendRate} לשעה` : ''}${est.premiumEligible ? ` + ₪${est.premiumRate} לכל שעת לילה (00:00–08:00)${est.weekendRate > 0 ? '' : ', סופ״ש (שישי 16:00–שבת 16:00) או חג'}` : ''}. משמרות שעוד לא אושרו עשויות להשתנות, והסכום הסופי ייקבע בתלוש השכר.`}
       </p>
     </div>
   )

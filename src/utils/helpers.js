@@ -7,6 +7,9 @@ import { SHIFT_TYPE_LABELS, STATUS_LABELS } from '../data/mockData'
 //   • weekend  Friday 16:00 → Saturday 16:00
 //   • holiday  16:00 on the eve → 16:00 on the holiday (dates from the holidays table)
 // Windows don't stack — an hour counts once. No other multipliers.
+// Fixed weekend/holiday rate (profiles.weekend_rate): when set for an hourly employee, every minute
+// inside the weekend or holiday window is paid at that rate INSTEAD of the regular rate, and gets
+// no premium on top. Night-only minutes (00:00–08:00 on a weekday) keep the regular rule.
 let PAY_RULES = { threshold: 40, premium: 2, holidays: new Set() }
 export function setPayRules({ threshold, premium, holidays } = {}) {
   PAY_RULES = {
@@ -17,40 +20,66 @@ export function setPayRules({ threshold, premium, holidays } = {}) {
 }
 export function getPayRules() { return PAY_RULES }
 
-// whole minutes of a shift that fall inside a premium window
-export function premiumMinutes(shift) {
-  if (!shift?.date || !shift?.start_time || !shift?.end_time) return 0
+// classify each minute of a shift: { premium, weekend } — weekend = inside Fri 16:00→Sat 16:00
+// or a holiday window (eve 16:00 → holiday 16:00); premium = weekend OR night (00:00–08:00)
+function windowMinutes(shift) {
+  const out = { premium: 0, weekend: 0 }
+  if (!shift?.date || !shift?.start_time || !shift?.end_time) return out
   const [y, mo, d] = shift.date.split('-').map(Number)
   const toMin = t => { const [h, m] = String(t).slice(0, 5).split(':').map(Number); return h * 60 + m }
   const start = toMin(shift.start_time)
   let end = toMin(shift.end_time)
   if (end <= start) end += 24 * 60
   const iso = dt => dt.toISOString().slice(0, 10)
-  let count = 0
   for (let m = start; m < end; m++) {
     const day = new Date(Date.UTC(y, mo - 1, d + Math.floor(m / 1440)))   // naive local day
     const hour = Math.floor((m % 1440) / 60)
     const dow = day.getUTCDay()
     const today = iso(day)
     const tomorrow = iso(new Date(day.getTime() + 86400000))
-    if (hour < 8
-      || (dow === 5 && hour >= 16) || (dow === 6 && hour < 16)
-      || (PAY_RULES.holidays.has(today) && hour < 16) || (PAY_RULES.holidays.has(tomorrow) && hour >= 16)) count++
+    const weekend = (dow === 5 && hour >= 16) || (dow === 6 && hour < 16)
+      || (PAY_RULES.holidays.has(today) && hour < 16) || (PAY_RULES.holidays.has(tomorrow) && hour >= 16)
+    if (weekend) out.weekend++
+    if (weekend || hour < 8) out.premium++
   }
-  return count
+  return out
+}
+
+// whole minutes of a shift that fall inside a premium window
+export function premiumMinutes(shift) { return windowMinutes(shift).premium }
+
+// whole minutes of a shift inside the weekend (Fri 16:00–Sat 16:00) or holiday window
+export function weekendMinutes(shift) { return windowMinutes(shift).weekend }
+
+// the employee's fixed weekend/holiday hourly rate, or 0 when not set
+export function weekendRateOf(employee) {
+  if (!employee || employee.employee_type === 'global') return 0
+  return Number(employee.weekend_rate) > 0 ? Number(employee.weekend_rate) : 0
 }
 
 export function eligibleForPremium(employee) {
   return !!employee && employee.employee_type !== 'global' && (Number(employee.hourly_rate) || 0) < PAY_RULES.threshold
 }
 
-// { base, premium, premiumHours } for one shift
+// { base, premium, premiumHours, weekendHours, weekendPay } for one shift.
+// base includes the weekend-rate part (weekendPay) when the employee has a fixed weekend rate.
 export function shiftPayParts(shift, employee) {
-  if (!employee || employee.employee_type === 'global') return { base: 0, premium: 0, premiumHours: 0 }
-  const base = (Number(shift.total_hours) || 0) * (Number(employee.hourly_rate) || 0)
-  const premiumHours = premiumMinutes(shift) / 60
+  const none = { base: 0, premium: 0, premiumHours: 0, weekendHours: 0, weekendPay: 0 }
+  if (!employee || employee.employee_type === 'global') return none
+  const hours = Number(shift.total_hours) || 0
+  const rate = Number(employee.hourly_rate) || 0
+  const w = windowMinutes(shift)
+  const wkRate = weekendRateOf(employee)
+  if (wkRate) {
+    const weekendHours = Math.min(w.weekend / 60, hours)
+    const weekendPay = weekendHours * wkRate
+    const premiumHours = (w.premium - w.weekend) / 60        // night-only hours still get the premium
+    const premium = eligibleForPremium(employee) ? premiumHours * PAY_RULES.premium : 0
+    return { base: (hours - weekendHours) * rate + weekendPay, premium, premiumHours, weekendHours, weekendPay }
+  }
+  const premiumHours = w.premium / 60
   const premium = eligibleForPremium(employee) ? premiumHours * PAY_RULES.premium : 0
-  return { base, premium, premiumHours }
+  return { base: hours * rate, premium, premiumHours, weekendHours: 0, weekendPay: 0 }
 }
 
 export function calcShiftPay(shift, employee) {
@@ -146,7 +175,9 @@ export function monthEstimate({ shifts = [], bonuses = [], emp, ym }) {
   const approvedPay = pay(approved)
   const pendingPay = pay(pending)
   const counted = [...approved, ...pending]
-  const premiumHours = counted.reduce((a, s) => a + premiumMinutes(s) / 60, 0)
+  const premiumHours = isGlobal || !emp ? 0 : counted.reduce((a, s) => a + shiftPayParts(s, emp).premiumHours, 0)
+  const weekendHours = isGlobal || !emp ? 0 : counted.reduce((a, s) => a + shiftPayParts(s, emp).weekendHours, 0)
+  const weekendPay = isGlobal || !emp ? 0 : counted.reduce((a, s) => a + shiftPayParts(s, emp).weekendPay, 0)
   const premium = isGlobal || !emp ? 0 : counted.reduce((a, s) => a + shiftPayParts(s, emp).premium, 0)
   const basePay = isGlobal ? Number(emp?.monthly_salary) || 0 : approvedPay + pendingPay
   return {
@@ -157,6 +188,7 @@ export function monthEstimate({ shifts = [], bonuses = [], emp, ym }) {
     approvedPay, pendingPay, basePay, bonus, bonusList,
     total: basePay + bonus,
     rate: Number(emp?.hourly_rate) || 0,
+    weekendRate: weekendRateOf(emp), weekendHours, weekendPay,
     premium, premiumHours, premiumEligible: eligibleForPremium(emp), threshold: PAY_RULES.threshold, premiumRate: PAY_RULES.premium,
   }
 }
