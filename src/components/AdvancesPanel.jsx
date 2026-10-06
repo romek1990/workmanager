@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Plus, Check, X } from 'lucide-react'
+import { Plus, Check, X, Pencil, Trash2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { Modal, Avatar, ManagerBadge } from './ui'
 import { ADVANCE_STATUS } from './AdvancesCard'
@@ -7,11 +7,37 @@ import { fmtDate, fmtMoney, todayISO } from '../utils/helpers'
 
 // Reports tab: pending requests to approve/reject, manual add, and all advances in the period.
 export default function AdvancesPanel({ employees, from, to, isManager }) {
-  const { advances, addAdvance, decideAdvance } = useApp()
+  const { advances, addAdvance, decideAdvance, updateAdvance, deleteAdvance } = useApp()
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ employeeId: '', date: todayISO(), amount: '', note: '' })
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
+  const [editing, setEditing] = useState(null) // advance being edited
+  const [edit, setEdit] = useState({})
+  const [removing, setRemoving] = useState(null)
+
+  function openEdit(a) { setEdit({ date: a.date, amount: String(a.amount), note: a.note || '', status: a.status }); setErr(''); setEditing(a) }
+  async function saveEdit() {
+    const amount = Number(edit.amount)
+    if (!edit.date || !amount || amount <= 0) { setErr('יש להזין תאריך וסכום'); return }
+    setBusy('edit'); setErr('')
+    try {
+      await updateAdvance(editing.id, { date: edit.date, amount, note: edit.note, status: edit.status })
+      setEditing(null)
+    } catch { setErr('השמירה נכשלה') }
+    setBusy('')
+  }
+  async function confirmRemove() {
+    setBusy('del')
+    try { await deleteAdvance(removing.id); setRemoving(null) } catch { alert('המחיקה נכשלה') }
+    setBusy('')
+  }
+  const manage = a => (
+    <div className="flex gap-1">
+      <button className="btn py-1.5 px-2 text-xs" title="שינוי" onClick={() => openEdit(a)}><Pencil size={13} /></button>
+      <button className="btn btn-danger py-1.5 px-2 text-xs" title="מחיקה" onClick={() => setRemoving(a)}><Trash2 size={13} /></button>
+    </div>
+  )
 
   const pending = advances.filter(a => a.status === 'pending')
   const inPeriod = advances.filter(a => a.status !== 'pending' && a.date >= from && a.date <= to)
@@ -49,6 +75,7 @@ export default function AdvancesPanel({ employees, from, to, isManager }) {
       </div>
       <span className="text-base font-extrabold tabular-nums">{fmtMoney(a.amount)}</span>
       {actions || <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${ADVANCE_STATUS[a.status]?.cls}`}>{ADVANCE_STATUS[a.status]?.label}</span>}
+      {manage(a)}
     </div>
   )
 
@@ -81,6 +108,43 @@ export default function AdvancesPanel({ employees, from, to, isManager }) {
           ? <p className="py-6 text-center text-sm" style={{ color: 'var(--text-dim)' }}>אין מפרעות בתקופה הזו</p>
           : <div className="divide-y divide-black/5">{inPeriod.map(a => <Row key={a.id} a={a} />)}</div>}
       </div>
+
+      <Modal open={!!editing} onClose={() => busy !== 'edit' && setEditing(null)} title={`שינוי מפרעה — ${editing?.employee_name || ''}`}
+        footer={<>
+          <button className="btn" onClick={() => setEditing(null)} disabled={busy === 'edit'}>ביטול</button>
+          <button className="btn btn-primary" onClick={saveEdit} disabled={busy === 'edit'}>{busy === 'edit' ? 'שומר...' : 'שמור'}</button>
+        </>}>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="form-label">תאריך</label>
+            <input type="date" className="form-control" value={edit.date || ''} onChange={e => setEdit(f => ({ ...f, date: e.target.value }))} />
+          </div>
+          <div>
+            <label className="form-label">סכום (₪)</label>
+            <input type="number" min="1" dir="ltr" className="form-control" value={edit.amount || ''} onChange={e => setEdit(f => ({ ...f, amount: e.target.value }))} />
+          </div>
+          <div className="col-span-2">
+            <label className="form-label">הערה</label>
+            <input className="form-control" value={edit.note || ''} onChange={e => setEdit(f => ({ ...f, note: e.target.value }))} />
+          </div>
+          <div className="col-span-2">
+            <label className="form-label">סטטוס</label>
+            <select className="form-control" value={edit.status} onChange={e => setEdit(f => ({ ...f, status: e.target.value }))}>
+              {Object.entries(ADVANCE_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+          {err && <p className="col-span-2 text-sm text-red-600">{err}</p>}
+        </div>
+      </Modal>
+
+      <Modal open={!!removing} onClose={() => busy !== 'del' && setRemoving(null)} title="מחיקת מפרעה"
+        footer={<>
+          <button className="btn" onClick={() => setRemoving(null)} disabled={busy === 'del'}>ביטול</button>
+          <button className="btn btn-danger" onClick={confirmRemove} disabled={busy === 'del'}>{busy === 'del' ? 'מוחק...' : 'מחק'}</button>
+        </>}>
+        <p className="text-sm">למחוק את המפרעה של <b>{removing?.employee_name}</b> על סך <b>{removing && fmtMoney(removing.amount)}</b> מתאריך {removing && fmtDate(removing.date)}?</p>
+        <p className="text-xs mt-2" style={{ color: 'var(--text-dim)' }}>המחיקה נרשמת בלוג הפעילות.</p>
+      </Modal>
 
       <Modal open={open} onClose={() => busy !== 'add' && setOpen(false)} title="הוספת מפרעה"
         footer={<>

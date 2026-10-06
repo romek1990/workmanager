@@ -223,6 +223,24 @@ export function AppProvider({ children }) {
     return data
   }
 
+  async function updateAdvance(id, patch) {
+    const before = advances.find(a => a.id === id)
+    const { data, error } = await supabase.from('advances').update(patch).eq('id', id).select().single()
+    if (error) throw error
+    setAdvances(prev => prev.map(a => (a.id === id ? data : a)))
+    await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'עריכת מפרעה',
+      `${data.employee_name}: ₪${before?.amount} (${before?.date}) ← ₪${data.amount} (${data.date})`)
+    return data
+  }
+
+  async function deleteAdvance(id) {
+    const a = advances.find(x => x.id === id)
+    const { error } = await supabase.from('advances').delete().eq('id', id)
+    if (error) throw error
+    setAdvances(prev => prev.filter(x => x.id !== id))
+    await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'מחיקת מפרעה', `${a?.employee_name} · ₪${a?.amount} · ${a?.date}`)
+  }
+
   async function decideAdvance(id, status) {
     const { data, error } = await supabase.from('advances').update({
       status, decided_by: currentUser.id, decided_by_name: currentUser.name, decided_at: new Date().toISOString(),
@@ -535,7 +553,7 @@ export function AppProvider({ children }) {
       employees, shifts, bonuses, weeklySchedule, dayNotes,
       notifications, unreadCount,
       currentUser, currentRole, currentUserEmail,
-      loading, authNotice, isSuperAdmin, can, systemLocked, setSystemLock, payRules, setWageThreshold, advances, requestAdvance, addAdvance, decideAdvance, loadAdvances, isHourlyManager, canResolveShift, hourlyManagers, managers, isManager,
+      loading, authNotice, isSuperAdmin, can, systemLocked, setSystemLock, payRules, setWageThreshold, advances, requestAdvance, addAdvance, decideAdvance, updateAdvance, deleteAdvance, loadAdvances, isHourlyManager, canResolveShift, hourlyManagers, managers, isManager,
       login, logout,
       addEmployee, updateEmployee,
       addShift, updateShiftStatus,
