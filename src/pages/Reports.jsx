@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
-import { BarChart2, Download, FileText } from 'lucide-react'
+import { BarChart2, Download, FileText, Printer } from 'lucide-react'
 import { StatCard, PageHeader, Avatar, ManagerBadge } from '../components/ui'
 import { calcShiftPay, fmtMoney, monthStart, monthEnd, fmtHours, fmtDate } from '../utils/helpers'
 import PayRulesCard from '../components/PayRulesCard'
+import PrintShiftsModal from '../components/PrintShiftsModal'
 import { Clock, Banknote, Gift, Wallet } from 'lucide-react'
 
 
@@ -31,6 +32,7 @@ function ReportsInner() {
   const [to, setTo] = useState('')
   const [tab, setTab] = useState('summary')
   const [detailEmp, setDetailEmp] = useState('')
+  const [printOpen, setPrintOpen] = useState(false)
 
   useEffect(() => {
     const [f, t] = getPreset('current')
@@ -237,8 +239,11 @@ function exportEmployeePDF(row) {
     <div className="p-4 md:px-10 md:py-8">
       <PageHeader icon={BarChart2} title="דוחות" subtitle={`שעות ושכר לפי משמרות מאושרות · ${fmtDate(from)} — ${fmtDate(to)}`}>
         <button className="btn" onClick={exportCSV}><Download size={15} /> CSV</button>
+        <button className="btn" onClick={() => setPrintOpen(true)}><Printer size={15} /> הדפסת משמרות</button>
         <button className="btn btn-primary" onClick={exportPDF}><FileText size={15} /> PDF כללי</button>
       </PageHeader>
+      <PrintShiftsModal open={printOpen} onClose={() => setPrintOpen(false)}
+        employees={employees} shifts={shifts} bonuses={bonuses} from={from} to={to} isManager={isManager} />
       <PayRulesCard />
 
       {/* Period picker */}
