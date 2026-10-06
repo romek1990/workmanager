@@ -38,6 +38,7 @@ export function AppProvider({ children }) {
   const [bonuses, setBonuses] = useState([])
   const [weeklySchedule, setWeeklySchedule] = useState([])
   const [dayNotes, setDayNotes] = useState([])
+  const [advances, setAdvances] = useState([]) // salary advances (מפרעות)
   const [payRules, setPayRulesState] = useState({ threshold: 40, premium: 2 })
   const [systemLocked, setSystemLocked] = useState(false) // super admin's kill switch
   const [managers, setManagers] = useState([]) // every manager except the super admin
@@ -191,8 +192,49 @@ export function AppProvider({ children }) {
     await loadPayRules()
   }
 
+  async function loadAdvances() {
+    const { data } = await supabase.from('advances').select('*').order('date', { ascending: false })
+    setAdvances(data || [])
+  }
+
+  // employee asks for an advance — waits for a manager with the reports permission
+  async function requestAdvance({ date, amount, note }) {
+    const { data, error } = await supabase.from('advances').insert({
+      employee_id: currentUser.id, employee_name: currentUser.name, date, amount: Number(amount), note: note || '',
+      status: 'pending', created_by: currentUser.id, created_by_name: currentUser.name,
+    }).select().single()
+    if (error) throw error
+    setAdvances(prev => [data, ...prev])
+    await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'בקשת מפרעה', `ביקש מפרעה ₪${amount} בתאריך ${date}`)
+    await notifyAdmins('💵 בקשת מפרעה', `${currentUser.name} ביקש מפרעה של ₪${amount} (${date}) — ממתין לאישור בדוחות`, 'info')
+    return data
+  }
+
+  // manager adds an advance directly (approved immediately)
+  async function addAdvance({ employee, date, amount, note }) {
+    const { data, error } = await supabase.from('advances').insert({
+      employee_id: employee.id, employee_name: employee.full_name, date, amount: Number(amount), note: note || '',
+      status: 'approved', created_by: currentUser.id, created_by_name: currentUser.name,
+      decided_by: currentUser.id, decided_by_name: currentUser.name, decided_at: new Date().toISOString(),
+    }).select().single()
+    if (error) throw error
+    setAdvances(prev => [data, ...prev])
+    await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'הוספת מפרעה', `הוסיף מפרעה ₪${amount} ל${employee.full_name} (${date})`)
+    return data
+  }
+
+  async function decideAdvance(id, status) {
+    const { data, error } = await supabase.from('advances').update({
+      status, decided_by: currentUser.id, decided_by_name: currentUser.name, decided_at: new Date().toISOString(),
+    }).eq('id', id).select().single()
+    if (error) throw error
+    setAdvances(prev => prev.map(a => (a.id === id ? data : a)))
+    await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, status === 'approved' ? 'אישור מפרעה' : 'דחיית מפרעה', `${data.employee_name} · ₪${data.amount} · ${data.date}`)
+    return data
+  }
+
   async function loadAllData(role, userId) {
-    await loadPayRules()
+    await Promise.all([loadPayRules(), loadAdvances()])
     if (role === 'admin') {
       const [emps, shfts, bnss, wkly, notes, mgrs] = await Promise.all([
         supabase.from('profiles').select('*').neq('role', 'admin'),
@@ -493,7 +535,7 @@ export function AppProvider({ children }) {
       employees, shifts, bonuses, weeklySchedule, dayNotes,
       notifications, unreadCount,
       currentUser, currentRole, currentUserEmail,
-      loading, authNotice, isSuperAdmin, can, systemLocked, setSystemLock, payRules, setWageThreshold, isHourlyManager, canResolveShift, hourlyManagers, managers, isManager,
+      loading, authNotice, isSuperAdmin, can, systemLocked, setSystemLock, payRules, setWageThreshold, advances, requestAdvance, addAdvance, decideAdvance, loadAdvances, isHourlyManager, canResolveShift, hourlyManagers, managers, isManager,
       login, logout,
       addEmployee, updateEmployee,
       addShift, updateShiftStatus,

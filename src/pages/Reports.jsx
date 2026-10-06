@@ -6,6 +6,7 @@ import { StatCard, PageHeader, Avatar, ManagerBadge } from '../components/ui'
 import { calcShiftPay, fmtMoney, monthStart, monthEnd, fmtHours, fmtDate } from '../utils/helpers'
 import PayRulesCard from '../components/PayRulesCard'
 import PrintShiftsModal from '../components/PrintShiftsModal'
+import AdvancesPanel from '../components/AdvancesPanel'
 import { Clock, Banknote, Gift, Wallet } from 'lucide-react'
 
 
@@ -29,7 +30,7 @@ const SHIFT_TYPE_HE = {
 }
 
 function ReportsInner() {
-  const { employees: baseEmployees, shifts, bonuses, hourlyManagers, isManager, currentUser, logActivity } = useApp()
+  const { employees: baseEmployees, shifts, bonuses, hourlyManagers, isManager, currentUser, logActivity, advances } = useApp()
   const employees = [...baseEmployees, ...hourlyManagers]
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -95,7 +96,9 @@ function ReportsInner() {
     return { emp, hrs, amt, pay, bonus, total: pay + bonus, shifts: empShifts }
   }).filter(r => r.hrs.total > 0 || r.emp.employee_type === 'global')
 
-  rows.forEach(r => { r.taxes = taxesFor(r.emp.id); r.net = r.total - r.taxes })
+  const advancesFor = empId => advances.filter(a => a.employee_id === empId && a.status === 'approved' && a.date >= from && a.date <= to).reduce((s, a) => s + (Number(a.amount) || 0), 0)
+  rows.forEach(r => { r.taxes = taxesFor(r.emp.id); r.advances = advancesFor(r.emp.id); r.net = r.total - r.taxes - r.advances })
+  const pendingAdvances = advances.filter(a => a.status === 'pending').length
   const TYPES = ['regular', 'friday', 'saturday', 'night', 'holiday']
   const byType = Object.fromEntries(TYPES.map(k => [k, {
     hrs: rows.reduce((a, r) => a + (r.hrs[k] || 0), 0),
@@ -107,8 +110,9 @@ function ReportsInner() {
     bonus: a.bonus + r.bonus,
     total: a.total + r.total,
     taxes: a.taxes + r.taxes,
+    advances: a.advances + r.advances,
     net: a.net + r.net,
-  }), { hrs: 0, pay: 0, bonus: 0, total: 0, taxes: 0, net: 0 })
+  }), { hrs: 0, pay: 0, bonus: 0, total: 0, taxes: 0, advances: 0, net: 0 })
 
   const detailShifts = filteredShifts.filter(s => {
     const emp = employees.find(e => e.email === detailEmp)
@@ -117,8 +121,8 @@ function ReportsInner() {
   const detailEmpObj = employees.find(e => e.email === detailEmp)
 
   function exportCSV() {
-    const lines = [['עובד', 'שעות', 'שכר', 'בונוסים', 'סהכ', 'מיסים', 'נטו', 'אופן תשלום'].join(',')]
-    rows.forEach(r => lines.push([r.emp.full_name, fmtHours(r.hrs.total), Math.round(r.pay), r.bonus, Math.round(r.total), Math.round(r.taxes), Math.round(r.net), PAY_METHODS[methodFor(r.emp.id)] || ''].join(',')))
+    const lines = [['עובד', 'שעות', 'שכר', 'בונוסים', 'סהכ', 'מיסים', 'מפרעות', 'נטו', 'אופן תשלום'].join(',')]
+    rows.forEach(r => lines.push([r.emp.full_name, fmtHours(r.hrs.total), Math.round(r.pay), r.bonus, Math.round(r.total), Math.round(r.taxes), Math.round(r.advances), Math.round(r.net), PAY_METHODS[methodFor(r.emp.id)] || ''].join(',')))
     const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
@@ -179,6 +183,7 @@ function exportPDF() {
             <th>בונוסים</th>
             <th>סה"כ ברוטו</th>
             <th>מיסים</th>
+            <th>מפרעות</th>
             <th>נטו</th>
             <th>אופן תשלום</th>
           </tr>
@@ -193,6 +198,7 @@ function exportPDF() {
               <td>${fmtMoney(r.bonus)}</td>
               <td><strong>${fmtMoney(r.total)}</strong></td>
               <td>${r.taxes ? fmtMoney(r.taxes) : '—'}</td>
+              <td>${r.advances ? fmtMoney(r.advances) : '—'}</td>
               <td><strong>${fmtMoney(r.net)}</strong></td>
               <td>${PAY_METHODS[methodFor(r.emp.id)] || '—'}</td>
             </tr>
@@ -205,6 +211,7 @@ function exportPDF() {
             <td><strong>${fmtMoney(totals.bonus)}</strong></td>
             <td><strong>${fmtMoney(totals.total)}</strong></td>
             <td><strong>${fmtMoney(totals.taxes)}</strong></td>
+            <td><strong>${fmtMoney(totals.advances)}</strong></td>
             <td><strong>${fmtMoney(totals.net)}</strong></td>
             <td></td>
           </tr>
@@ -276,6 +283,7 @@ function exportEmployeePDF(row) {
         <p>בונוסים: <strong>${fmtMoney(row.bonus)}</strong></p>
         <p>סה"כ ברוטו: <strong>${fmtMoney(row.total)}</strong></p>
         <p>מיסים: <strong>${fmtMoney(row.taxes || 0)}</strong></p>
+        ${row.advances ? `<p>מפרעות: <strong>${fmtMoney(row.advances)}</strong></p>` : ''}
         ${methodFor(row.emp.id) ? `<p>אופן תשלום: <strong>${PAY_METHODS[methodFor(row.emp.id)]}</strong></p>` : ''}
         <p class="grand">💰 נטו לתשלום: ${fmtMoney(row.net ?? row.total)}</p>
       </div>
@@ -332,13 +340,15 @@ function exportEmployeePDF(row) {
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-2xl bg-black/[0.04] w-fit mb-4">
-        {[['summary', 'סיכום לפי עובד'], ['detail', 'פירוט משמרות']].map(([k, l]) => (
+        {[['summary', 'סיכום לפי עובד'], ['detail', 'פירוט משמרות'], ['advances', `מפרעות${pendingAdvances ? ` (${pendingAdvances})` : ''}`]].map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${tab === k ? 'bg-white shadow-soft text-brand-700' : 'text-gray-500 hover:text-gray-800'}`}>
             {l}
           </button>
         ))}
       </div>
+
+      {tab === 'advances' && <AdvancesPanel employees={employees} from={from} to={to} isManager={isManager} />}
 
       {tab === 'summary' && !editMonth && rows.length > 0 && (
         <p className="text-xs mb-2 text-amber-700">כדי להזין מיסים ואופן תשלום, בחר חודש אחד (חודש נוכחי / חודש קודם).</p>
@@ -352,7 +362,7 @@ function exportEmployeePDF(row) {
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr>{['עובד', 'רגיל', 'שישי', 'שבת', 'לילה', 'חג', 'סה"כ שעות', 'שכר', 'בונוסים', 'סה"כ', 'מיסים', 'נטו', 'אופן תשלום', ''].map((h, i) => <th key={i} className="table-th">{h}</th>)}</tr>
+                    <tr>{['עובד', 'רגיל', 'שישי', 'שבת', 'לילה', 'חג', 'סה"כ שעות', 'שכר', 'בונוסים', 'סה"כ', 'מיסים', 'מפרעות', 'נטו', 'אופן תשלום', ''].map((h, i) => <th key={i} className="table-th">{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {rows.map(r => (
@@ -376,6 +386,7 @@ function exportEmployeePDF(row) {
                               onSave={v => savePayroll(r.emp, { taxes: v })} />
                           ) : <span className="tabular-nums">{r.taxes ? fmtMoney(r.taxes) : '—'}</span>}
                         </td>
+                        <td className="table-td tabular-nums text-amber-700">{r.advances ? fmtMoney(r.advances) : '—'}</td>
                         <td className="table-td tabular-nums font-bold text-brand-700">{fmtMoney(r.net)}</td>
                         <td className="table-td">
                           {editMonth ? (
@@ -403,6 +414,7 @@ function exportEmployeePDF(row) {
                       <td className="table-td tabular-nums text-brand-700">{fmtMoney(totals.bonus)}</td>
                       <td className="table-td tabular-nums">{fmtMoney(totals.total)}</td>
                       <td className="table-td tabular-nums">{fmtMoney(totals.taxes)}</td>
+                      <td className="table-td tabular-nums text-amber-700">{fmtMoney(totals.advances)}</td>
                       <td className="table-td tabular-nums text-brand-700">{fmtMoney(totals.net)}</td>
                       <td className="table-td" colSpan={2}></td>
                     </tr>
@@ -434,6 +446,7 @@ function exportEmployeePDF(row) {
                           {Object.entries(PAY_METHODS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                         </select>
                       )}
+                      {r.advances > 0 && <span className="text-amber-700 tabular-nums">מפרעות {fmtMoney(r.advances)}</span>}
                       <span className="mr-auto font-bold text-brand-700 tabular-nums">נטו {fmtMoney(r.net)}</span>
                     </div>
                   </div>

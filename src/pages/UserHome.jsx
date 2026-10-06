@@ -4,6 +4,7 @@ import { useApp, clockErrorMessage } from '../context/AppContext'
 import { Link, useNavigate } from 'react-router-dom'
 import QrScanner from '../components/QrScanner'
 import PayEstimate from '../components/PayEstimate'
+import AdvancesCard from '../components/AdvancesCard'
 import { ShiftTypeBadge, StatusBadge, StatCard, CardSection, Table, AlertModal, Modal } from '../components/ui'
 import { calcShiftPay, fmtMoney, calcHours, todayISO, fmtHours, hoursFromMinutes, minutesBetween, localISODate, monthEstimate, shiftOverlapMessage } from '../utils/helpers'
 
@@ -206,6 +207,7 @@ export default function UserHome() {
 
       {/* Stats */}
       <PayEstimate est={est} title="החודש שלי — שעות ושכר" className="mb-5 animate-rise" />
+      <AdvancesCard className="mb-5" />
       <div className="grid grid-cols-2 gap-3 mb-5 stagger">
         <StatCard label="משמרות שדווחו החודש" value={monthShifts.filter(s => s.status !== 'rejected').length} sub={`${est.pendingCount} ממתינות לאישור`} icon={CalendarDays} accent="emerald" />
         <StatCard label="משמרות שאושרו" value={est.approvedCount} sub="החודש" icon={CalendarCheck} accent="emerald" delay={80} />

@@ -150,6 +150,7 @@ export function monthEstimate({ shifts = [], bonuses = [], emp, ym }) {
   const premium = isGlobal || !emp ? 0 : counted.reduce((a, s) => a + shiftPayParts(s, emp).premium, 0)
   const basePay = isGlobal ? Number(emp?.monthly_salary) || 0 : approvedPay + pendingPay
   return {
+    ym,
     isGlobal,
     approvedHours: hrs(approved), pendingHours: hrs(pending), hours: hrs(approved) + hrs(pending),
     approvedCount: approved.length, pendingCount: pending.length,
