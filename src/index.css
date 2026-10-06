@@ -153,6 +153,26 @@ body {
   .form-label {
     @apply block text-xs font-medium text-gray-500 mb-1.5;
   }
+  /* mobile date/time pickers (iOS/Android) ignore width & collapse when empty — which made
+     stacked date fields overlap. Force a normal block box with a fixed min height. */
+  input[type="date"].form-control,
+  input[type="time"].form-control,
+  input[type="datetime-local"].form-control {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 2.5rem;
+    line-height: 1.5rem;
+    text-align: right;
+  }
+  input[type="date"].form-control::-webkit-date-and-time-value,
+  input[type="time"].form-control::-webkit-date-and-time-value,
+  input[type="datetime-local"].form-control::-webkit-date-and-time-value {
+    text-align: right;
+    min-height: 1.5rem;
+  }
   .table-th {
     @apply text-right text-xs font-semibold px-4 py-2.5 border-b border-black/5;
     color: var(--text-dim);
