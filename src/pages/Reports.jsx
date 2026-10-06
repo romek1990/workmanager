@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { supabase } from '../lib/supabase'
 import { useApp } from '../context/AppContext'
 import { BarChart2, Download, FileText, Printer } from 'lucide-react'
 import { StatCard, PageHeader, Avatar, ManagerBadge } from '../components/ui'
@@ -17,6 +18,8 @@ function getPreset(type) {
   return ['', '']
 }
 
+const PAY_METHODS = { check: 'צ׳ק', transfer: 'העברה', cash: 'מזומן' }
+
 const SHIFT_TYPE_HE = {
   regular: 'רגילה',
   friday: 'שישי',
@@ -26,13 +29,43 @@ const SHIFT_TYPE_HE = {
 }
 
 function ReportsInner() {
-  const { employees: baseEmployees, shifts, bonuses, hourlyManagers, isManager } = useApp()
+  const { employees: baseEmployees, shifts, bonuses, hourlyManagers, isManager, currentUser, logActivity } = useApp()
   const employees = [...baseEmployees, ...hourlyManagers]
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [tab, setTab] = useState('summary')
   const [detailEmp, setDetailEmp] = useState('')
   const [printOpen, setPrintOpen] = useState(false)
+
+  // ── monthly taxes + payment method (one row per employee per month) ──
+  const [payroll, setPayroll] = useState({}) // `${employee_id}|${month}` -> row
+  const [savingKey, setSavingKey] = useState('')
+  const isOneMonth = !!from && !!to && from.slice(0, 7) === to.slice(0, 7)
+    && from === monthStart(+from.slice(0, 4), +from.slice(5, 7)) && to === monthEnd(+to.slice(0, 4), +to.slice(5, 7))
+  const editMonth = isOneMonth ? from.slice(0, 7) : null
+  const loadPayroll = useCallback(async () => {
+    if (!from || !to) return
+    const { data } = await supabase.from('payroll_entries').select('*').gte('month', from.slice(0, 7)).lte('month', to.slice(0, 7))
+    setPayroll(Object.fromEntries((data || []).map(r => [`${r.employee_id}|${r.month}`, r])))
+  }, [from, to])
+  useEffect(() => { loadPayroll() }, [loadPayroll])
+
+  const taxesFor = empId => Object.values(payroll).filter(r => r.employee_id === empId).reduce((a, r) => a + (Number(r.taxes) || 0), 0)
+  const methodFor = empId => (editMonth ? payroll[`${empId}|${editMonth}`]?.payment_method : null) || ''
+
+  async function savePayroll(emp, patch) {
+    if (!editMonth) return
+    const key = `${emp.id}|${editMonth}`
+    const prev = payroll[key] || {}
+    const row = { employee_id: emp.id, month: editMonth, taxes: Number(prev.taxes) || 0, payment_method: prev.payment_method || null, ...patch, updated_at: new Date().toISOString(), updated_by: currentUser?.id }
+    setSavingKey(key)
+    const { data, error } = await supabase.from('payroll_entries').upsert(row, { onConflict: 'employee_id,month' }).select().single()
+    setSavingKey('')
+    if (error) { alert('השמירה נכשלה'); return }
+    setPayroll(p => ({ ...p, [key]: data }))
+    const what = 'taxes' in patch ? `מיסים ₪${patch.taxes}` : `אופן תשלום: ${PAY_METHODS[patch.payment_method] || '—'}`
+    logActivity?.(currentUser?.id, currentUser?.name, currentUser?.email, 'עדכון שכר', `${emp.full_name} · ${editMonth} · ${what}`)
+  }
 
   useEffect(() => {
     const [f, t] = getPreset('current')
@@ -57,12 +90,15 @@ function ReportsInner() {
     return { emp, hrs, pay, bonus, total: pay + bonus, shifts: empShifts }
   }).filter(r => r.hrs.total > 0 || r.emp.employee_type === 'global')
 
+  rows.forEach(r => { r.taxes = taxesFor(r.emp.id); r.net = r.total - r.taxes })
   const totals = rows.reduce((a, r) => ({
     hrs: a.hrs + r.hrs.total,
     pay: a.pay + r.pay,
     bonus: a.bonus + r.bonus,
-    total: a.total + r.total
-  }), { hrs: 0, pay: 0, bonus: 0, total: 0 })
+    total: a.total + r.total,
+    taxes: a.taxes + r.taxes,
+    net: a.net + r.net,
+  }), { hrs: 0, pay: 0, bonus: 0, total: 0, taxes: 0, net: 0 })
 
   const detailShifts = filteredShifts.filter(s => {
     const emp = employees.find(e => e.email === detailEmp)
@@ -71,8 +107,8 @@ function ReportsInner() {
   const detailEmpObj = employees.find(e => e.email === detailEmp)
 
   function exportCSV() {
-    const lines = [['עובד', 'שעות', 'שכר', 'בונוסים', 'סהכ'].join(',')]
-    rows.forEach(r => lines.push([r.emp.full_name, fmtHours(r.hrs.total), Math.round(r.pay), r.bonus, Math.round(r.total)].join(',')))
+    const lines = [['עובד', 'שעות', 'שכר', 'בונוסים', 'סהכ', 'מיסים', 'נטו', 'אופן תשלום'].join(',')]
+    rows.forEach(r => lines.push([r.emp.full_name, fmtHours(r.hrs.total), Math.round(r.pay), r.bonus, Math.round(r.total), Math.round(r.taxes), Math.round(r.net), PAY_METHODS[methodFor(r.emp.id)] || ''].join(',')))
     const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
@@ -127,7 +163,10 @@ function exportPDF() {
             <th>סה"כ שעות</th>
             <th>שכר גולמי</th>
             <th>בונוסים</th>
-            <th>סה"כ לתשלום</th>
+            <th>סה"כ ברוטו</th>
+            <th>מיסים</th>
+            <th>נטו</th>
+            <th>אופן תשלום</th>
           </tr>
         </thead>
         <tbody>
@@ -142,6 +181,9 @@ function exportPDF() {
               <td>${fmtMoney(r.pay)}</td>
               <td>${fmtMoney(r.bonus)}</td>
               <td><strong>${fmtMoney(r.total)}</strong></td>
+              <td>${r.taxes ? fmtMoney(r.taxes) : '—'}</td>
+              <td><strong>${fmtMoney(r.net)}</strong></td>
+              <td>${PAY_METHODS[methodFor(r.emp.id)] || '—'}</td>
             </tr>
           `).join('')}
           <tr class="total-row">
@@ -151,6 +193,9 @@ function exportPDF() {
             <td><strong>${fmtMoney(totals.pay)}</strong></td>
             <td><strong>${fmtMoney(totals.bonus)}</strong></td>
             <td><strong>${fmtMoney(totals.total)}</strong></td>
+            <td><strong>${fmtMoney(totals.taxes)}</strong></td>
+            <td><strong>${fmtMoney(totals.net)}</strong></td>
+            <td></td>
           </tr>
         </tbody>
       </table>
@@ -217,7 +262,10 @@ function exportEmployeePDF(row) {
         <p>סה"כ שעות: <strong>${fmtHours(row.hrs.total)}</strong></p>
         <p>שכר גולמי: <strong>${fmtMoney(row.pay)}</strong></p>
         <p>בונוסים: <strong>${fmtMoney(row.bonus)}</strong></p>
-        <p class="grand">💰 סה"כ לתשלום: ${fmtMoney(row.total)}</p>
+        <p>סה"כ ברוטו: <strong>${fmtMoney(row.total)}</strong></p>
+        <p>מיסים: <strong>${fmtMoney(row.taxes || 0)}</strong></p>
+        ${methodFor(row.emp.id) ? `<p>אופן תשלום: <strong>${PAY_METHODS[methodFor(row.emp.id)]}</strong></p>` : ''}
+        <p class="grand">💰 נטו לתשלום: ${fmtMoney(row.net ?? row.total)}</p>
       </div>
 
       <script>window.onload = () => window.print()</script>
@@ -280,6 +328,9 @@ function exportEmployeePDF(row) {
         ))}
       </div>
 
+      {tab === 'summary' && !editMonth && rows.length > 0 && (
+        <p className="text-xs mb-2 text-amber-700">כדי להזין מיסים ואופן תשלום, בחר חודש אחד (חודש נוכחי / חודש קודם).</p>
+      )}
       {tab === 'summary' && (
         <div className="card animate-rise">
           {rows.length === 0 ? (
@@ -289,7 +340,7 @@ function exportEmployeePDF(row) {
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr>{['עובד', 'רגיל', 'שישי', 'שבת', 'לילה', 'סה"כ שעות', 'שכר', 'בונוסים', 'סה"כ', ''].map((h, i) => <th key={i} className="table-th">{h}</th>)}</tr>
+                    <tr>{['עובד', 'רגיל', 'שישי', 'שבת', 'לילה', 'סה"כ שעות', 'שכר', 'בונוסים', 'סה"כ', 'מיסים', 'נטו', 'אופן תשלום', ''].map((h, i) => <th key={i} className="table-th">{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {rows.map(r => (
@@ -303,6 +354,22 @@ function exportEmployeePDF(row) {
                         <td className="table-td tabular-nums text-brand-700">{r.bonus ? fmtMoney(r.bonus) : '—'}</td>
                         <td className="table-td tabular-nums font-bold">{fmtMoney(r.total)}</td>
                         <td className="table-td">
+                          {editMonth ? (
+                            <TaxInput value={payroll[`${r.emp.id}|${editMonth}`]?.taxes} saving={savingKey === `${r.emp.id}|${editMonth}`}
+                              onSave={v => savePayroll(r.emp, { taxes: v })} />
+                          ) : <span className="tabular-nums">{r.taxes ? fmtMoney(r.taxes) : '—'}</span>}
+                        </td>
+                        <td className="table-td tabular-nums font-bold text-brand-700">{fmtMoney(r.net)}</td>
+                        <td className="table-td">
+                          {editMonth ? (
+                            <select className="form-control !py-1.5 !text-xs !w-[96px]" value={methodFor(r.emp.id)}
+                              onChange={e => savePayroll(r.emp, { payment_method: e.target.value || null })}>
+                              <option value="">בחר...</option>
+                              {Object.entries(PAY_METHODS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                            </select>
+                          ) : <span style={{ color: 'var(--text-dim)' }}>—</span>}
+                        </td>
+                        <td className="table-td">
                           <button onClick={() => exportEmployeePDF(r)} className="btn py-1 px-2.5 text-xs"><FileText size={13} /> PDF</button>
                         </td>
                       </tr>
@@ -314,7 +381,9 @@ function exportEmployeePDF(row) {
                       <td className="table-td tabular-nums">{fmtMoney(totals.pay)}</td>
                       <td className="table-td tabular-nums text-brand-700">{fmtMoney(totals.bonus)}</td>
                       <td className="table-td tabular-nums">{fmtMoney(totals.total)}</td>
-                      <td className="table-td"></td>
+                      <td className="table-td tabular-nums">{fmtMoney(totals.taxes)}</td>
+                      <td className="table-td tabular-nums text-brand-700">{fmtMoney(totals.net)}</td>
+                      <td className="table-td" colSpan={2}></td>
                     </tr>
                   </tbody>
                 </table>
@@ -330,6 +399,21 @@ function exportEmployeePDF(row) {
                     <div className="flex items-center justify-between mt-2 text-xs tabular-nums" style={{ color: 'var(--text-dim)' }}>
                       <span>{fmtHours(r.hrs.total)} שעות · שכר {fmtMoney(r.pay)}{r.bonus ? ` · בונוס ${fmtMoney(r.bonus)}` : ''}</span>
                       <button onClick={() => exportEmployeePDF(r)} className="btn py-1 px-2 text-xs"><FileText size={12} /> PDF</button>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2.5 text-xs">
+                      <span style={{ color: 'var(--text-dim)' }}>מיסים</span>
+                      {editMonth ? (
+                        <TaxInput value={payroll[`${r.emp.id}|${editMonth}`]?.taxes} saving={savingKey === `${r.emp.id}|${editMonth}`}
+                          onSave={v => savePayroll(r.emp, { taxes: v })} />
+                      ) : <b className="tabular-nums">{r.taxes ? fmtMoney(r.taxes) : '—'}</b>}
+                      {editMonth && (
+                        <select className="form-control !py-1.5 !text-xs !w-[96px]" value={methodFor(r.emp.id)}
+                          onChange={e => savePayroll(r.emp, { payment_method: e.target.value || null })}>
+                          <option value="">אופן תשלום</option>
+                          {Object.entries(PAY_METHODS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                        </select>
+                      )}
+                      <span className="mr-auto font-bold text-brand-700 tabular-nums">נטו {fmtMoney(r.net)}</span>
                     </div>
                   </div>
                 ))}
@@ -401,4 +485,20 @@ export default function Reports() {
     )
   }
   return <ReportsInner />
+}
+
+// number cell that saves on blur / Enter
+function TaxInput({ value, saving, onSave }) {
+  const [v, setV] = useState(value ?? '')
+  useEffect(() => { setV(value ?? '') }, [value])
+  const commit = () => {
+    const n = v === '' ? 0 : Math.max(0, Number(v) || 0)
+    if (n !== (Number(value) || 0)) onSave(n)
+  }
+  return (
+    <input type="number" min="0" step="1" dir="ltr" placeholder="₪0"
+      className={`form-control !py-1.5 !text-xs !w-[84px] tabular-nums ${saving ? 'opacity-60' : ''}`}
+      value={v} onChange={e => setV(e.target.value)} onBlur={commit}
+      onKeyDown={e => e.key === 'Enter' && e.currentTarget.blur()} />
+  )
 }
