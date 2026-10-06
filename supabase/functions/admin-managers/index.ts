@@ -16,7 +16,7 @@ const SUPABASE_URL = "https://nwetajywazzpxkdknqsf.supabase.co";
 const PUBLISHABLE_KEY = "sb_publishable_5a-3ZAXHrNto4disNZxIUQ_VWX4Vj7w";
 const SECRET_KEY = Deno.env.get("SB_SECRET_KEY")!;
 
-const PERMISSIONS = ["employees", "shifts", "schedule", "bonuses", "form101", "messages", "reports"];
+const PERMISSIONS = ["employees", "shifts", "schedule", "bonuses", "form101", "messages", "reports", "invoices"];
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
