@@ -1,7 +1,8 @@
 // Supabase Edge Function: invoice-scan
-// Reads an uploaded invoice (photo or PDF from the "invoices" storage bucket) with Claude and fills
-// supplier name, date, total and invoice number. The supplier is matched to suppliers we already know,
-// so the same supplier is always grouped under one name.
+// Reads an uploaded supplier document (photo or PDF from the "invoices" storage bucket) with Claude and fills
+// document type (tax invoice / delivery note), supplier name, date, total and document number.
+// The supplier is matched to suppliers we already know — first by tax id (ח.פ / ע.מ), then by a normalized
+// name — so the same supplier is always grouped under one name.
 //
 // POST { invoiceId }         — admin with the "invoices" permission
 // POST { action: "health" }  — tells whether the AI key is configured (no auth needed, returns no secrets)
@@ -28,6 +29,16 @@ function toBase64(buf: ArrayBuffer) {
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(bin);
 }
+
+// "אולגודס בע\"מ", "אולגודס בעמ", "Olgoods Ltd." → same key
+function normName(s: string) {
+  return String(s || "")
+    .toLowerCase()
+    .replace(/["'״׳`]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, "")
+    .replace(/(בעמ|ltd|limited|inc)$/u, "");
+}
+const digits = (s: unknown) => String(s ?? "").replace(/\D/g, "");
 
 async function askClaude(content: unknown[]) {
   let lastErr = "";
@@ -82,15 +93,19 @@ serve(async (req) => {
       : { type: "image", source: { type: "base64", media_type: mime.startsWith("image/") ? mime : "image/jpeg", data: b64 } };
 
     // known suppliers so the same company always lands under one name
-    const { data: known } = await admin.from("invoices").select("supplier_name").not("supplier_name", "is", null).limit(2000);
+    const { data: known } = await admin.from("invoices").select("supplier_name, supplier_tax_id").not("supplier_name", "is", null).neq("id", inv.id).limit(3000);
     const suppliers = [...new Set((known || []).map((k: any) => k.supplier_name).filter(Boolean))].slice(0, 300);
 
     const prompt =
-      `This is a scanned invoice / receipt (Israel, usually Hebrew). Extract and answer ONLY with JSON:\n` +
-      `{"supplier_name": string|null, "invoice_date": "YYYY-MM-DD"|null, "total_amount": number|null, "invoice_number": string|null, "supplier_tax_id": string|null}\n` +
-      `- supplier_name: the business that ISSUED the invoice (not the customer). Short common name, in the language printed.\n` +
-      `- invoice_date: the invoice/receipt date. Dates are day/month/year.\n` +
-      `- total_amount: final total including VAT, number only.\n` +
+      `This is a scanned supplier document (Israel, usually Hebrew). Extract and answer ONLY with JSON:\n` +
+      `{"doc_type": "invoice"|"delivery_note", "supplier_name": string|null, "invoice_date": "YYYY-MM-DD"|null, "total_amount": number|null, "invoice_number": string|null, "supplier_tax_id": string|null}\n` +
+      `- doc_type: "delivery_note" if the document is a delivery note (תעודת משלוח / ת. משלוח / תעודת אספקה). ` +
+      `"invoice" for a tax invoice, tax invoice/receipt or receipt (חשבונית מס, חשבונית מס/קבלה, קבלה, חשבונית עסקה).\n` +
+      `- supplier_name: the business that ISSUED the document (not the customer). Short common name, in the language printed.\n` +
+      `- supplier_tax_id: the issuer's company/dealer number (ח.פ / ע.מ / עוסק מורשה), digits only.\n` +
+      `- invoice_date: the document date. Dates are day/month/year.\n` +
+      `- invoice_number: the document number.\n` +
+      `- total_amount: final total including VAT, number only (null if the document has no prices).\n` +
       (suppliers.length
         ? `- If the supplier is one of these known suppliers, return EXACTLY that spelling: ${JSON.stringify(suppliers)}\n`
         : "");
@@ -99,15 +114,29 @@ serve(async (req) => {
     const out = m ? JSON.parse(m[0]) : {};
 
     const date = /^\d{4}-\d{2}-\d{2}$/.test(out.invoice_date || "") ? out.invoice_date : null;
+
+    // canonical supplier: same tax id → that supplier's existing name; else same normalized name
+    const taxId = digits(out.supplier_tax_id).slice(0, 20) || null;
+    let supplierName = out.supplier_name ? String(out.supplier_name).trim().slice(0, 120) : inv.supplier_name;
+    const byTax = taxId ? (known || []).filter((k: any) => digits(k.supplier_tax_id) === taxId) : [];
+    if (byTax.length) {
+      const counts: Record<string, number> = {};
+      for (const k of byTax) counts[k.supplier_name] = (counts[k.supplier_name] || 0) + 1;
+      supplierName = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+    } else if (supplierName) {
+      const hit = suppliers.find((n) => normName(n) === normName(supplierName));
+      if (hit) supplierName = hit;
+    }
     const patch: Record<string, unknown> = {
       status: "done",
       scan_error: null,
-      supplier_name: out.supplier_name ? String(out.supplier_name).trim().slice(0, 120) : inv.supplier_name,
+      doc_type: out.doc_type === "delivery_note" ? "delivery_note" : "invoice",
+      supplier_name: supplierName,
       invoice_date: date || inv.invoice_date,
       month: (date || inv.invoice_date || inv.created_at.slice(0, 10)).slice(0, 7),
       total_amount: typeof out.total_amount === "number" ? out.total_amount : inv.total_amount,
       invoice_number: out.invoice_number ? String(out.invoice_number).slice(0, 60) : inv.invoice_number,
-      supplier_tax_id: out.supplier_tax_id ? String(out.supplier_tax_id).slice(0, 20) : inv.supplier_tax_id,
+      supplier_tax_id: taxId || inv.supplier_tax_id,
       ocr_raw: out,
     };
     const { data: saved, error: upErr } = await admin.from("invoices").update(patch).eq("id", inv.id).select().single();
