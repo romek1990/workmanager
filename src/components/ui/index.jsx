@@ -232,7 +232,7 @@ export function AlertModal({ open, onClose, title, message }) {
   return createPortal(
     <div className="fixed inset-0 bg-ink-900/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white/90 backdrop-blur-xl border border-white rounded-3xl shadow-glass-lg w-full max-w-sm text-center p-8 animate-rise">
-        <div className="text-4xl mb-3">✅</div>
+        <div className="text-4xl mb-3">{/שגיאה|נכשל|לא נרשם|לא נוספ|לא תקין/.test(`${title || ''}`) ? '⚠️' : '✅'}</div>
         <h3 className="text-base font-bold mb-1">{title}</h3>
         <p className="text-sm text-gray-500 mb-6 whitespace-pre-line">{message}</p>
         <button className="btn btn-primary px-8" onClick={onClose}>סגור</button>

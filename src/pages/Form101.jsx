@@ -290,6 +290,11 @@ export default function Form101() {
         submitted_at: new Date().toISOString(),
       }
 
+      // empty date / number fields must be sent as null, not "" (Postgres rejects "" for date)
+      for (const k of Object.keys(payload)) {
+        if (payload[k] === '' && (/_date$|_start$|_end$|_count$/.test(k) || k === 'year')) payload[k] = null
+      }
+
       await submitForm101(payload)
 
       await supabase.rpc('notify_admins', {
@@ -303,7 +308,8 @@ export default function Form101() {
       await loadExistingForm()
       await loadHistory()
     } catch (e) {
-      setAlert({ title: 'שגיאה', message: e.message })
+      const m = String(e?.message || '')
+      setAlert({ title: 'שגיאה', message: /invalid input syntax|date/i.test(m) ? 'אחד מהתאריכים בטופס לא תקין — בדוק את שדות התאריך ונסה שוב' : 'שליחת הטופס נכשלה, נסה שוב' })
     }
     setLoading(false)
   }
