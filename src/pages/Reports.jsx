@@ -77,20 +77,30 @@ function ReportsInner() {
   const rows = employees.map(emp => {
     const empShifts = filteredShifts.filter(s => s.employee_email === emp.email || s.employee_id === emp.id)
     const hrs = { regular: 0, friday: 0, saturday: 0, night: 0, holiday: 0, total: 0 }
+    const amt = { regular: 0, friday: 0, saturday: 0, night: 0, holiday: 0 } // pay per shift type
     let pay = emp.employee_type === 'global' ? (empShifts.length ? emp.monthly_salary : 0) : 0
     empShifts.forEach(s => {
       const h = Number(s.total_hours) || 0
       hrs[s.shift_type] = (hrs[s.shift_type] || 0) + h
       hrs.total += h
-      if (emp.employee_type === 'hourly') pay += calcShiftPay(s, emp)
+      if (emp.employee_type === 'hourly') {
+        const p = calcShiftPay(s, emp)
+        pay += p
+        amt[s.shift_type] = (amt[s.shift_type] || 0) + p
+      }
     })
     const bonus = bonuses
       .filter(b => (b.employee_email === emp.email || b.employee_id === emp.id) && b.date >= from && b.date <= to)
       .reduce((a, b) => a + (Number(b.amount) || 0), 0)
-    return { emp, hrs, pay, bonus, total: pay + bonus, shifts: empShifts }
+    return { emp, hrs, amt, pay, bonus, total: pay + bonus, shifts: empShifts }
   }).filter(r => r.hrs.total > 0 || r.emp.employee_type === 'global')
 
   rows.forEach(r => { r.taxes = taxesFor(r.emp.id); r.net = r.total - r.taxes })
+  const TYPES = ['regular', 'friday', 'saturday', 'night', 'holiday']
+  const byType = Object.fromEntries(TYPES.map(k => [k, {
+    hrs: rows.reduce((a, r) => a + (r.hrs[k] || 0), 0),
+    amt: rows.reduce((a, r) => a + (r.amt[k] || 0), 0),
+  }]))
   const totals = rows.reduce((a, r) => ({
     hrs: a.hrs + r.hrs.total,
     pay: a.pay + r.pay,
@@ -124,12 +134,15 @@ function exportPDF() {
       <meta charset="UTF-8">
       <title>דוח חודשי - WorkManager</title>
       <style>
-        body { font-family: Arial, sans-serif; padding: 30px; direction: rtl; }
+        @page { size: A4 landscape; margin: 10mm }
+        body { font-family: Arial, sans-serif; padding: 10px; direction: rtl; }
         h1 { color: #1e40af; font-size: 20px; margin-bottom: 5px; }
         p { color: #6b7280; font-size: 13px; margin: 3px 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
-        th { background: #2563eb; color: white; padding: 8px 12px; text-align: right; }
-        td { padding: 7px 12px; border-bottom: 1px solid #e5e7eb; text-align: right; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
+        th { background: #2563eb; color: white; padding: 7px 8px; text-align: right; }
+        td { padding: 6px 8px; border-bottom: 1px solid #e5e7eb; text-align: right; vertical-align: top; }
+        .amt { font-size: 11px; color: #0F9D58; font-weight: bold; margin-top: 2px; }
+        .total-row .amt { color: #d1fae5; }
         tr:nth-child(even) { background: #f5f7ff; }
         .total-row { background: #1e40af !important; color: white; font-weight: bold; }
         .total-row td { color: white; }
@@ -160,6 +173,7 @@ function exportPDF() {
             <th>שע' שישי</th>
             <th>שע' שבת</th>
             <th>שע' לילה</th>
+            <th>שע' חג</th>
             <th>סה"כ שעות</th>
             <th>שכר גולמי</th>
             <th>בונוסים</th>
@@ -173,10 +187,7 @@ function exportPDF() {
           ${rows.map(r => `
             <tr>
               <td>${r.emp.full_name}${isManager(r.emp.id) ? ' (מנהל)' : ''}</td>
-              <td>${fmtHours(r.hrs.regular)}</td>
-              <td>${fmtHours(r.hrs.friday)}</td>
-              <td>${fmtHours(r.hrs.saturday)}</td>
-              <td>${fmtHours(r.hrs.night)}</td>
+              ${TYPES.map(k => `<td>${r.hrs[k] ? fmtHours(r.hrs[k]) : '—'}${r.hrs[k] && r.emp.employee_type !== 'global' ? `<div class="amt">${fmtMoney(r.amt[k])}</div>` : ''}</td>`).join('')}
               <td><strong>${fmtHours(r.hrs.total)}</strong></td>
               <td>${fmtMoney(r.pay)}</td>
               <td>${fmtMoney(r.bonus)}</td>
@@ -188,7 +199,7 @@ function exportPDF() {
           `).join('')}
           <tr class="total-row">
             <td><strong>סה"כ</strong></td>
-            <td colspan="4"></td>
+            ${TYPES.map(k => `<td>${byType[k].hrs ? fmtHours(byType[k].hrs) : '—'}${byType[k].hrs ? `<div class="amt">${fmtMoney(byType[k].amt)}</div>` : ''}</td>`).join('')}
             <td><strong>${fmtHours(totals.hrs)}</strong></td>
             <td><strong>${fmtMoney(totals.pay)}</strong></td>
             <td><strong>${fmtMoney(totals.bonus)}</strong></td>
@@ -260,6 +271,7 @@ function exportEmployeePDF(row) {
 
       <div class="totals">
         <p>סה"כ שעות: <strong>${fmtHours(row.hrs.total)}</strong></p>
+        ${row.emp.employee_type !== 'global' ? TYPES.filter(k => row.hrs[k]).map(k => `<p>${SHIFT_TYPE_HE[k]}: <strong>${fmtHours(row.hrs[k])}</strong> שעות · <strong>${fmtMoney(row.amt[k])}</strong></p>`).join('') : ''}
         <p>שכר גולמי: <strong>${fmtMoney(row.pay)}</strong></p>
         <p>בונוסים: <strong>${fmtMoney(row.bonus)}</strong></p>
         <p>סה"כ ברוטו: <strong>${fmtMoney(row.total)}</strong></p>
@@ -340,14 +352,19 @@ function exportEmployeePDF(row) {
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr>{['עובד', 'רגיל', 'שישי', 'שבת', 'לילה', 'סה"כ שעות', 'שכר', 'בונוסים', 'סה"כ', 'מיסים', 'נטו', 'אופן תשלום', ''].map((h, i) => <th key={i} className="table-th">{h}</th>)}</tr>
+                    <tr>{['עובד', 'רגיל', 'שישי', 'שבת', 'לילה', 'חג', 'סה"כ שעות', 'שכר', 'בונוסים', 'סה"כ', 'מיסים', 'נטו', 'אופן תשלום', ''].map((h, i) => <th key={i} className="table-th">{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {rows.map(r => (
                       <tr key={r.emp.id} className="transition-colors hover:bg-brand-500/5">
                         <td className="table-td"><div className="flex items-center gap-2.5 font-medium"><Avatar name={r.emp.full_name} size="sm" />{r.emp.full_name}<ManagerBadge show={isManager(r.emp.id)} /></div></td>
-                        {['regular', 'friday', 'saturday', 'night'].map(k => (
-                          <td key={k} className="table-td tabular-nums" style={{ color: r.hrs[k] ? undefined : 'var(--text-dim)' }}>{r.hrs[k] ? fmtHours(r.hrs[k]) : '—'}</td>
+                        {TYPES.map(k => (
+                          <td key={k} className="table-td tabular-nums" style={{ color: r.hrs[k] ? undefined : 'var(--text-dim)' }}>
+                            {r.hrs[k] ? <>
+                              <div>{fmtHours(r.hrs[k])}</div>
+                              {r.emp.employee_type !== 'global' && <div className="text-[11px] font-semibold text-brand-700">{fmtMoney(r.amt[k])}</div>}
+                            </> : '—'}
+                          </td>
                         ))}
                         <td className="table-td tabular-nums font-bold">{fmtHours(r.hrs.total)}</td>
                         <td className="table-td tabular-nums">{fmtMoney(r.pay)}</td>
@@ -376,7 +393,11 @@ function exportEmployeePDF(row) {
                     ))}
                     <tr className="bg-brand-500/[0.07] font-bold">
                       <td className="table-td">סה"כ</td>
-                      <td className="table-td" colSpan={4}></td>
+                      {TYPES.map(k => (
+                        <td key={k} className="table-td tabular-nums">
+                          {byType[k].hrs ? <><div>{fmtHours(byType[k].hrs)}</div><div className="text-[11px] text-brand-700">{fmtMoney(byType[k].amt)}</div></> : '—'}
+                        </td>
+                      ))}
                       <td className="table-td tabular-nums">{fmtHours(totals.hrs)}</td>
                       <td className="table-td tabular-nums">{fmtMoney(totals.pay)}</td>
                       <td className="table-td tabular-nums text-brand-700">{fmtMoney(totals.bonus)}</td>
