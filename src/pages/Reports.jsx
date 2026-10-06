@@ -97,7 +97,7 @@ function ReportsInner() {
   }).filter(r => r.hrs.total > 0 || r.emp.employee_type === 'global')
 
   const advancesFor = empId => advances.filter(a => a.employee_id === empId && a.status === 'approved' && a.date >= from && a.date <= to).reduce((s, a) => s + (Number(a.amount) || 0), 0)
-  rows.forEach(r => { r.taxes = taxesFor(r.emp.id); r.advances = advancesFor(r.emp.id); r.net = r.total - r.taxes - r.advances })
+  rows.forEach(r => { r.taxes = taxesFor(r.emp.id); r.advances = advancesFor(r.emp.id); r.net = r.total - r.taxes }) // advances are shown for reference only — not part of pay
   const pendingAdvances = advances.filter(a => a.status === 'pending').length
   const TYPES = ['regular', 'friday', 'saturday', 'night', 'holiday']
   const byType = Object.fromEntries(TYPES.map(k => [k, {

@@ -108,7 +108,7 @@ export default function AdvancesPanel({ employees, from, to, isManager }) {
             <input className="form-control" value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} />
           </div>
           {err && <p className="col-span-2 text-sm text-red-600">{err}</p>}
-          <p className="col-span-2 text-xs" style={{ color: 'var(--text-dim)' }}>מפרעה שמנהל מוסיף נרשמת כמאושרת, ומקוזזת מהנטו של החודש לפי התאריך.</p>
+          <p className="col-span-2 text-xs" style={{ color: 'var(--text-dim)' }}>מפרעה שמנהל מוסיף נרשמת כמאושרת. המפרעות מוצגות לרישום בלבד ולא משפיעות על חישוב השכר.</p>
         </div>
       </Modal>
     </div>

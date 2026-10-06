@@ -1,13 +1,9 @@
 import React from 'react'
 import { Banknote, Clock, Gift, Info, Moon } from 'lucide-react'
 import { fmtHours, fmtMoney } from '../utils/helpers'
-import { useApp } from '../context/AppContext'
 
 // Employee-facing monthly summary: hours worked + estimated gross pay incl. bonuses.
 export default function PayEstimate({ est, title = 'החודש שלי', className = '' }) {
-  const { advances = [], currentUser } = useApp()
-  const myAdvances = advances.filter(a => a.employee_id === currentUser?.id && a.status === 'approved' && (a.date || '').startsWith(est.ym || ''))
-  const advTotal = myAdvances.reduce((s, a) => s + (Number(a.amount) || 0), 0)
   const Row = ({ label, value, dim, strong }) => (
     <div className={`flex items-center justify-between py-1.5 text-sm ${dim ? 'text-gray-500' : ''}`}>
       <span>{label}</span>
@@ -50,11 +46,8 @@ export default function PayEstimate({ est, title = 'החודש שלי', classNam
         {est.bonusList.map(b => (
           <Row key={b.id} label={<span className="inline-flex items-center gap-1"><Gift size={13} className="text-brand-600" />{b.description || 'בונוס'}</span>} value={fmtMoney(Number(b.amount) || 0)} />
         ))}
-        <Row label="סה״כ משוער (ברוטו)" value={fmtMoney(est.total)} strong />
-        {advTotal > 0 && <>
-          <Row label={`מפרעות שאושרו (${myAdvances.length}) — יקוזזו`} value={`−${fmtMoney(advTotal)}`} dim />
-          <Row label="צפוי לתשלום אחרי מפרעות (לפני מיסים)" value={fmtMoney(est.total - advTotal)} strong />
-        </>}
+        <Row label="סה״כ משוער" value={fmtMoney(est.total)} strong />
+
       </div>
 
       <p className="text-[11px] text-gray-400 mt-3 flex items-start gap-1 leading-relaxed">

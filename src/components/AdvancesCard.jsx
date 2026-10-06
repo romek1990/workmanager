@@ -44,7 +44,7 @@ export default function AdvancesCard({ className = '' }) {
         <button className="btn btn-primary text-xs py-1.5 px-3" onClick={openForm}><Plus size={14} />בקשת מפרעה</button>
       </div>
       {mine.length === 0 ? (
-        <p className="text-sm" style={{ color: 'var(--text-dim)' }}>לא נלקחו מפרעות. מפרעה שאושרה תקוזז מהתשלום של אותו חודש.</p>
+        <p className="text-sm" style={{ color: 'var(--text-dim)' }}>לא נלקחו מפרעות.</p>
       ) : (
         <div className="divide-y divide-black/5">
           {mine.slice(0, 6).map(a => (
@@ -67,7 +67,7 @@ export default function AdvancesCard({ className = '' }) {
               <button className="btn btn-primary" onClick={submit} disabled={busy}>{busy ? 'שולח...' : 'שלח לאישור'}</button>
             </>}>
         {done ? (
-          <p className="text-sm">הבקשה נשלחה למנהל ✅<br />אחרי האישור הסכום יקוזז מהתשלום של אותו חודש.</p>
+          <p className="text-sm">הבקשה נשלחה למנהל ✅<br />תקבל עדכון כאן אחרי שהמנהל יאשר.</p>
         ) : (
           <div className="grid grid-cols-2 gap-4">
             <div>
