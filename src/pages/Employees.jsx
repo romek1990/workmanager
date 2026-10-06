@@ -188,9 +188,6 @@ export default function Employees() {
             ? <div><label className="form-label">שכר שעתי (₪)</label><input type="number" className="form-control" value={form.hourly_rate} onChange={e => set('hourly_rate', +e.target.value)} /></div>
             : <div><label className="form-label">שכר חודשי (₪)</label><input type="number" className="form-control" value={form.monthly_salary} onChange={e => set('monthly_salary', +e.target.value)} /></div>
           }
-          <div><label className="form-label">מכפיל שישי</label><input type="number" step="0.05" className="form-control" value={form.friday_rate_multiplier} onChange={e => set('friday_rate_multiplier', +e.target.value)} /></div>
-          <div><label className="form-label">מכפיל שבת</label><input type="number" step="0.05" className="form-control" value={form.saturday_rate_multiplier} onChange={e => set('saturday_rate_multiplier', +e.target.value)} /></div>
-          <div><label className="form-label">מכפיל לילה</label><input type="number" step="0.05" className="form-control" value={form.night_rate_multiplier} onChange={e => set('night_rate_multiplier', +e.target.value)} /></div>
           <div>
             <label className="form-label">סטטוס</label>
             <select className="form-control" value={form.status} onChange={e => set('status', e.target.value)}>

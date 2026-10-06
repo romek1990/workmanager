@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { shiftOverlapMessage } from '../utils/helpers'
+import { shiftOverlapMessage, setPayRules } from '../utils/helpers'
 
 const AppContext = createContext(null)
 
@@ -38,6 +38,7 @@ export function AppProvider({ children }) {
   const [bonuses, setBonuses] = useState([])
   const [weeklySchedule, setWeeklySchedule] = useState([])
   const [dayNotes, setDayNotes] = useState([])
+  const [payRules, setPayRulesState] = useState({ threshold: 40, premium: 2 })
   const [systemLocked, setSystemLocked] = useState(false) // super admin's kill switch
   const [managers, setManagers] = useState([]) // every manager except the super admin
   const hourlyManagers = managers.filter(m => m.tracks_hours) // managers who report hours like employees
@@ -174,7 +175,24 @@ export function AppProvider({ children }) {
     } catch (e) {}
   }
 
+  async function loadPayRules() {
+    const [{ data: st }, { data: hol }] = await Promise.all([
+      supabase.from('store_settings').select('wage_threshold, premium_per_hour').eq('id', 1).maybeSingle(),
+      supabase.from('holidays').select('date, name').order('date'),
+    ])
+    const rules = { threshold: Number(st?.wage_threshold) || 40, premium: Number(st?.premium_per_hour) || 2, holidays: (hol || []).map(h => h.date) }
+    setPayRules(rules)
+    setPayRulesState({ ...rules, holidayList: hol || [] })
+  }
+
+  async function setWageThreshold(value, code) {
+    const { error } = await supabase.rpc('set_wage_threshold', { p_value: value, p_code: code })
+    if (error) throw new Error(error.message.includes('bad code') ? 'קוד האישור שגוי' : error.message.includes('bad value') ? 'סכום לא תקין' : 'השינוי נכשל')
+    await loadPayRules()
+  }
+
   async function loadAllData(role, userId) {
+    await loadPayRules()
     if (role === 'admin') {
       const [emps, shfts, bnss, wkly, notes, mgrs] = await Promise.all([
         supabase.from('profiles').select('*').neq('role', 'admin'),
@@ -475,7 +493,7 @@ export function AppProvider({ children }) {
       employees, shifts, bonuses, weeklySchedule, dayNotes,
       notifications, unreadCount,
       currentUser, currentRole, currentUserEmail,
-      loading, authNotice, isSuperAdmin, can, systemLocked, setSystemLock, isHourlyManager, canResolveShift, hourlyManagers, managers, isManager,
+      loading, authNotice, isSuperAdmin, can, systemLocked, setSystemLock, payRules, setWageThreshold, isHourlyManager, canResolveShift, hourlyManagers, managers, isManager,
       login, logout,
       addEmployee, updateEmployee,
       addShift, updateShiftStatus,

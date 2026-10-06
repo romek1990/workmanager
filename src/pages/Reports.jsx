@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext'
 import { BarChart2, Download, FileText } from 'lucide-react'
 import { StatCard, PageHeader, Avatar, ManagerBadge } from '../components/ui'
 import { calcShiftPay, fmtMoney, monthStart, monthEnd, fmtHours, fmtDate } from '../utils/helpers'
+import PayRulesCard from '../components/PayRulesCard'
 import { Clock, Banknote, Gift, Wallet } from 'lucide-react'
 
 
@@ -238,6 +239,7 @@ function exportEmployeePDF(row) {
         <button className="btn" onClick={exportCSV}><Download size={15} /> CSV</button>
         <button className="btn btn-primary" onClick={exportPDF}><FileText size={15} /> PDF כללי</button>
       </PageHeader>
+      <PayRulesCard />
 
       {/* Period picker */}
       <div className="card p-4 mb-5 animate-rise flex flex-wrap items-end gap-3">

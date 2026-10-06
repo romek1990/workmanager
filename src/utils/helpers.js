@@ -1,15 +1,61 @@
 import { SHIFT_TYPE_LABELS, STATUS_LABELS } from '../data/mockData'
 
-export function calcShiftPay(shift, employee) {
-  if (!employee || employee.employee_type === 'global') return 0
-  const multipliers = {
-    regular: 1,
-    friday: employee.friday_rate_multiplier || 1.25,
-    saturday: employee.saturday_rate_multiplier || 1.5,
-    night: employee.night_rate_multiplier || 1.25,
-    holiday: 1.5,
+// ── Pay rules ──────────────────────────────────────────────────────
+// Hourly pay = hours × rate. Employees whose rate is BELOW the threshold (set by the super admin,
+// default ₪40) get a fixed premium (₪2) for every hour worked inside a premium window:
+//   • night    00:00–08:00 every day
+//   • weekend  Friday 16:00 → Saturday 16:00
+//   • holiday  16:00 on the eve → 16:00 on the holiday (dates from the holidays table)
+// Windows don't stack — an hour counts once. No other multipliers.
+let PAY_RULES = { threshold: 40, premium: 2, holidays: new Set() }
+export function setPayRules({ threshold, premium, holidays } = {}) {
+  PAY_RULES = {
+    threshold: Number(threshold) || 40,
+    premium: Number(premium) || 2,
+    holidays: new Set(holidays || []),
   }
-  return shift.total_hours * employee.hourly_rate * (multipliers[shift.shift_type] || 1)
+}
+export function getPayRules() { return PAY_RULES }
+
+// whole minutes of a shift that fall inside a premium window
+export function premiumMinutes(shift) {
+  if (!shift?.date || !shift?.start_time || !shift?.end_time) return 0
+  const [y, mo, d] = shift.date.split('-').map(Number)
+  const toMin = t => { const [h, m] = String(t).slice(0, 5).split(':').map(Number); return h * 60 + m }
+  const start = toMin(shift.start_time)
+  let end = toMin(shift.end_time)
+  if (end <= start) end += 24 * 60
+  const iso = dt => dt.toISOString().slice(0, 10)
+  let count = 0
+  for (let m = start; m < end; m++) {
+    const day = new Date(Date.UTC(y, mo - 1, d + Math.floor(m / 1440)))   // naive local day
+    const hour = Math.floor((m % 1440) / 60)
+    const dow = day.getUTCDay()
+    const today = iso(day)
+    const tomorrow = iso(new Date(day.getTime() + 86400000))
+    if (hour < 8
+      || (dow === 5 && hour >= 16) || (dow === 6 && hour < 16)
+      || (PAY_RULES.holidays.has(today) && hour < 16) || (PAY_RULES.holidays.has(tomorrow) && hour >= 16)) count++
+  }
+  return count
+}
+
+export function eligibleForPremium(employee) {
+  return !!employee && employee.employee_type !== 'global' && (Number(employee.hourly_rate) || 0) < PAY_RULES.threshold
+}
+
+// { base, premium, premiumHours } for one shift
+export function shiftPayParts(shift, employee) {
+  if (!employee || employee.employee_type === 'global') return { base: 0, premium: 0, premiumHours: 0 }
+  const base = (Number(shift.total_hours) || 0) * (Number(employee.hourly_rate) || 0)
+  const premiumHours = premiumMinutes(shift) / 60
+  const premium = eligibleForPremium(employee) ? premiumHours * PAY_RULES.premium : 0
+  return { base, premium, premiumHours }
+}
+
+export function calcShiftPay(shift, employee) {
+  const p = shiftPayParts(shift, employee)
+  return p.base + p.premium
 }
 
 // ── Hours are tracked to the minute ──────────────────────────────────
@@ -99,6 +145,9 @@ export function monthEstimate({ shifts = [], bonuses = [], emp, ym }) {
   const bonus = bonusList.reduce((a, b) => a + (Number(b.amount) || 0), 0)
   const approvedPay = pay(approved)
   const pendingPay = pay(pending)
+  const counted = [...approved, ...pending]
+  const premiumHours = counted.reduce((a, s) => a + premiumMinutes(s) / 60, 0)
+  const premium = isGlobal || !emp ? 0 : counted.reduce((a, s) => a + shiftPayParts(s, emp).premium, 0)
   const basePay = isGlobal ? Number(emp?.monthly_salary) || 0 : approvedPay + pendingPay
   return {
     isGlobal,
@@ -107,6 +156,7 @@ export function monthEstimate({ shifts = [], bonuses = [], emp, ym }) {
     approvedPay, pendingPay, basePay, bonus, bonusList,
     total: basePay + bonus,
     rate: Number(emp?.hourly_rate) || 0,
+    premium, premiumHours, premiumEligible: eligibleForPremium(emp), threshold: PAY_RULES.threshold, premiumRate: PAY_RULES.premium,
   }
 }
 

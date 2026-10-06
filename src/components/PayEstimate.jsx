@@ -1,5 +1,5 @@
 import React from 'react'
-import { Banknote, Clock, Gift, Info } from 'lucide-react'
+import { Banknote, Clock, Gift, Info, Moon } from 'lucide-react'
 import { fmtHours, fmtMoney } from '../utils/helpers'
 
 // Employee-facing monthly summary: hours worked + estimated gross pay incl. bonuses.
@@ -40,6 +40,9 @@ export default function PayEstimate({ est, title = 'החודש שלי', classNam
             <Row label={`ממתינות לאישור (${est.pendingCount})`} value={fmtMoney(est.pendingPay)} dim />
           </>
         )}
+        {!est.isGlobal && est.premiumEligible && est.premium > 0 && (
+          <Row label={<span className="inline-flex items-center gap-1"><Moon size={13} className="text-indigo-600" />מתוכן תוספת לילה/סופ״ש ({fmtHours(est.premiumHours)} ש׳ × ₪{est.premiumRate})</span>} value={fmtMoney(est.premium)} dim />
+        )}
         {est.bonusList.map(b => (
           <Row key={b.id} label={<span className="inline-flex items-center gap-1"><Gift size={13} className="text-brand-600" />{b.description || 'בונוס'}</span>} value={fmtMoney(Number(b.amount) || 0)} />
         ))}
@@ -50,7 +53,7 @@ export default function PayEstimate({ est, title = 'החודש שלי', classNam
         <Info size={12} className="mt-0.5 shrink-0" />
         {est.isGlobal
           ? 'הסכום הסופי ייקבע בתלוש השכר.'
-          : `חישוב לפי ${fmtMoney(est.rate)} לשעה ותוספות שישי/שבת/לילה. משמרות שעוד לא אושרו עשויות להשתנות, והסכום הסופי ייקבע בתלוש השכר.`}
+          : `חישוב לפי ${fmtMoney(est.rate)} לשעה${est.premiumEligible ? ` + ₪${est.premiumRate} לכל שעת לילה (00:00–08:00), סופ״ש (שישי 16:00–שבת 16:00) או חג` : ''}. משמרות שעוד לא אושרו עשויות להשתנות, והסכום הסופי ייקבע בתלוש השכר.`}
       </p>
     </div>
   )

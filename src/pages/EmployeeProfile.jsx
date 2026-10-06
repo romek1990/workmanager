@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { Avatar, ShiftTypeBadge, StatusBadge, CardSection, Table, Modal, AlertModal } from '../components/ui'
 import { EMP_TYPE_LABELS } from '../data/mockData'
-import { calcShiftPay, fmtMoney, fmtHours } from '../utils/helpers'
+import { calcShiftPay, fmtMoney, fmtHours, eligibleForPremium, getPayRules } from '../utils/helpers'
 
 const RESET_PW_URL = 'https://nwetajywazzpxkdknqsf.supabase.co/functions/v1/admin-reset-password'
 
@@ -73,9 +73,7 @@ export default function EmployeeProfile() {
   const infoRows = [
     ['סוג העסקה', EMP_TYPE_LABELS[emp.employee_type]],
     ['שכר', emp.employee_type === 'hourly' ? `₪${emp.hourly_rate}/שעה` : `₪${Number(emp.monthly_salary || 0).toLocaleString()}/חודש`],
-    ['מכפיל שישי', `×${emp.friday_rate_multiplier}`],
-    ['מכפיל שבת', `×${emp.saturday_rate_multiplier}`],
-    ['מכפיל לילה', `×${emp.night_rate_multiplier}`],
+    ['תוספת לילה/סופ״ש/חג', emp.employee_type === 'global' ? '—' : eligibleForPremium(emp) ? `₪${getPayRules().premium} לשעה (שכר מתחת ל-₪${getPayRules().threshold})` : `אין (שכר ₪${getPayRules().threshold} ומעלה)`],
   ]
 
   return (
@@ -209,22 +207,6 @@ export default function EmployeeProfile() {
               </div>
             )}
 
-            {/* Multipliers */}
-            <div className="col-span-2 mt-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">מכפילי שכר</p>
-            </div>
-            <div>
-              <label className="form-label">מכפיל שישי</label>
-              <input type="number" step="0.05" className="form-control" value={form.friday_rate_multiplier} onChange={e => set('friday_rate_multiplier', +e.target.value)} />
-            </div>
-            <div>
-              <label className="form-label">מכפיל שבת</label>
-              <input type="number" step="0.05" className="form-control" value={form.saturday_rate_multiplier} onChange={e => set('saturday_rate_multiplier', +e.target.value)} />
-            </div>
-            <div>
-              <label className="form-label">מכפיל לילה</label>
-              <input type="number" step="0.05" className="form-control" value={form.night_rate_multiplier} onChange={e => set('night_rate_multiplier', +e.target.value)} />
-            </div>
           </div>
         </Modal>
       )}
