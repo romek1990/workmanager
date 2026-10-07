@@ -6,6 +6,9 @@
 //
 // POST { invoiceId }         — admin with the "invoices" permission
 // POST { action: "health" }  — tells whether the AI key is configured (no auth needed, returns no secrets)
+// POST { action: "rescan_own" } — cron secret only: re-scans documents where our own store was saved as the supplier
+//
+// The system belongs to פלורנטין מרקט — it is always the CUSTOMER on these documents, never the supplier.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -18,7 +21,7 @@ const MODELS = ["claude-sonnet-5", "claude-sonnet-4-5"];
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -40,6 +43,12 @@ function normName(s: string) {
 }
 const digits = (s: unknown) => String(s ?? "").replace(/\D/g, "");
 
+// our own business — the customer on every document
+const OWN_NAME = "פלורנטין מרקט בע\"מ";
+const OWN_TAX_IDS = ["514706480"];
+const isOwn = (name: unknown, taxId?: unknown) =>
+  (taxId && OWN_TAX_IDS.includes(digits(taxId))) || /פלורנטי|florentin/i.test(String(name || ""));
+
 async function askClaude(content: unknown[]) {
   let lastErr = "";
   for (const model of MODELS) {
@@ -56,6 +65,85 @@ async function askClaude(content: unknown[]) {
   throw new Error(`AI ${lastErr}`);
 }
 
+async function scanInvoice(admin: any, inv: any) {
+  // ── file ──
+  const { data: file, error: dlErr } = await admin.storage.from("invoices").download(inv.file_path);
+  if (dlErr || !file) throw new Error("download failed");
+  const b64 = toBase64(await file.arrayBuffer());
+  const mime = inv.mime_type || file.type || "image/jpeg";
+  const doc = mime === "application/pdf"
+    ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: b64 } }
+    : { type: "image", source: { type: "base64", media_type: mime.startsWith("image/") ? mime : "image/jpeg", data: b64 } };
+
+  // known suppliers so the same company always lands under one name (never our own store)
+  const { data: knownRaw } = await admin.from("invoices").select("supplier_name, supplier_tax_id").not("supplier_name", "is", null).neq("id", inv.id).limit(3000);
+  const known = (knownRaw || []).filter((k: any) => !isOwn(k.supplier_name, k.supplier_tax_id));
+  const suppliers = [...new Set(known.map((k: any) => k.supplier_name).filter(Boolean))].slice(0, 300) as string[];
+
+  const prompt =
+    `This is a scanned supplier document (Israel, usually Hebrew) received by our store "${OWN_NAME}" (ח.פ ${OWN_TAX_IDS[0]}). ` +
+    `Our store is ALWAYS the customer/recipient (לכבוד / לקוח / שם הלקוח / נמען). Extract and answer ONLY with JSON:\n` +
+    `{"doc_type": "invoice"|"delivery_note"|"credit_note", "supplier_name": string|null, "invoice_date": "YYYY-MM-DD"|null, "total_amount": number|null, "invoice_number": string|null, "supplier_tax_id": string|null}\n` +
+    `- doc_type: "delivery_note" if the document is a delivery note (תעודת משלוח / ת. משלוח / תעודת אספקה). ` +
+    `"credit_note" for a credit / return document (חשבונית זיכוי, תעודת זיכוי, זיכוי, תעודת החזרה, החזרת סחורה, חזרות). ` +
+    `"invoice" for a tax invoice, tax invoice/receipt or receipt (חשבונית מס, חשבונית מס/קבלה, קבלה, חשבונית עסקה).\n` +
+    `- supplier_name: the business that ISSUED the document — usually its name/logo at the top, next to its own ח.פ/ע.מ, address and phone. ` +
+    `NEVER return our store (פלורנטין מרקט, in any spelling) as supplier_name, even if it is printed prominently. Short common name, in the language printed.\n` +
+    `- supplier_tax_id: the ISSUER's company/dealer number (ח.פ / ע.מ / עוסק מורשה), digits only — never ${OWN_TAX_IDS[0]} or any number printed in the customer section.\n` +
+    `- invoice_date: the document date. Dates are day/month/year.\n` +
+    `- invoice_number: the document number.\n` +
+    `- total_amount: final total including VAT as a POSITIVE number, even on a credit note (null if the document has no prices).\n` +
+    (suppliers.length
+      ? `- If the supplier is one of these known suppliers, return EXACTLY that spelling: ${JSON.stringify(suppliers)}\n`
+      : "");
+
+  const ask = async (extra = "") => {
+    const text = await askClaude([doc, { type: "text", text: prompt + extra }]);
+    const m = text.match(/\{[\s\S]*\}/);
+    return m ? JSON.parse(m[0]) : {};
+  };
+  let out = await ask();
+  let ownHit = isOwn(out.supplier_name, out.supplier_tax_id);
+  if (ownHit) {
+    // the model picked the customer — ask once more, explicitly
+    out = await ask(`\nIMPORTANT: "${out.supplier_name}" / ${out.supplier_tax_id} is OUR store (the customer). Find the OTHER business that issued this document. If you truly cannot find it, return null for supplier_name and supplier_tax_id.\n`);
+    ownHit = isOwn(out.supplier_name, out.supplier_tax_id);
+  }
+  if (ownHit) { out.supplier_name = null; out.supplier_tax_id = null; }
+  else if (out.supplier_tax_id && OWN_TAX_IDS.includes(digits(out.supplier_tax_id))) out.supplier_tax_id = null;
+
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(out.invoice_date || "") ? out.invoice_date : null;
+
+  // canonical supplier: same tax id → that supplier's existing name; else same normalized name
+  const taxId = digits(out.supplier_tax_id).slice(0, 20) || null;
+  const keepOld = !isOwn(inv.supplier_name, inv.supplier_tax_id);
+  let supplierName = out.supplier_name ? String(out.supplier_name).trim().slice(0, 120) : (keepOld ? inv.supplier_name : null);
+  const byTax = taxId ? known.filter((k: any) => digits(k.supplier_tax_id) === taxId) : [];
+  if (byTax.length) {
+    const counts: Record<string, number> = {};
+    for (const k of byTax) counts[k.supplier_name] = (counts[k.supplier_name] || 0) + 1;
+    supplierName = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+  } else if (supplierName) {
+    const hit = suppliers.find((n) => normName(n) === normName(supplierName));
+    if (hit) supplierName = hit;
+  }
+  const patch: Record<string, unknown> = {
+    status: supplierName ? "done" : "failed",
+    scan_error: supplierName ? null : "לא זוהה ספק — יש להזין ידנית",
+    doc_type: ["delivery_note", "credit_note"].includes(out.doc_type) ? out.doc_type : "invoice",
+    supplier_name: supplierName,
+    invoice_date: date || inv.invoice_date,
+    month: (date || inv.invoice_date || inv.created_at.slice(0, 10)).slice(0, 7),
+    total_amount: typeof out.total_amount === "number" ? Math.abs(out.total_amount) : inv.total_amount,
+    invoice_number: out.invoice_number ? String(out.invoice_number).slice(0, 60) : inv.invoice_number,
+    supplier_tax_id: taxId || (keepOld ? inv.supplier_tax_id : null),
+    ocr_raw: out,
+  };
+  const { data: saved, error: upErr } = await admin.from("invoices").update(patch).eq("id", inv.id).select().single();
+  if (upErr) throw upErr;
+  return saved;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -63,6 +151,26 @@ serve(async (req) => {
   if (body.action === "health") return json({ configured: !!ANTHROPIC_KEY });
 
   const admin = createClient(SUPABASE_URL, SECRET_KEY);
+
+  // one-off cleanup: re-scan documents where our own store was saved as the supplier (cron secret only)
+  if (body.action === "rescan_own") {
+    const secret = req.headers.get("x-cron-secret");
+    const { data: ok } = secret ? await admin.rpc("check_cron_secret", { p_secret: secret }) : { data: false };
+    if (ok !== true) return json({ error: "Unauthorized" }, 401);
+    const { data: rows } = await admin.from("invoices").select("*").not("file_path", "is", null);
+    const bad = (rows || []).filter((r: any) => isOwn(r.supplier_name, r.supplier_tax_id)).slice(0, Number(body.limit) || 3);
+    const results = [];
+    for (const r of bad) {
+      try {
+        const s = await scanInvoice(admin, r);
+        results.push({ id: r.id, supplier: s.supplier_name, tax: s.supplier_tax_id, status: s.status });
+      } catch (e) {
+        results.push({ id: r.id, error: String(e).slice(0, 200) });
+      }
+    }
+    return json({ ok: true, count: bad.length, results });
+  }
+
   let invoiceId: string | null = null;
   try {
     // ── caller: manager with the invoices permission ──
@@ -83,65 +191,7 @@ serve(async (req) => {
       return json({ error: "סריקה אוטומטית לא מוגדרת — אפשר להזין את הפרטים ידנית" }, 503);
     }
 
-    // ── file ──
-    const { data: file, error: dlErr } = await admin.storage.from("invoices").download(inv.file_path);
-    if (dlErr || !file) throw new Error("download failed");
-    const b64 = toBase64(await file.arrayBuffer());
-    const mime = inv.mime_type || file.type || "image/jpeg";
-    const doc = mime === "application/pdf"
-      ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: b64 } }
-      : { type: "image", source: { type: "base64", media_type: mime.startsWith("image/") ? mime : "image/jpeg", data: b64 } };
-
-    // known suppliers so the same company always lands under one name
-    const { data: known } = await admin.from("invoices").select("supplier_name, supplier_tax_id").not("supplier_name", "is", null).neq("id", inv.id).limit(3000);
-    const suppliers = [...new Set((known || []).map((k: any) => k.supplier_name).filter(Boolean))].slice(0, 300);
-
-    const prompt =
-      `This is a scanned supplier document (Israel, usually Hebrew). Extract and answer ONLY with JSON:\n` +
-      `{"doc_type": "invoice"|"delivery_note"|"credit_note", "supplier_name": string|null, "invoice_date": "YYYY-MM-DD"|null, "total_amount": number|null, "invoice_number": string|null, "supplier_tax_id": string|null}\n` +
-      `- doc_type: "delivery_note" if the document is a delivery note (תעודת משלוח / ת. משלוח / תעודת אספקה). ` +
-      `"credit_note" for a credit / return document (חשבונית זיכוי, תעודת זיכוי, זיכוי, תעודת החזרה, החזרת סחורה, חזרות). ` +
-      `"invoice" for a tax invoice, tax invoice/receipt or receipt (חשבונית מס, חשבונית מס/קבלה, קבלה, חשבונית עסקה).\n` +
-      `- supplier_name: the business that ISSUED the document (not the customer). Short common name, in the language printed.\n` +
-      `- supplier_tax_id: the issuer's company/dealer number (ח.פ / ע.מ / עוסק מורשה), digits only.\n` +
-      `- invoice_date: the document date. Dates are day/month/year.\n` +
-      `- invoice_number: the document number.\n` +
-      `- total_amount: final total including VAT as a POSITIVE number, even on a credit note (null if the document has no prices).\n` +
-      (suppliers.length
-        ? `- If the supplier is one of these known suppliers, return EXACTLY that spelling: ${JSON.stringify(suppliers)}\n`
-        : "");
-    const text = await askClaude([doc, { type: "text", text: prompt }]);
-    const m = text.match(/\{[\s\S]*\}/);
-    const out = m ? JSON.parse(m[0]) : {};
-
-    const date = /^\d{4}-\d{2}-\d{2}$/.test(out.invoice_date || "") ? out.invoice_date : null;
-
-    // canonical supplier: same tax id → that supplier's existing name; else same normalized name
-    const taxId = digits(out.supplier_tax_id).slice(0, 20) || null;
-    let supplierName = out.supplier_name ? String(out.supplier_name).trim().slice(0, 120) : inv.supplier_name;
-    const byTax = taxId ? (known || []).filter((k: any) => digits(k.supplier_tax_id) === taxId) : [];
-    if (byTax.length) {
-      const counts: Record<string, number> = {};
-      for (const k of byTax) counts[k.supplier_name] = (counts[k.supplier_name] || 0) + 1;
-      supplierName = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-    } else if (supplierName) {
-      const hit = suppliers.find((n) => normName(n) === normName(supplierName));
-      if (hit) supplierName = hit;
-    }
-    const patch: Record<string, unknown> = {
-      status: "done",
-      scan_error: null,
-      doc_type: ["delivery_note", "credit_note"].includes(out.doc_type) ? out.doc_type : "invoice",
-      supplier_name: supplierName,
-      invoice_date: date || inv.invoice_date,
-      month: (date || inv.invoice_date || inv.created_at.slice(0, 10)).slice(0, 7),
-      total_amount: typeof out.total_amount === "number" ? Math.abs(out.total_amount) : inv.total_amount,
-      invoice_number: out.invoice_number ? String(out.invoice_number).slice(0, 60) : inv.invoice_number,
-      supplier_tax_id: taxId || inv.supplier_tax_id,
-      ocr_raw: out,
-    };
-    const { data: saved, error: upErr } = await admin.from("invoices").update(patch).eq("id", inv.id).select().single();
-    if (upErr) throw upErr;
+    const saved = await scanInvoice(admin, inv);
     return json({ ok: true, invoice: saved });
   } catch (err) {
     if (invoiceId) await admin.from("invoices").update({ status: "failed", scan_error: String(err).slice(0, 300) }).eq("id", invoiceId);
