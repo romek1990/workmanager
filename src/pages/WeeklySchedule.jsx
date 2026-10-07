@@ -295,41 +295,28 @@ export default function WeeklySchedule() {
       const night = isMidnightCross(e.start_time, e.end_time)
       return `<div class="sh${night ? ' night' : ''}"><div class="t">${e.start_time.slice(0, 5)}–${e.end_time.slice(0, 5)}${night ? ' (+1)' : ''}</div><div class="nm">${esc(empName(e))}</div>${e.notes ? `<div class="nt">${esc(e.notes)}</div>` : ''}</div>`
     }).join('') : '<div class="empty">—</div>'}</td>`).join('')
-    const foot = dayData.map(d => `<td>${d.entries.length ? `${d.entries.length} משמרות · ${fmtMins(d.mins)} ש'` : '—'}</td>`).join('')
-    const perEmp = {}
-    weekEntries.forEach(e => { const n = empName(e) || '—'; perEmp[n] = perEmp[n] || { c: 0, m: 0 }; perEmp[n].c++; perEmp[n].m += shiftMinutes(e.start_time, e.end_time) })
-    const empRows = Object.entries(perEmp).sort((a, b) => a[0].localeCompare(b[0], 'he'))
-      .map(([n, v]) => `<tr><td>${esc(n)}</td><td class="n">${v.c}</td><td class="n">${fmtMins(v.m)}</td></tr>`).join('')
     const w = window.open('', '_blank')
     if (!w) { setAlert({ title: 'ההדפסה נחסמה', message: 'הדפדפן חסם חלון קופץ — אפשר חלונות קופצים לאתר ונסה שוב' }); return }
     w.document.write(`<!doctype html><html dir="rtl" lang="he"><head><meta charset="utf-8"><title>סידור שבועי ${weekDates}</title>
       <style>
-        @page { size: A4 landscape; margin: 10mm }
-        * { -webkit-print-color-adjust: exact; print-color-adjust: exact }
-        body { font-family: Arial, sans-serif; color: #111; margin: 0 }
-        .head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #0F9D58; padding-bottom: 6px; margin-bottom: 10px }
-        h1 { font-size: 20px; margin: 0 } .head p { margin: 0; color: #555; font-size: 12px }
-        table.grid { width: 100%; table-layout: fixed; border-collapse: collapse }
-        .grid th, .grid td { border: 1px solid #cfd8d3; vertical-align: top; padding: 4px }
-        .grid th { background: #e8f5ee; text-align: center } .grid th.we { background: #fdf3dc }
+        @page { size: A4 landscape; margin: 8mm }
+        * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-sizing: border-box }
+        html, body { margin: 0; height: 100% }
+        body { font-family: Arial, sans-serif; color: #111; display: flex; flex-direction: column; height: 194mm }
+        .head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #0F9D58; padding-bottom: 4px; margin-bottom: 6px }
+        h1 { font-size: 22px; margin: 0 } .head p { margin: 0; color: #555; font-size: 14px }
+        table.grid { width: 100%; flex: 1; height: 100%; table-layout: fixed; border-collapse: collapse }
+        .grid th, .grid td { border: 1px solid #b9c9c0; vertical-align: top; padding: 5px }
+        .grid th { background: #e8f5ee; text-align: center; height: 1%; padding: 6px 4px } .grid th.we { background: #fdf3dc }
         .grid td.we { background: #fffaf0 }
-        .dn { font-size: 13px; font-weight: bold } .dd { font-size: 11px; color: #555 } .note { font-size: 10px; color: #a15c00; margin-top: 2px }
-        .sh { border: 1px solid #d5e7dc; border-right: 3px solid #0F9D58; border-radius: 4px; padding: 3px 5px; margin-bottom: 4px; background: #fff; page-break-inside: avoid }
+        .dn { font-size: 18px; font-weight: bold } .dd { font-size: 14px; color: #555 } .note { font-size: 12px; color: #a15c00; margin-top: 2px }
+        .sh { border: 1px solid #d5e7dc; border-right: 4px solid #0F9D58; border-radius: 5px; padding: 8px 9px; margin-bottom: 8px; background: #fff; page-break-inside: avoid }
         .sh.night { border-right-color: #6366f1 }
-        .t { font-weight: bold; font-size: 12px; direction: ltr; text-align: right } .nm { font-size: 12px } .nt { font-size: 10px; color: #666 }
+        .t { font-weight: bold; font-size: 18px; direction: ltr; text-align: right } .nm { font-size: 16px; margin-top: 2px } .nt { font-size: 12px; color: #666 }
         .empty { color: #bbb; text-align: center }
-        tfoot td { font-size: 10px; color: #444; text-align: center; background: #f6faf7 }
-        .sum { margin-top: 12px; display: flex; gap: 24px; align-items: flex-start; page-break-inside: avoid }
-        table.emp { border-collapse: collapse; font-size: 11px } .emp th { background: #0F9D58; color: #fff; padding: 4px 10px; text-align: right }
-        .emp td { padding: 3px 10px; border-bottom: 1px solid #e5e7eb } .emp td.n { direction: ltr; text-align: right }
-        .tot { font-size: 12px } .tot b { margin-right: 6px }
       </style></head><body>
       <div class="head"><h1>סידור שבועי</h1><p>שבוע ${weekDates}</p></div>
-      <table class="grid"><thead><tr>${head}</tr></thead><tbody><tr>${cells}</tr></tbody><tfoot><tr>${foot}</tr></tfoot></table>
-      <div class="sum">
-        <table class="emp"><thead><tr><th>עובד</th><th>משמרות</th><th>שעות</th></tr></thead><tbody>${empRows}</tbody></table>
-        <div class="tot"><div>משמרות בשבוע<b>${weekEntries.length}</b></div><div>שעות מתוכננות<b>${fmtMins(weekMins)}</b></div></div>
-      </div>
+      <table class="grid"><thead><tr>${head}</tr></thead><tbody><tr>${cells}</tr></tbody></table>
       <script>window.onload = () => setTimeout(() => window.print(), 300)<\/script></body></html>`)
     w.document.close()
   }
