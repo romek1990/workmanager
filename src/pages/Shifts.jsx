@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Plus, CalendarClock, Printer } from 'lucide-react'
+import { Plus, CalendarClock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { ShiftTypeBadge, StatusBadge, Modal, AlertModal, Avatar, PageHeader, StatChip, SearchInput, Toast, useToast, ReadOnlyBanner, ManagerBadge } from '../components/ui'
 import { calcHours, todayISO, fmtHours, fmtDate, shiftOverlapMessage } from '../utils/helpers'
@@ -7,11 +7,6 @@ import { calcHours, todayISO, fmtHours, fmtDate, shiftOverlapMessage } from '../
 const defaultForm = { employee_email: '', date: todayISO(), start_time: '08:00', end_time: '16:00', shift_type: 'regular', notes: '' }
 const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
 const t5 = t => (t ? String(t).slice(0, 5) : null)
-const TYPE_HE = { regular: 'רגילה', friday: 'שישי', saturday: 'שבת', night: 'לילה', holiday: 'חג' }
-const STATUS_HE = { active: 'במשמרת', pending: 'ממתין', approved: 'מאושר', rejected: 'נדחה' }
-const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
-const esc = v => String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
-const dayName = iso => { const [y, m, d] = String(iso).split('-').map(Number); return y ? DAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()] : '' }
 
 export default function Shifts() {
   const { employees, shifts, addShift, updateShiftStatus, can, canResolveShift, hourlyManagers, isManager } = useApp()
@@ -47,50 +42,6 @@ export default function Shifts() {
 
   const approvedHours = filtered.filter(s => s.status === 'approved').reduce((a, s) => a + (Number(s.total_hours) || 0), 0)
   const pendingCount = filtered.filter(s => s.status === 'pending').length
-
-  // print exactly what the table shows (current filters), oldest first
-  function printTable() {
-    const rows = [...filtered].sort((a, b) => (a.date === b.date ? (t5(a.start_time) || '').localeCompare(t5(b.start_time) || '') : a.date.localeCompare(b.date)))
-    const period = `${selectedMonthNum ? HEBREW_MONTHS[selectedMonthNum - 1] + ' ' : 'כל החודשים '}${selectedYear || 'כל השנים'}`
-    const filters = [period, statusFilter && `סטטוס: ${STATUS_HE[statusFilter]}`, search && `עובד: ${search}`].filter(Boolean).join(' · ')
-    const totalHours = rows.filter(s => s.status !== 'active').reduce((a, s) => a + (Number(s.total_hours) || 0), 0)
-    const body = rows.map((s, i) => `<tr>
-      <td class="n">${i + 1}</td>
-      <td>${esc(s.employee_name)}${isManager(s.employee_id) ? ' <span class="tag">מנהל</span>' : ''}</td>
-      <td class="n">${fmtDate(s.date)}</td><td>${dayName(s.date)}</td>
-      <td class="n">${t5(s.start_time) || '—'}</td><td class="n">${t5(s.end_time) || '—'}</td>
-      <td class="n">${s.status === 'active' ? '—' : fmtHours(s.total_hours)}</td>
-      <td>${TYPE_HE[s.shift_type] || esc(s.shift_type)}</td>
-      <td class="st-${s.status}">${STATUS_HE[s.status] || esc(s.status)}</td>
-      <td class="notes">${esc(s.notes)}</td>
-    </tr>`).join('')
-    const w = window.open('', '_blank')
-    if (!w) { setAlert({ title: 'ההדפסה נחסמה', message: 'הדפדפן חסם חלון קופץ — אפשר חלונות קופצים לאתר ונסה שוב' }); return }
-    w.document.write(`<!doctype html><html dir="rtl" lang="he"><head><meta charset="utf-8"><title>משמרות — ${esc(filters)}</title>
-      <style>
-        @page { size: A4 landscape; margin: 12mm }
-        body { font-family: Arial, sans-serif; color: #111; margin: 0 }
-        .head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #0F9D58; padding-bottom: 8px; margin-bottom: 10px }
-        h1 { font-size: 20px; margin: 0 } .head p { margin: 4px 0 0; color: #555; font-size: 12px }
-        table { width: 100%; border-collapse: collapse; font-size: 12px }
-        thead { display: table-header-group } tr { page-break-inside: avoid }
-        th { background: #0F9D58; color: #fff; padding: 6px 8px; text-align: right; font-weight: 600 }
-        td { padding: 5px 8px; border-bottom: 1px solid #e5e7eb; text-align: right }
-        td.n { font-variant-numeric: tabular-nums; direction: ltr; text-align: right }
-        td.notes { color: #666; max-width: 220px }
-        tr:nth-child(even) td { background: #f6faf7 }
-        .tag { font-size: 10px; background: #fff3cd; color: #8a6200; padding: 1px 6px; border-radius: 8px }
-        .st-approved { color: #0b7a43; font-weight: 600 } .st-rejected { color: #b91c1c } .st-pending { color: #a16207 }
-        .totals { display: flex; gap: 8px; margin-top: 12px; font-size: 12px }
-        .totals div { border: 1px solid #e5e7eb; border-radius: 8px; padding: 6px 12px } .totals b { margin-right: 6px }
-      </style></head><body>
-      <div class="head"><div><h1>משמרות עובדים</h1><p>${esc(filters)}</p></div><p>הודפס ${fmtDate(todayISO())}</p></div>
-      <table><thead><tr><th>#</th><th>עובד</th><th>תאריך</th><th>יום</th><th>התחלה</th><th>סיום</th><th>שעות</th><th>סוג</th><th>סטטוס</th><th>הערות</th></tr></thead>
-      <tbody>${body}</tbody></table>
-      <div class="totals"><div>משמרות<b>${rows.length}</b></div><div>סה״כ שעות<b>${fmtHours(totalHours)}</b></div><div>מאושרות<b>${fmtHours(approvedHours)}</b></div><div>ממתינות<b>${pendingCount}</b></div></div>
-      <script>window.onload = () => setTimeout(() => window.print(), 300)<\/script></body></html>`)
-    w.document.close()
-  }
 
   async function resolve(s, status) {
     setBusy(b => ({ ...b, [s.id]: true }))
@@ -134,7 +85,6 @@ export default function Shifts() {
   return (
     <div className="p-4 md:px-10 md:py-8">
       <PageHeader icon={CalendarClock} title="משמרות" subtitle="כל המשמרות שדווחו · סינון, אישור והוספה ידנית">
-        <button className="btn" onClick={printTable} disabled={!filtered.length}><Printer size={15} />הדפסה</button>
         {canShifts && <button className="btn btn-primary" onClick={() => setModal(true)}><Plus size={15} />הוסף משמרת</button>}
       </PageHeader>
       {!canShifts && <ReadOnlyBanner area="משמרות" />}
