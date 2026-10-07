@@ -84,11 +84,11 @@ export default function EmployeeProfile() {
       </button>
 
       {/* Header */}
-      <div className="card p-6 mb-4 flex items-center gap-5">
+      <div className="card p-4 md:p-6 mb-4 flex flex-wrap items-center gap-3 md:gap-5">
         <Avatar name={emp.full_name} size="lg" />
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <h2 className="text-xl font-medium">{emp.full_name}</h2>
-          <p className="text-sm text-gray-400 mt-1">{emp.email} · {emp.phone} · {emp.address}</p>
+          <p className="text-sm text-gray-400 mt-1 break-words">{emp.email} · {emp.phone} · {emp.address}</p>
           <div className="mt-2"><StatusBadge status={emp.status} /></div>
         </div>
         {mgr && (
@@ -97,17 +97,17 @@ export default function EmployeeProfile() {
         {mgr && isSuperAdmin && (
           <button className="btn" onClick={() => navigate('/managers')}><Pencil size={14} />למסך מנהלים</button>
         )}
-        {!mgr && can('employees') && <>
-          <button className="btn" onClick={() => setResetConfirm(true)} disabled={resetting}>
+        {!mgr && can('employees') && <div className="flex gap-2 w-full md:w-auto">
+          <button className="btn flex-1 md:flex-none justify-center" onClick={() => setResetConfirm(true)} disabled={resetting}>
             <KeyRound size={14} />{resetting ? 'מאפס...' : 'איפוס סיסמה'}
           </button>
-          <button className="btn" onClick={openEdit}>
+          <button className="btn btn-primary flex-1 md:flex-none justify-center" onClick={openEdit}>
             <Pencil size={14} />עריכה
           </button>
-        </>}
+        </div>}
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <CardSection title="פרטי העסקה">
           <table className="w-full">
             {infoRows.map(([k, v]) => (
@@ -156,9 +156,9 @@ export default function EmployeeProfile() {
             <button className="btn btn-primary" onClick={handleSave}><Check size={14} />שמור שינויים</button>
           </>}
         >
-          <div className="grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto">
             {/* Personal */}
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">פרטים אישיים</p>
             </div>
             <div>
@@ -186,7 +186,7 @@ export default function EmployeeProfile() {
             </div>
 
             {/* Employment */}
-            <div className="col-span-2 mt-2">
+            <div className="sm:col-span-2 mt-2">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">פרטי העסקה</p>
             </div>
             <div>
