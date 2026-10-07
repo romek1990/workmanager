@@ -42,6 +42,8 @@ function normName(s: string) {
     .replace(/(בעמ|ltd|limited|inc)$/u, "");
 }
 const digits = (s: unknown) => String(s ?? "").replace(/\D/g, "");
+// document number key: letters/digits only, no leading zeros ("INV-00123" = "inv123")
+const numKey = (s: unknown) => String(s ?? "").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "").replace(/^0+/, "");
 
 // our own business — the customer on every document
 const OWN_NAME = "פלורנטין מרקט בע\"מ";
@@ -139,6 +141,20 @@ async function scanInvoice(admin: any, inv: any) {
     supplier_tax_id: taxId || (keepOld ? inv.supplier_tax_id : null),
     ocr_raw: out,
   };
+
+  // duplicate guard: same supplier tax id + same document number + same type = the same document
+  patch.duplicate_of = null;
+  const dupTax = digits(patch.supplier_tax_id);
+  const dupNum = numKey(patch.invoice_number);
+  if (dupTax && dupNum) {
+    const { data: same } = await admin.from("invoices")
+      .select("id, supplier_tax_id, invoice_number, duplicate_of, created_at")
+      .eq("doc_type", patch.doc_type).neq("id", inv.id).not("invoice_number", "is", null)
+      .order("created_at", { ascending: true }).limit(5000);
+    const orig = (same || []).find((r: any) => !r.duplicate_of && digits(r.supplier_tax_id) === dupTax && numKey(r.invoice_number) === dupNum);
+    if (orig && !inv.duplicate_ok) patch.duplicate_of = orig.id; // duplicate_ok = a manager confirmed it is not a duplicate
+  }
+
   const { data: saved, error: upErr } = await admin.from("invoices").update(patch).eq("id", inv.id).select().single();
   if (upErr) throw upErr;
   return saved;

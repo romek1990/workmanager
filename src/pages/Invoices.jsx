@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Receipt, Camera, Upload, ChevronDown, ExternalLink, Pencil, Trash2, RefreshCw, Loader2, AlertTriangle, Search, Eye, X, FileText, Truck, Files, Plus, ArrowUp, ArrowDown, ImagePlus, Undo2 } from 'lucide-react'
+import { Receipt, Camera, Upload, ChevronDown, ExternalLink, Pencil, Trash2, RefreshCw, Loader2, AlertTriangle, Search, Eye, X, FileText, Truck, Files, Plus, ArrowUp, ArrowDown, ImagePlus, Undo2, Copy } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { PageHeader, Modal, Toast, useToast } from '../components/ui'
@@ -22,7 +22,18 @@ const normName = s => String(s || '').toLowerCase().replace(/["'״׳`]/g, '').re
 const digits = s => String(s ?? '').replace(/\D/g, '')
 // same tax id (ח.פ / ע.מ) = same supplier; otherwise same normalized name
 const supplierKey = r => (digits(r.supplier_tax_id) ? `t:${digits(r.supplier_tax_id)}` : r.supplier_name ? `n:${normName(r.supplier_name)}` : 'none')
-const sumOf = list => list.reduce((t, r) => t + (Number(r.total_amount) || 0), 0)
+// suspected duplicates are left out of every total until resolved
+const sumOf = list => list.reduce((t, r) => t + (r.duplicate_of ? 0 : Number(r.total_amount) || 0), 0)
+// document number key: letters/digits only, no leading zeros ("INV-00123" = "inv123") — mirrors invoice-scan
+const numKey = s => String(s ?? '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '').replace(/^0+/, '')
+// the same document = same supplier tax id (עוסק מורשה / ח.פ) + same document number + same type
+function findOriginal(rows, r) {
+  const tax = digits(r.supplier_tax_id), num = numKey(r.invoice_number)
+  if (!tax || !num) return null
+  return rows
+    .filter(x => x.id !== r.id && !x.duplicate_of && typeOf(x) === typeOf(r) && digits(x.supplier_tax_id) === tax && numKey(x.invoice_number) === num)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))[0] || null
+}
 
 async function scan(invoiceId) {
   const { data: s } = await supabase.auth.getSession()
@@ -96,6 +107,7 @@ export default function Invoices() {
   const [form, setForm] = useState({})
   const [removing, setRemoving] = useState(null)
   const [viewing, setViewing] = useState(null) // { row, url }
+  const [dup, setDup] = useState(null) // suspected duplicate row being resolved
   const [busy, setBusy] = useState('')
   const [toast, showToast] = useToast(3000)
   const fileRef = useRef(null)
@@ -152,6 +164,7 @@ export default function Invoices() {
       const done = await scan(row.id)
       upsertRow(done)
       setOpenMonths(m => ({ ...m, [done.month]: true }))
+      if (done.duplicate_of) { setDup(done); return showToast('המסמך הזה כבר קיים במערכת', 'error') }
       showToast(`נסרקה ${TYPES[typeOf(done)].label}: ${done.supplier_name || NO_SUPPLIER}${done.total_amount ? ` · ${fmtMoney(done.total_amount)}` : ''}`)
     } catch (e) {
       upsertRow({ ...row, status: 'failed' })
@@ -183,7 +196,11 @@ export default function Invoices() {
   async function rescan(r) {
     setBusy(r.id)
     upsertRow({ ...r, status: 'processing' })
-    try { upsertRow(await scan(r.id)); showToast('נסרק מחדש') } catch (e) { upsertRow({ ...r, status: 'failed' }); showToast(e.message, 'error') }
+    try {
+      const done = await scan(r.id)
+      upsertRow(done)
+      if (done.duplicate_of) { setDup(done); showToast('המסמך הזה כבר קיים במערכת', 'error') } else showToast('נסרק מחדש')
+    } catch (e) { upsertRow({ ...r, status: 'failed' }); showToast(e.message, 'error') }
     setBusy('')
   }
 
@@ -214,11 +231,35 @@ export default function Invoices() {
       notes: form.notes,
       status: 'done',
     }
+    const orig = editing.duplicate_ok ? null : findOriginal(rows, { ...editing, ...patch })
+    patch.duplicate_of = orig?.id || null
     const { data, error } = await supabase.from('invoices').update(patch).eq('id', editing.id).select().single()
     setBusy('')
     if (error) return showToast('השמירה נכשלה', 'error')
     upsertRow(data); setEditing(null)
+    if (data.duplicate_of) { setDup(data); showToast('המסמך הזה כבר קיים במערכת', 'error') }
     logActivity?.(currentUser?.id, currentUser?.name, currentUser?.email, 'עריכת מסמך ספק', `${data.supplier_name || ''} ${data.invoice_date || ''}`)
+  }
+
+  // duplicate: delete the copy, or confirm it is a different document
+  async function deleteDup() {
+    setBusy('dup')
+    await supabase.storage.from('invoices').remove([dup.file_path])
+    const { error } = await supabase.from('invoices').delete().eq('id', dup.id)
+    setBusy('')
+    if (error) return showToast('המחיקה נכשלה', 'error')
+    setRows(prev => prev.filter(x => x.id !== dup.id))
+    logActivity?.(currentUser?.id, currentUser?.name, currentUser?.email, 'מחיקת מסמך כפול', `${dup.supplier_name || ''} מס׳ ${dup.invoice_number || ''}`)
+    setDup(null)
+    showToast('הכפילות נמחקה')
+  }
+  async function keepDup() {
+    setBusy('dup')
+    const { data, error } = await supabase.from('invoices').update({ duplicate_of: null, duplicate_ok: true }).eq('id', dup.id).select().single()
+    setBusy('')
+    if (error) return showToast('השמירה נכשלה', 'error')
+    upsertRow(data); setDup(null)
+    showToast('סומן כמסמך נפרד')
   }
 
   async function confirmRemove() {
@@ -227,7 +268,8 @@ export default function Invoices() {
     const { error } = await supabase.from('invoices').delete().eq('id', removing.id)
     setBusy('')
     if (error) return showToast('המחיקה נכשלה', 'error')
-    setRows(prev => prev.filter(x => x.id !== removing.id))
+    // copies of a deleted original stop being duplicates (the DB clears duplicate_of the same way)
+    setRows(prev => prev.filter(x => x.id !== removing.id).map(x => (x.duplicate_of === removing.id ? { ...x, duplicate_of: null } : x)))
     logActivity?.(currentUser?.id, currentUser?.name, currentUser?.email, 'מחיקת מסמך ספק', `${removing.supplier_name || ''} ${removing.invoice_date || ''}`)
     setRemoving(null)
   }
@@ -281,6 +323,9 @@ export default function Invoices() {
     })
   }, [rows, search, typeFilter, supplierNames])
 
+  const dupRows = useMemo(() => rows.filter(r => r.duplicate_of), [rows])
+  const dupOrig = dup ? rows.find(r => r.id === dup.duplicate_of) : null
+
   const knownSuppliers = useMemo(() => [...new Set(Object.values(supplierNames))].sort((a, b) => a.localeCompare(b, 'he')), [supplierNames])
   const thisMonth = localISODate().slice(0, 7)
   const isOpen = m => openMonths[m] ?? (m === thisMonth || grouped[0]?.month === m)
@@ -295,15 +340,19 @@ export default function Invoices() {
   }
 
   const docRow = r => (
-    <div key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 text-sm">
+    <div key={r.id} className={`flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 text-sm ${r.duplicate_of ? 'bg-red-50' : ''}`}>
       <button className="flex flex-1 min-w-[180px] items-center gap-3 text-right" onClick={() => view(r)} title="לחץ לצפייה במסמך">
         <span className="tabular-nums w-[84px] shrink-0">{r.invoice_date ? fmtDate(r.invoice_date) : '—'}</span>
         <span className="text-xs flex-1" style={{ color: 'var(--text-dim)' }}>
           {r.invoice_number ? `מס׳ ${r.invoice_number}` : ''}{r.notes ? ` · ${r.notes}` : ''}{r.uploaded_by_name ? ` · הועלה ע״י ${r.uploaded_by_name}` : ''}
         </span>
         {r.status === 'processing' && <span className="text-xs text-brand-700 inline-flex items-center gap-1"><Loader2 size={12} className="animate-spin" />סורק...</span>}
+        {r.duplicate_of && (
+          <span role="button" onClick={e => { e.stopPropagation(); setDup(r) }}
+            className="text-xs font-semibold text-white bg-red-600 rounded-full px-2 py-0.5 inline-flex items-center gap-1"><Copy size={11} />כפול — לא נספר</span>
+        )}
         {r.status === 'failed' && <span className="text-xs text-amber-700 inline-flex items-center gap-1"><AlertTriangle size={12} />לא זוהה — ערוך ידנית</span>}
-        <span className={`font-bold tabular-nums w-[80px] text-left shrink-0 ${typeOf(r) === 'credit_note' ? 'text-rose-700' : ''}`} dir="ltr">{r.total_amount != null ? `${typeOf(r) === 'credit_note' ? '−' : ''}${fmtMoney(r.total_amount)}` : '—'}</span>
+        <span className={`font-bold tabular-nums w-[80px] text-left shrink-0 ${r.duplicate_of ? 'line-through opacity-50' : typeOf(r) === 'credit_note' ? 'text-rose-700' : ''}`} dir="ltr">{r.total_amount != null ? `${typeOf(r) === 'credit_note' ? '−' : ''}${fmtMoney(r.total_amount)}` : '—'}</span>
       </button>
       <div className="flex items-center gap-1.5">
         <button className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold text-white shadow-sm active:scale-95 transition"
@@ -346,6 +395,14 @@ export default function Invoices() {
 
       {uploading > 0 && (
         <div className="card p-4 mb-4 flex items-center gap-2 text-sm"><Loader2 size={16} className="animate-spin text-brand-600" />מעלה וסורק {uploading} מסמכים...</div>
+      )}
+
+      {dupRows.length > 0 && (
+        <div className="card p-4 mb-4 flex flex-wrap items-center gap-3 text-sm border border-red-200 bg-red-50">
+          <Copy size={18} className="text-red-600" />
+          <span className="flex-1 font-semibold text-red-800">{dupRows.length === 1 ? 'מסמך אחד נראה כפול' : `${dupRows.length} מסמכים נראים כפולים`} (אותו עוסק מורשה ואותו מספר מסמך) — הם לא נספרים בסכומים עד שתטפל בהם</span>
+          <button className="btn btn-danger py-1.5" onClick={() => setDup(dupRows[0])}>טפל עכשיו</button>
+        </div>
       )}
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -512,6 +569,28 @@ export default function Invoices() {
             <input className="form-control" value={form.notes || ''} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
           </div>
         </div>
+      </Modal>
+
+      <Modal open={!!dup} onClose={() => busy !== 'dup' && setDup(null)} title="המסמך כבר קיים במערכת"
+        footer={<>
+          <button className="btn" onClick={keepDup} disabled={busy === 'dup'}>זה מסמך אחר — השאר</button>
+          <button className="btn btn-danger" onClick={deleteDup} disabled={busy === 'dup'}><Trash2 size={14} />{busy === 'dup' ? 'מוחק...' : 'מחק את הכפילות'}</button>
+        </>}>
+        {dup && (
+          <div className="space-y-3 text-sm">
+            <p>נמצא {TYPES[typeOf(dup)].label} עם <b>אותו עוסק מורשה ({digits(dup.supplier_tax_id)})</b> ו<b>אותו מספר מסמך ({dup.invoice_number})</b>. כדי שלא יהיה כפל, המסמך החדש לא נספר בסכומים.</p>
+            {[['המסמך החדש', dup], ['כבר קיים במערכת', dupOrig]].map(([label, r]) => r && (
+              <div key={r.id} className={`rounded-xl border p-3 flex flex-wrap items-center gap-2 ${r === dup ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50'}`}>
+                <span className="font-semibold w-full text-xs" style={{ color: 'var(--text-dim)' }}>{label}</span>
+                <span className="font-bold">{supplierNames[supplierKey(r)] || r.supplier_name || NO_SUPPLIER}</span>
+                <span className="text-xs flex-1" style={{ color: 'var(--text-dim)' }}>
+                  מס׳ {r.invoice_number}{r.invoice_date ? ` · ${fmtDate(r.invoice_date)}` : ''}{r.total_amount != null ? ` · ${fmtMoney(r.total_amount)}` : ''}{r.uploaded_by_name ? ` · הועלה ע״י ${r.uploaded_by_name}` : ''} · {fmtDate(r.created_at.slice(0, 10))}
+                </span>
+                <button className="btn py-1 px-2.5 text-xs" onClick={() => view(r)}><Eye size={13} />צפייה</button>
+              </div>
+            ))}
+          </div>
+        )}
       </Modal>
 
       <Modal open={!!removing} onClose={() => busy !== 'del' && setRemoving(null)} title="מחיקת מסמך"
