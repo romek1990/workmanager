@@ -307,11 +307,12 @@ export default function WeeklySchedule() {
       <style>
         @page { size: A4 landscape; margin: 8mm }
         * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-sizing: border-box }
-        html, body { margin: 0; height: 100% }
-        body { font-family: Arial, sans-serif; color: #111; display: flex; flex-direction: column; height: 194mm }
+        html, body { margin: 0 }
+        body { font-family: Arial, sans-serif; color: #111 }
+        #page { width: 281mm; display: flex; flex-direction: column; overflow: hidden }
         .head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid #0F9D58; padding-bottom: 4px; margin-bottom: 6px }
         h1 { font-size: 22px; margin: 0 } .head p { margin: 0; color: #555; font-size: 14px }
-        table.grid { width: 100%; flex: 1; height: 100%; table-layout: fixed; border-collapse: collapse }
+        table.grid { width: 100%; flex: 1; table-layout: fixed; border-collapse: collapse }
         .grid th, .grid td { border: 1px solid #b9c9c0; vertical-align: top; padding: 5px }
         .grid th { background: #e8f5ee; text-align: center; height: 1%; padding: 6px 4px } .grid th.we { background: #fdf3dc }
         .grid td.we { background: #fffaf0 }
@@ -321,9 +322,24 @@ export default function WeeklySchedule() {
         .t { font-weight: bold; font-size: 18px; direction: ltr; text-align: right } .nm { font-size: 16px; margin-top: 2px; font-weight: bold } .nt { font-size: 12px; color: #666 }
         .empty { color: #bbb; text-align: center }
       </style></head><body>
-      <div class="head"><h1>סידור שבועי</h1><p>שבוע ${weekDates}</p></div>
+      <div id="page"><div class="head"><h1>סידור שבועי</h1><p>שבוע ${weekDates}</p></div>
       <table class="grid"><thead><tr>${head}</tr></thead><tbody><tr>${cells}</tr></tbody></table>
-      <script>window.onload = () => setTimeout(() => window.print(), 300)<\/script></body></html>`)
+      </div>
+      <script>
+        // always one A4 landscape page: shrink when the week is crowded, stretch to the full page otherwise
+        function fit() {
+          const pg = document.getElementById('page'), mm = 96 / 25.4, W = 281 * mm, H = 192 * mm
+          let z = 1
+          for (let k = 0; k < 4; k++) {
+            pg.style.zoom = z; pg.style.width = (W / z) + 'px'; pg.style.height = 'auto'
+            const h = pg.scrollHeight * z
+            if (h <= H) break
+            z = z * H / h * 0.99
+          }
+          pg.style.height = (H / z) + 'px'
+        }
+        window.onload = () => { fit(); setTimeout(() => window.print(), 300) }
+      <\/script></body></html>`)
     w.document.close()
   }
 
