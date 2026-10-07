@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Receipt, Camera, Upload, ChevronDown, ExternalLink, Pencil, Trash2, RefreshCw, Loader2, AlertTriangle, Search, Eye, X, FileText, Truck, Files, Plus, ArrowUp, ArrowDown, ImagePlus } from 'lucide-react'
+import { Receipt, Camera, Upload, ChevronDown, ExternalLink, Pencil, Trash2, RefreshCw, Loader2, AlertTriangle, Search, Eye, X, FileText, Truck, Files, Plus, ArrowUp, ArrowDown, ImagePlus, Undo2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { PageHeader, Modal, Toast, useToast } from '../components/ui'
@@ -13,8 +13,9 @@ const NO_SUPPLIER = 'ספק לא מזוהה'
 const TYPES = {
   invoice: { label: 'חשבונית', plural: 'חשבוניות', icon: FileText, badge: 'bg-emerald-100 text-emerald-800' },
   delivery_note: { label: 'תעודת משלוח', plural: 'תעודות משלוח', icon: Truck, badge: 'bg-sky-100 text-sky-800' },
+  credit_note: { label: 'זיכוי / חזרות', plural: 'זיכויים / חזרות', icon: Undo2, badge: 'bg-rose-100 text-rose-800' },
 }
-const typeOf = r => (r.doc_type === 'delivery_note' ? 'delivery_note' : 'invoice')
+const typeOf = r => (TYPES[r.doc_type] ? r.doc_type : 'invoice')
 
 // "אולגודס בע"מ", "אולגודס בעמ", "Olgoods Ltd." → same key (mirrors the invoice-scan function)
 const normName = s => String(s || '').toLowerCase().replace(/["'״׳`]/g, '').replace(/[^\p{L}\p{N}]+/gu, '').replace(/(בעמ|ltd|limited|inc)$/u, '')
@@ -246,6 +247,7 @@ export default function Invoices() {
     all: rows.length,
     invoice: rows.filter(r => typeOf(r) === 'invoice').length,
     delivery_note: rows.filter(r => typeOf(r) === 'delivery_note').length,
+    credit_note: rows.filter(r => typeOf(r) === 'credit_note').length,
   }), [rows])
 
   // month → supplier → { invoices, delivery notes }
@@ -264,16 +266,18 @@ export default function Invoices() {
       const suppliers = Object.entries(sup).map(([k, list]) => {
         const invoices = list.filter(r => typeOf(r) === 'invoice')
         const notes = list.filter(r => typeOf(r) === 'delivery_note')
+        const credits = list.filter(r => typeOf(r) === 'credit_note')
         return {
           key: k, name: k === 'none' ? NO_SUPPLIER : supplierNames[k] || list[0].supplier_name || NO_SUPPLIER,
           taxId: digits(list.find(r => r.supplier_tax_id)?.supplier_tax_id),
-          invoices, notes, invTotal: sumOf(invoices), noteTotal: sumOf(notes),
+          invoices, notes, credits, invTotal: sumOf(invoices), noteTotal: sumOf(notes), creditTotal: sumOf(credits),
         }
       }).sort((a, b) => (a.key === 'none') - (b.key === 'none') || a.name.localeCompare(b.name, 'he'))
       const all = Object.values(sup).flat()
       const inv = all.filter(r => typeOf(r) === 'invoice')
       const dn = all.filter(r => typeOf(r) === 'delivery_note')
-      return { month: m, suppliers, invCount: inv.length, noteCount: dn.length, invTotal: sumOf(inv), noteTotal: sumOf(dn) }
+      const cr = all.filter(r => typeOf(r) === 'credit_note')
+      return { month: m, suppliers, invCount: inv.length, noteCount: dn.length, creditCount: cr.length, invTotal: sumOf(inv), noteTotal: sumOf(dn), creditTotal: sumOf(cr) }
     })
   }, [rows, search, typeFilter, supplierNames])
 
@@ -299,7 +303,7 @@ export default function Invoices() {
         </span>
         {r.status === 'processing' && <span className="text-xs text-brand-700 inline-flex items-center gap-1"><Loader2 size={12} className="animate-spin" />סורק...</span>}
         {r.status === 'failed' && <span className="text-xs text-amber-700 inline-flex items-center gap-1"><AlertTriangle size={12} />לא זוהה — ערוך ידנית</span>}
-        <span className="font-bold tabular-nums w-[80px] text-left shrink-0">{r.total_amount != null ? fmtMoney(r.total_amount) : '—'}</span>
+        <span className={`font-bold tabular-nums w-[80px] text-left shrink-0 ${typeOf(r) === 'credit_note' ? 'text-rose-700' : ''}`} dir="ltr">{r.total_amount != null ? `${typeOf(r) === 'credit_note' ? '−' : ''}${fmtMoney(r.total_amount)}` : '—'}</span>
       </button>
       <div className="flex items-center gap-1.5">
         <button className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold text-white shadow-sm active:scale-95 transition"
@@ -321,7 +325,7 @@ export default function Invoices() {
       <div className="border-t border-black/5 first:border-t-0">
         <div className="flex items-center justify-between px-5 pt-2.5 pb-1">
           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${t.badge}`}><Icon size={12} />{t.plural} ({list.length})</span>
-          <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--text-dim)' }}>{fmtMoney(total)}</span>
+          <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--text-dim)' }}>{type === 'credit_note' ? '−' : ''}{fmtMoney(total)}</span>
         </div>
         <div className="divide-y divide-black/5">{list.map(docRow)}</div>
       </div>
@@ -345,8 +349,8 @@ export default function Invoices() {
       )}
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="inline-flex rounded-2xl bg-white/60 border border-white/70 p-1">
-          {[['all', 'הכול'], ['invoice', 'חשבוניות'], ['delivery_note', 'תעודות משלוח']].map(([k, label]) => (
+        <div className="inline-flex flex-wrap rounded-2xl bg-white/60 border border-white/70 p-1">
+          {[['all', 'הכול'], ['invoice', 'חשבוניות'], ['delivery_note', 'תעודות משלוח'], ['credit_note', 'זיכויים / חזרות']].map(([k, label]) => (
             <button key={k} onClick={() => setTypeFilter(k)}
               className={`px-3.5 py-1.5 rounded-xl text-sm font-medium transition ${typeFilter === k ? 'bg-ink-900 text-white shadow' : 'text-gray-600 hover:bg-white/80'}`}>
               {label} <span className="text-xs opacity-70">({typeCounts[k]})</span>
@@ -374,11 +378,13 @@ export default function Invoices() {
                 <ChevronDown size={18} className={`transition-transform ${isOpen(g.month) ? '' : '-rotate-90'}`} />
                 <span className="font-bold flex-1">{monthLabel(g.month)}</span>
                 <span className="text-xs" style={{ color: 'var(--text-dim)' }}>
-                  {g.suppliers.length} ספקים{g.invCount ? ` · ${g.invCount} חשבוניות` : ''}{g.noteCount ? ` · ${g.noteCount} ת. משלוח` : ''}
+                  {g.suppliers.length} ספקים{g.invCount ? ` · ${g.invCount} חשבוניות` : ''}{g.noteCount ? ` · ${g.noteCount} ת. משלוח` : ''}{g.creditCount ? ` · ${g.creditCount} זיכויים` : ''}
                 </span>
                 <span className="text-left">
                   {g.invCount > 0 && <span className="block font-extrabold tabular-nums">{fmtMoney(g.invTotal)}</span>}
                   {g.noteCount > 0 && <span className={`block tabular-nums ${g.invCount ? 'text-xs text-sky-700' : 'font-extrabold'}`}>{g.invCount ? 'ת. משלוח ' : ''}{fmtMoney(g.noteTotal)}</span>}
+                  {g.creditCount > 0 && <span className="block text-xs tabular-nums text-rose-700">זיכויים −{fmtMoney(g.creditTotal)}</span>}
+                  {g.creditCount > 0 && g.invCount > 0 && <span className="block text-xs font-bold tabular-nums">נטו {fmtMoney(g.invTotal - g.creditTotal)}</span>}
                 </span>
               </button>
               {isOpen(g.month) && (
@@ -393,10 +399,13 @@ export default function Invoices() {
                         <span className="flex gap-3 text-sm tabular-nums">
                           {s.invoices.length > 0 && <span className="font-bold">{fmtMoney(s.invTotal)}</span>}
                           {s.notes.length > 0 && <span className="text-sky-700">{s.invoices.length ? 'ת.מ ' : ''}{fmtMoney(s.noteTotal)}</span>}
+                          {s.credits.length > 0 && <span className="text-rose-700">זיכוי −{fmtMoney(s.creditTotal)}</span>}
+                          {s.credits.length > 0 && s.invoices.length > 0 && <span className="font-bold">נטו {fmtMoney(s.invTotal - s.creditTotal)}</span>}
                         </span>
                       </div>
                       {docSection('invoice', s.invoices, s.invTotal)}
                       {docSection('delivery_note', s.notes, s.noteTotal)}
+                      {docSection('credit_note', s.credits, s.creditTotal)}
                     </div>
                   ))}
                 </div>
@@ -465,7 +474,7 @@ export default function Invoices() {
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
             <label className="form-label">סוג מסמך</label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {Object.entries(TYPES).map(([k, t]) => {
                 const Icon = t.icon
                 return (

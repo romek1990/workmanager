@@ -1,6 +1,6 @@
 // Supabase Edge Function: invoice-scan
 // Reads an uploaded supplier document (photo or PDF from the "invoices" storage bucket) with Claude and fills
-// document type (tax invoice / delivery note), supplier name, date, total and document number.
+// document type (tax invoice / delivery note / credit note), supplier name, date, total and document number.
 // The supplier is matched to suppliers we already know — first by tax id (ח.פ / ע.מ), then by a normalized
 // name — so the same supplier is always grouped under one name.
 //
@@ -98,14 +98,15 @@ serve(async (req) => {
 
     const prompt =
       `This is a scanned supplier document (Israel, usually Hebrew). Extract and answer ONLY with JSON:\n` +
-      `{"doc_type": "invoice"|"delivery_note", "supplier_name": string|null, "invoice_date": "YYYY-MM-DD"|null, "total_amount": number|null, "invoice_number": string|null, "supplier_tax_id": string|null}\n` +
+      `{"doc_type": "invoice"|"delivery_note"|"credit_note", "supplier_name": string|null, "invoice_date": "YYYY-MM-DD"|null, "total_amount": number|null, "invoice_number": string|null, "supplier_tax_id": string|null}\n` +
       `- doc_type: "delivery_note" if the document is a delivery note (תעודת משלוח / ת. משלוח / תעודת אספקה). ` +
+      `"credit_note" for a credit / return document (חשבונית זיכוי, תעודת זיכוי, זיכוי, תעודת החזרה, החזרת סחורה, חזרות). ` +
       `"invoice" for a tax invoice, tax invoice/receipt or receipt (חשבונית מס, חשבונית מס/קבלה, קבלה, חשבונית עסקה).\n` +
       `- supplier_name: the business that ISSUED the document (not the customer). Short common name, in the language printed.\n` +
       `- supplier_tax_id: the issuer's company/dealer number (ח.פ / ע.מ / עוסק מורשה), digits only.\n` +
       `- invoice_date: the document date. Dates are day/month/year.\n` +
       `- invoice_number: the document number.\n` +
-      `- total_amount: final total including VAT, number only (null if the document has no prices).\n` +
+      `- total_amount: final total including VAT as a POSITIVE number, even on a credit note (null if the document has no prices).\n` +
       (suppliers.length
         ? `- If the supplier is one of these known suppliers, return EXACTLY that spelling: ${JSON.stringify(suppliers)}\n`
         : "");
@@ -130,11 +131,11 @@ serve(async (req) => {
     const patch: Record<string, unknown> = {
       status: "done",
       scan_error: null,
-      doc_type: out.doc_type === "delivery_note" ? "delivery_note" : "invoice",
+      doc_type: ["delivery_note", "credit_note"].includes(out.doc_type) ? out.doc_type : "invoice",
       supplier_name: supplierName,
       invoice_date: date || inv.invoice_date,
       month: (date || inv.invoice_date || inv.created_at.slice(0, 10)).slice(0, 7),
-      total_amount: typeof out.total_amount === "number" ? out.total_amount : inv.total_amount,
+      total_amount: typeof out.total_amount === "number" ? Math.abs(out.total_amount) : inv.total_amount,
       invoice_number: out.invoice_number ? String(out.invoice_number).slice(0, 60) : inv.invoice_number,
       supplier_tax_id: taxId || inv.supplier_tax_id,
       ocr_raw: out,
