@@ -258,7 +258,7 @@ export function AppProvider({ children }) {
         supabase.from('profiles').select('*').neq('role', 'admin'),
         supabase.from('shifts').select('*').order('date', { ascending: false }),
         supabase.from('bonuses').select('*').order('date', { ascending: false }),
-        supabase.from('weekly_schedule').select('*, profiles(full_name)').order('week_start'),
+        supabase.from('weekly_schedule').select('*, profiles(full_name, color)').order('week_start'),
         supabase.from('day_notes').select('*'),
         supabase.from('profiles').select('*').eq('role', 'admin').or('is_super_admin.is.null,is_super_admin.eq.false'),
       ])
@@ -272,7 +272,7 @@ export function AppProvider({ children }) {
       const [shfts, bnss, wkly, notes, profile] = await Promise.all([
         supabase.from('shifts').select('*').eq('employee_id', userId).order('date', { ascending: false }),
         supabase.from('bonuses').select('*').eq('employee_id', userId).order('date', { ascending: false }),
-        supabase.from('weekly_schedule').select('*, profiles(full_name)').eq('employee_id', userId).order('week_start'),
+        supabase.from('weekly_schedule').select('*, profiles(full_name, color)').eq('employee_id', userId).order('week_start'),
         supabase.from('day_notes').select('*'),
         supabase.from('profiles').select('*').eq('id', userId).single(),
       ])
@@ -473,7 +473,7 @@ export function AppProvider({ children }) {
   }
 
   async function addScheduleEntry(entry) {
-    const { data, error } = await supabase.from('weekly_schedule').insert(entry).select('*, profiles(full_name)').single()
+    const { data, error } = await supabase.from('weekly_schedule').insert(entry).select('*, profiles(full_name, color)').single()
     if (!error && data) {
       setWeeklySchedule(prev => [...prev, data])
       await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'הוספת משמרת לסידור', `הוסיף משמרת לסידור שבועי`)

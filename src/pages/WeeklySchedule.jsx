@@ -56,7 +56,7 @@ const fmtMins = m => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
 const defaultForm = { employee_id: '', day_of_week: 0, start_time: '08:00', end_time: '16:00', notes: '' }
 
 export default function WeeklySchedule() {
-  const { employees, weeklySchedule, addScheduleEntry, deleteScheduleEntry, updateScheduleEntry, dayNotes, saveDayNote, currentRole, can } = useApp()
+  const { employees, managers = [], weeklySchedule, addScheduleEntry, deleteScheduleEntry, updateScheduleEntry, dayNotes, saveDayNote, currentRole, can } = useApp()
   const [weekStart, setWeekStart] = useState(getWeekStart(new Date()))
   const [modal, setModal] = useState(false)
   const [form, setForm] = useState(defaultForm)
@@ -275,6 +275,11 @@ export default function WeeklySchedule() {
   const isAdmin = currentRole === 'admin' && can('schedule')
   const todayIdx = getWeekStart(new Date()) === weekStart ? new Date().getDay() : -1
   const empName = entry => entry.profiles?.full_name || activeEmps.find(e => e.id === entry.employee_id)?.full_name || ''
+  // every active employee has their own colour (assigned in the DB, released when they become inactive)
+  const colorOf = id => [...employees, ...managers].find(e => e.id === id)?.color || weekEntries.find(e => e.employee_id === id)?.profiles?.color || '#64748b'
+  const legend = [...new Set(weekEntries.map(e => e.employee_id))]
+    .map(id => ({ id, name: empName(weekEntries.find(e => e.employee_id === id)), color: colorOf(id) }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'he'))
   const dayData = DAYS.map((name, i) => {
     const entries = weekEntries
       .filter(e => e.day_of_week === i)
@@ -293,7 +298,8 @@ export default function WeeklySchedule() {
     }).join('')
     const cells = dayData.map(d => `<td class="${d.i >= 5 ? 'we' : ''}">${d.entries.length ? d.entries.map(e => {
       const night = isMidnightCross(e.start_time, e.end_time)
-      return `<div class="sh${night ? ' night' : ''}"><div class="t">${e.start_time.slice(0, 5)}–${e.end_time.slice(0, 5)}${night ? ' (+1)' : ''}</div><div class="nm">${esc(empName(e))}</div>${e.notes ? `<div class="nt">${esc(e.notes)}</div>` : ''}</div>`
+      const c = colorOf(e.employee_id)
+      return `<div class="sh${night ? ' night' : ''}" style="background:${c}1f;border-color:${c}66;border-left:5px solid ${c}"><div class="t">${e.start_time.slice(0, 5)}–${e.end_time.slice(0, 5)}${night ? ' (+1)' : ''}</div><div class="nm" style="color:${c}">${esc(empName(e))}</div>${e.notes ? `<div class="nt">${esc(e.notes)}</div>` : ''}</div>`
     }).join('') : '<div class="empty">—</div>'}</td>`).join('')
     const w = window.open('', '_blank')
     if (!w) { setAlert({ title: 'ההדפסה נחסמה', message: 'הדפדפן חסם חלון קופץ — אפשר חלונות קופצים לאתר ונסה שוב' }); return }
@@ -310,9 +316,9 @@ export default function WeeklySchedule() {
         .grid th { background: #e8f5ee; text-align: center; height: 1%; padding: 6px 4px } .grid th.we { background: #fdf3dc }
         .grid td.we { background: #fffaf0 }
         .dn { font-size: 18px; font-weight: bold } .dd { font-size: 14px; color: #555 } .note { font-size: 12px; color: #a15c00; margin-top: 2px }
-        .sh { border: 1px solid #d5e7dc; border-right: 4px solid #0F9D58; border-radius: 5px; padding: 8px 9px; margin-bottom: 8px; background: #fff; page-break-inside: avoid }
+        .sh { border: 1px solid #d5e7dc; border-right: 4px solid #0F9D58; border-radius: 5px; padding: 8px 9px; margin-bottom: 8px; page-break-inside: avoid }
         .sh.night { border-right-color: #6366f1 }
-        .t { font-weight: bold; font-size: 18px; direction: ltr; text-align: right } .nm { font-size: 16px; margin-top: 2px } .nt { font-size: 12px; color: #666 }
+        .t { font-weight: bold; font-size: 18px; direction: ltr; text-align: right } .nm { font-size: 16px; margin-top: 2px; font-weight: bold } .nt { font-size: 12px; color: #666 }
         .empty { color: #bbb; text-align: center }
       </style></head><body>
       <div class="head"><h1>סידור שבועי</h1><p>שבוע ${weekDates}</p></div>
@@ -346,15 +352,17 @@ export default function WeeklySchedule() {
 
   const entryCard = entry => {
     const night = isMidnightCross(entry.start_time, entry.end_time)
+    const color = colorOf(entry.employee_id)
     return (
       <div key={entry.id}
-        className={`group relative rounded-xl bg-white/90 border border-black/[0.06] shadow-[0_1px_3px_rgba(15,40,25,0.06)] px-2.5 py-2 text-xs border-r-[3px] ${night ? 'border-r-indigo-400' : 'border-r-brand-500'}`}>
+        style={{ background: `linear-gradient(0deg, ${color}1f, ${color}1f), #fff`, borderColor: `${color}55`, borderLeft: `4px solid ${color}` }}
+        className={`group relative rounded-xl border shadow-[0_1px_3px_rgba(15,40,25,0.06)] px-2.5 py-2 text-xs border-r-[3px] ${night ? '!border-r-indigo-400' : '!border-r-brand-500'}`}>
         <div className={`flex items-center gap-1 font-bold tabular-nums ${night ? 'text-indigo-700' : 'text-brand-800'}`} dir="ltr" style={{ justifyContent: 'flex-end' }}>
           {night && <span className="text-indigo-400 text-[10px] font-semibold">+1</span>}
           {entry.start_time.slice(0, 5)}–{entry.end_time.slice(0, 5)}
           {night && <MoonStar size={11} />}
         </div>
-        <div className="font-semibold text-gray-800 mt-0.5 truncate">{empName(entry)}</div>
+        <div className="font-bold mt-0.5 truncate flex items-center gap-1.5" style={{ color }}><span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />{empName(entry)}</div>
         <div className="flex items-center justify-between gap-1 mt-0.5 text-gray-400">
           <span className="tabular-nums">{calcHours(entry.start_time, entry.end_time)}</span>
           {isAdmin && (
@@ -399,6 +407,17 @@ export default function WeeklySchedule() {
         <StatChip label="שעות מתוכננות" value={fmtMins(weekMins)} tone="green" />
         <StatChip label="עובדים משובצים" value={`${scheduledEmps}/${activeEmps.length}`} />
       </div>
+
+      {legend.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {legend.map(l => (
+            <span key={l.id} className="inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1 border"
+              style={{ color: l.color, background: `${l.color}14`, borderColor: `${l.color}40` }}>
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: l.color }} />{l.name}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* desktop: a real 7-column grid */}
       <div className="card hidden md:block animate-rise" style={{ animationDelay: '.15s' }}>
