@@ -207,7 +207,7 @@ export function AppProvider({ children }) {
     if (error) throw error
     setAdvances(prev => [data, ...prev])
     await logActivity(currentUser?.id, currentUser?.name, currentUser?.email, 'בקשת מפרעה', `ביקש מפרעה ₪${amount} בתאריך ${date}`)
-    await notifyAdmins('💵 בקשת מפרעה', `${currentUser.name} ביקש מפרעה של ₪${amount} (${date}) — ממתין לאישור בדוחות`, 'info')
+    await notifyAdmins('💵 בקשת מפרעה', `${currentUser.name} ביקש מפרעה של ₪${amount} (${date}) — ממתין לאישור בדף מפרעות`, 'info')
     return data
   }
 

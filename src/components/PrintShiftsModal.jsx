@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { Printer, Search } from 'lucide-react'
 import { Modal, Avatar, ManagerBadge } from './ui'
+import { useApp } from '../context/AppContext'
 import { fmtDate, fmtHours, fmtMoney, shiftPayParts, getPayRules, eligibleForPremium } from '../utils/helpers'
 
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
@@ -11,6 +12,7 @@ const dayName = iso => { const [y, m, d] = iso.split('-').map(Number); return DA
 
 // Pick one / several / all employees and print every approved shift of theirs in the chosen period.
 export default function PrintShiftsModal({ open, onClose, employees, shifts, bonuses, from, to, isManager }) {
+  const { advances = [] } = useApp()
   const [selected, setSelected] = useState(() => new Set())
   const [search, setSearch] = useState('')
 
@@ -51,6 +53,17 @@ export default function PrintShiftsModal({ open, onClose, employees, shifts, bon
         </tr>`
       }).join('')
       const bonus = bon.reduce((a, b) => a + (Number(b.amount) || 0), 0)
+      // approved advances in the period — informational, not deducted from pay
+      const adv = advances
+        .filter(a => a.status === 'approved' && a.employee_id === emp.id && a.date >= from && a.date <= to)
+        .sort((a, b) => a.date.localeCompare(b.date))
+      const advTotal = adv.reduce((a, x) => a + (Number(x.amount) || 0), 0)
+      const advBlock = adv.length ? `<div class="adv">
+          <h2>מפרעות בתקופה</h2>
+          <table><thead><tr><th>תאריך</th><th>סכום</th><th>הערה</th></tr></thead>
+          <tbody>${adv.map(a => `<tr><td>${fmtDate(a.date)}</td><td class="n">${fmtMoney(Number(a.amount) || 0)}</td><td class="notes">${esc(a.note)}</td></tr>`).join('')}
+          <tr class="sum"><td>סה״כ מפרעות (${adv.length})</td><td class="n">${fmtMoney(advTotal)}</td><td></td></tr></tbody></table>
+        </div>` : ''
       const pay = isGlobal ? (list.length ? Number(emp.monthly_salary) || 0 : 0) : base + premium
       const eligible = eligibleForPremium(emp)
       return `<section>
@@ -70,8 +83,10 @@ export default function PrintShiftsModal({ open, onClose, employees, shifts, bon
           <div><span>שכר בסיס</span><b>${fmtMoney(base)}</b></div>
           ${eligible ? `<div><span>תוספת (${fmtHours(premH)} ש׳)</span><b>${fmtMoney(premium)}</b></div>` : ''}`}
           ${bonus ? `<div><span>בונוסים</span><b>${fmtMoney(bonus)}</b></div>` : ''}
+          ${advTotal ? `<div class="advchip"><span>מפרעות (${adv.length})</span><b>${fmtMoney(advTotal)}</b></div>` : ''}
           <div class="grand"><span>סה״כ ברוטו</span><b>${fmtMoney(pay + bonus)}</b></div>
         </div>
+        ${advBlock}
         <p class="sign">חתימת עובד: ____________ &nbsp;&nbsp; חתימת מנהל: ____________</p>
       </section>`
     }).join('')
@@ -102,6 +117,11 @@ export default function PrintShiftsModal({ open, onClose, employees, shifts, bon
         .totals .grand { background: #0F9D58; color: #fff; border-color: #0F9D58; font-size: 14px }
         .totals .grand span { color: #e8fff1 }
         .empty { color: #888; font-size: 13px }
+        .adv { margin-top: 16px; max-width: 420px; page-break-inside: avoid }
+        .adv h2 { font-size: 14px; margin: 0 0 6px }
+        .adv th { background: #b45309 }
+        .adv tr.sum td { font-weight: bold; background: #fff7ed; border-top: 2px solid #b45309 }
+        .totals .advchip { border-color: #f5c38b; background: #fff7ed }
         .sign { margin-top: 28px; font-size: 12px; color: #444 }
         .footer { font-size: 10px; color: #999; margin-top: 6px }
       </style></head><body>${sections}
