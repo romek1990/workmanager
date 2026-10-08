@@ -11,6 +11,8 @@
 //                                 to the supervisor's WhatsApp (LONG_SHIFT_PHONE).
 //   shift_reminders (admin | cron) — reminder ~1h before a shift in the weekly schedule (once per scheduled shift;
 //                                 skipped if the employee is already clocked in). Uses public.due_shift_reminders().
+//   storage_check (admin | cron) — daily: if the database or file storage is at ≥80% of the Free-plan quota,
+//                                 WhatsApp CAPACITY_PHONE; repeats weekly until usage drops below 80%.
 //
 // Auth: admin JWT (Authorization header) or the pg_cron secret (x-cron-secret header, checked against Vault).
 // Deployed with verify_jwt=false because cron calls it without a user JWT; auth is enforced below.
@@ -31,6 +33,11 @@ const DELAY_BETWEEN_MS = 400;
 const REMINDER_LEAD_MINUTES = 60;
 const LONG_SHIFT_HOURS = 9;
 const LONG_SHIFT_PHONE = "0559561130"; // gets a report on every unusually long shift
+const CAPACITY_PHONE = "0547506466"; // Roman — storage capacity alerts
+const CAPACITY_ALERT_PCT = 80;
+const CAPACITY_REPEAT_DAYS = 7;
+const DB_QUOTA_BYTES = 500 * 1024 ** 2;   // Supabase Free plan: 500 MB database
+const FILES_QUOTA_BYTES = 1024 ** 3;      // Supabase Free plan: 1 GB file storage
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -261,6 +268,44 @@ async function jobShiftReminders(admin: any, sender: { id: string | null; name: 
   return deliver(admin, "shift_reminder", sender, batch, false);
 }
 
+const mb = (b: number) => b >= 1024 ** 3 ? `${(b / 1024 ** 3).toFixed(2)}GB` : `${Math.round(b / 1024 ** 2)}MB`;
+
+async function jobStorageCheck(admin: any, sender: { id: string | null; name: string }, force: boolean) {
+  const { data, error } = await admin.rpc("storage_usage");
+  if (error) throw error;
+  const u = Array.isArray(data) ? data[0] : data;
+  const db = Number(u?.db_bytes) || 0, files = Number(u?.files_bytes) || 0;
+  const dbPct = Math.round((db / DB_QUOTA_BYTES) * 100);
+  const filesPct = Math.round((files / FILES_QUOTA_BYTES) * 100);
+  const usage = { db: mb(db), dbPct, files: mb(files), filesPct };
+  if (!force && dbPct < CAPACITY_ALERT_PCT && filesPct < CAPACITY_ALERT_PCT) return { ...usage, alert: false };
+
+  // already alerted this week? (repeats weekly until resolved)
+  if (!force) {
+    const since = new Date(Date.now() - CAPACITY_REPEAT_DAYS * 86400000).toISOString();
+    const { data: recent } = await admin.from("whatsapp_messages").select("id")
+      .eq("kind", "storage_alert").eq("status", "sent").gte("created_at", since).limit(1);
+    if (recent?.length) return { ...usage, alert: true, skipped: "sent_this_week" };
+  }
+
+  const flag = (p: number) => (p >= 90 ? "🔴" : p >= CAPACITY_ALERT_PCT ? "🟠" : "🟢");
+  const text = [
+    `⚠️ *WorkManager — התראת נפח אחסון*`,
+    ``,
+    `${flag(filesPct)} קבצים (חשבוניות ות"ז): ${mb(files)} מתוך 1GB (${filesPct}%)`,
+    `${flag(dbPct)} מסד נתונים: ${mb(db)} מתוך 500MB (${dbPct}%)`,
+    ``,
+    `כדאי לטפל לפני שהמערכת מגיעה ל-100% (אז העלאות עלולות להיחסם):`,
+    `• שדרוג Supabase ל-Pro ($25/חודש) — https://supabase.com/dashboard`,
+    `• או ניקוי קבצים/נתונים ישנים`,
+    ``,
+    `ההודעה תחזור פעם בשבוע עד שהנפח יירד מתחת ל-${CAPACITY_ALERT_PCT}%.`,
+  ].join("\n");
+  const out = await deliver(admin, "storage_alert", sender,
+    [{ r: { id: null as unknown as string, full_name: "התראת נפח אחסון", phone: CAPACITY_PHONE }, text }], false);
+  return { ...usage, alert: true, ...out };
+}
+
 // ── entry ─────────────────────────────────────────────────────────────
 
 serve(async (req) => {
@@ -288,8 +333,10 @@ serve(async (req) => {
       if (!u?.user) return json({ error: "Invalid session" }, 401);
       const { data: p } = await admin.from("profiles").select("id, full_name, role").eq("id", u.user.id).single();
       if (p?.role !== "admin") return json({ error: "Forbidden — admin only" }, 403);
-      const need = ({ schedule: "schedule", form101: "form101", open_shifts: "shifts", long_shifts: "shifts", shift_reminders: "schedule" } as Record<string, string>)[job];
-      const { data: allowed } = await callerClient.rpc("has_perm", { p: need || "__none__" });
+      const need = ({ schedule: "schedule", form101: "form101", open_shifts: "shifts", long_shifts: "shifts", shift_reminders: "schedule", storage_check: "__super__" } as Record<string, string>)[job];
+      const { data: allowed } = need === "__super__"
+        ? await admin.from("profiles").select("is_super_admin").eq("id", u.user.id).single().then((x: any) => ({ data: x.data?.is_super_admin === true }))
+        : await callerClient.rpc("has_perm", { p: need || "__none__" });
       if (allowed !== true) return json({ error: "אין לך הרשאה לפעולה הזו" }, 403);
       sender = { id: p.id, name: p.full_name };
     }
@@ -306,6 +353,8 @@ serve(async (req) => {
         return json({ ok: true, ...(await jobLongShifts(admin, sender)) });
       case "shift_reminders":
         return json({ ok: true, ...(await jobShiftReminders(admin, sender)) });
+      case "storage_check":
+        return json({ ok: true, ...(await jobStorageCheck(admin, sender, !viaCron && body.force === true)) });
       default:
         return json({ error: "unknown job" }, 400);
     }
