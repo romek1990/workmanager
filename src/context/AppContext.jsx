@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { fetchAll } from '../lib/fetchAll'
 import { shiftOverlapMessage, setPayRules } from '../utils/helpers'
 
 const AppContext = createContext(null)
@@ -193,7 +194,7 @@ export function AppProvider({ children }) {
   }
 
   async function loadAdvances() {
-    const { data } = await supabase.from('advances').select('*').order('date', { ascending: false })
+    const { data } = await fetchAll(() => supabase.from('advances').select('*').order('date', { ascending: false }))
     setAdvances(data || [])
   }
 
@@ -255,11 +256,11 @@ export function AppProvider({ children }) {
     await Promise.all([loadPayRules(), loadAdvances()])
     if (role === 'admin') {
       const [emps, shfts, bnss, wkly, notes, mgrs] = await Promise.all([
-        supabase.from('profiles').select('*').neq('role', 'admin'),
-        supabase.from('shifts').select('*').order('date', { ascending: false }),
-        supabase.from('bonuses').select('*').order('date', { ascending: false }),
-        supabase.from('weekly_schedule').select('*, profiles(full_name, color)').order('week_start'),
-        supabase.from('day_notes').select('*'),
+        fetchAll(() => supabase.from('profiles').select('*').neq('role', 'admin')),
+        fetchAll(() => supabase.from('shifts').select('*').order('date', { ascending: false })),
+        fetchAll(() => supabase.from('bonuses').select('*').order('date', { ascending: false })),
+        fetchAll(() => supabase.from('weekly_schedule').select('*, profiles(full_name, color)').order('week_start')),
+        fetchAll(() => supabase.from('day_notes').select('*')),
         supabase.from('profiles').select('*').eq('role', 'admin').or('is_super_admin.is.null,is_super_admin.eq.false'),
       ])
       if (emps.data) setEmployees(emps.data)
@@ -270,10 +271,10 @@ export function AppProvider({ children }) {
       if (notes.data) setDayNotes(notes.data)
     } else {
       const [shfts, bnss, wkly, notes, profile] = await Promise.all([
-        supabase.from('shifts').select('*').eq('employee_id', userId).order('date', { ascending: false }),
-        supabase.from('bonuses').select('*').eq('employee_id', userId).order('date', { ascending: false }),
-        supabase.from('weekly_schedule').select('*, profiles(full_name, color)').eq('employee_id', userId).order('week_start'),
-        supabase.from('day_notes').select('*'),
+        fetchAll(() => supabase.from('shifts').select('*').eq('employee_id', userId).order('date', { ascending: false })),
+        fetchAll(() => supabase.from('bonuses').select('*').eq('employee_id', userId).order('date', { ascending: false })),
+        fetchAll(() => supabase.from('weekly_schedule').select('*, profiles(full_name, color)').eq('employee_id', userId).order('week_start')),
+        fetchAll(() => supabase.from('day_notes').select('*')),
         supabase.from('profiles').select('*').eq('id', userId).single(),
       ])
       if (shfts.data) setShifts(shfts.data)
@@ -429,9 +430,11 @@ export function AppProvider({ children }) {
   }
 
   async function refreshShifts() {
-    let q = supabase.from('shifts').select('*').order('date', { ascending: false })
-    if (currentUser?.role !== 'admin') q = q.eq('employee_id', currentUser?.id)
-    const { data } = await q
+    const { data } = await fetchAll(() => {
+      let q = supabase.from('shifts').select('*').order('date', { ascending: false })
+      if (currentUser?.role !== 'admin') q = q.eq('employee_id', currentUser?.id)
+      return q
+    })
     if (data) setShifts(data)
   }
 

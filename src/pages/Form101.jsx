@@ -2,6 +2,7 @@ import { generateForm101PDF, downloadPDF } from '../utils/generateForm101'
 import React, { useState, useEffect, useRef } from 'react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
+import { compressImage } from '../utils/compressImage'
 import { AlertModal } from '../components/ui'
 import { CheckCircle, Upload, FileText, Clock, Plus, Trash2 } from 'lucide-react'
 import SignatureCanvas from 'react-signature-canvas'
@@ -172,6 +173,7 @@ export default function Form101() {
   }
 
   async function uploadFile(file, side) {
+    file = await compressImage(file)
     const ext = file.name.split('.').pop()
     const path = `${currentUser.id}/id_${side}_${currentYear}.${ext}`
     const { error } = await supabase.storage.from('id-documents').upload(path, file, { upsert: true })

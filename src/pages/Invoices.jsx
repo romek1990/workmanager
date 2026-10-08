@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Receipt, Camera, Upload, ChevronDown, ExternalLink, Pencil, Trash2, RefreshCw, Loader2, AlertTriangle, Search, Eye, X, FileText, Truck, Files, Plus, ArrowUp, ArrowDown, ImagePlus, Undo2, Copy } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
+import { fetchAll } from '../lib/fetchAll'
+import { compressImage } from '../utils/compressImage'
 import { PageHeader, Modal, Toast, useToast } from '../components/ui'
 import { fmtDate, fmtMoney, localISODate } from '../utils/helpers'
 
@@ -48,18 +50,8 @@ async function scan(invoiceId) {
 }
 
 // photos from phones are big — shrink to ~2000px JPEG before upload (PDFs untouched)
-async function prepare(file) {
-  if (!file.type.startsWith('image/') || file.size < 1.5 * 1024 * 1024) return file
-  try {
-    const bmp = await createImageBitmap(file)
-    const scale = Math.min(1, 2000 / Math.max(bmp.width, bmp.height))
-    const c = document.createElement('canvas')
-    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale)
-    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height)
-    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85))
-    return blob ? new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' }) : file
-  } catch { return file }
-}
+// photos are shrunk before upload (see utils/compressImage) to save storage
+const prepare = file => compressImage(file)
 
 // one page photo → JPEG data URL (max ~1800px) for the multi-page PDF
 async function toJpeg(file) {
@@ -138,7 +130,7 @@ export default function Invoices() {
   }
 
   async function load() {
-    const { data } = await supabase.from('invoices').select('*').order('invoice_date', { ascending: false, nullsFirst: true }).order('created_at', { ascending: false })
+    const { data } = await fetchAll(() => supabase.from('invoices').select('*').order('invoice_date', { ascending: false, nullsFirst: true }).order('created_at', { ascending: false }))
     setRows(data || [])
     setLoading(false)
   }

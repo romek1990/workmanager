@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { fetchAll } from '../lib/fetchAll'
 import { useApp } from '../context/AppContext'
 import { BarChart2, Download, FileText, Printer } from 'lucide-react'
 import { StatCard, PageHeader, Avatar, ManagerBadge } from '../components/ui'
@@ -46,7 +47,7 @@ function ReportsInner() {
   const editMonth = isOneMonth ? from.slice(0, 7) : null
   const loadPayroll = useCallback(async () => {
     if (!from || !to) return
-    const { data } = await supabase.from('payroll_entries').select('*').gte('month', from.slice(0, 7)).lte('month', to.slice(0, 7))
+    const { data } = await fetchAll(() => supabase.from('payroll_entries').select('*').gte('month', from.slice(0, 7)).lte('month', to.slice(0, 7)))
     setPayroll(Object.fromEntries((data || []).map(r => [`${r.employee_id}|${r.month}`, r])))
   }, [from, to])
   useEffect(() => { loadPayroll() }, [loadPayroll])
