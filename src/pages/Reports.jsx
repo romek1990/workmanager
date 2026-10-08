@@ -7,7 +7,6 @@ import { StatCard, PageHeader, Avatar, ManagerBadge } from '../components/ui'
 import { calcShiftPay, fmtMoney, monthStart, monthEnd, fmtHours, fmtDate } from '../utils/helpers'
 import PayRulesCard from '../components/PayRulesCard'
 import PrintShiftsModal from '../components/PrintShiftsModal'
-import AdvancesPanel from '../components/AdvancesPanel'
 import { Clock, Banknote, Gift, Wallet } from 'lucide-react'
 
 
@@ -341,7 +340,7 @@ function exportEmployeePDF(row) {
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-2xl bg-black/[0.04] w-fit mb-4">
-        {[['summary', 'סיכום לפי עובד'], ['detail', 'פירוט משמרות'], ['advances', `מפרעות${pendingAdvances ? ` (${pendingAdvances})` : ''}`]].map(([k, l]) => (
+        {[['summary', 'סיכום לפי עובד'], ['detail', 'פירוט משמרות']].map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${tab === k ? 'bg-white shadow-soft text-brand-700' : 'text-gray-500 hover:text-gray-800'}`}>
             {l}
@@ -349,7 +348,6 @@ function exportEmployeePDF(row) {
         ))}
       </div>
 
-      {tab === 'advances' && <AdvancesPanel employees={employees} from={from} to={to} isManager={isManager} />}
 
       {tab === 'summary' && !editMonth && rows.length > 0 && (
         <p className="text-xs mb-2 text-amber-700">כדי להזין מיסים ואופן תשלום, בחר חודש אחד (חודש נוכחי / חודש קודם).</p>

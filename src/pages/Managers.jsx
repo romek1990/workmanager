@@ -14,6 +14,7 @@ const PERMS = [
   { key: 'bonuses', label: 'בונוסים', desc: 'הוספה ועריכת בונוסים' },
   { key: 'form101', label: 'טפסי 101', desc: 'אישור, דחייה ותזכורות' },
   { key: 'messages', label: 'הודעות', desc: 'שליחת וואטסאפ ומייל לעובדים' },
+  { key: 'advances', label: 'מפרעות', desc: 'אישור בקשות והוספת מפרעות לעובדים' },
   { key: 'reports', label: 'דוחות ושכר', desc: 'צפייה בדוחות שעות ושכר' },
   { key: 'invoices', label: 'חשבוניות', desc: 'העלאה, סריקה וניהול חשבוניות ספקים' },
 ]

@@ -10,6 +10,7 @@ import Employees from './pages/Employees'
 import EmployeeProfile from './pages/EmployeeProfile'
 import Shifts from './pages/Shifts'
 import Bonuses from './pages/Bonuses'
+import Advances from './pages/Advances'
 import Reports from './pages/Reports'
 import UserHome from './pages/UserHome'
 import MyShifts from './pages/MyShifts'
@@ -81,6 +82,7 @@ function AppRoutes() {
           <Route path="/shifts" element={<ProtectedRoute requiredRole="admin"><Shifts /></ProtectedRoute>} />
           <Route path="/weekly-schedule" element={<ProtectedRoute requiredRole="admin"><WeeklySchedule /></ProtectedRoute>} />
           <Route path="/bonuses" element={<ProtectedRoute requiredRole="admin"><Bonuses /></ProtectedRoute>} />
+          <Route path="/advances" element={<ProtectedRoute requiredRole="admin"><Advances /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute requiredRole="admin"><Reports /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute requiredRole="admin"><WhatsApp /></ProtectedRoute>} />
           <Route path="/whatsapp" element={<Navigate to="/messages" replace />} />

@@ -4,7 +4,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import { Avatar } from '../ui'
 import SystemLockButton from '../SystemLockButton'
-import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, CalendarDays, Menu, X, Shield, Bell, FileText, MessageCircle, UserCog, QrCode, Timer, Receipt } from 'lucide-react'
+import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, CalendarDays, Menu, X, Shield, Bell, FileText, MessageCircle, UserCog, QrCode, Timer, Receipt, HandCoins } from 'lucide-react'
 
 const baseAdminNav = [
   { to: '/', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
@@ -13,6 +13,7 @@ const baseAdminNav = [
   { to: '/admin-101', label: 'טפסי 101', icon: FileText },
   { to: '/weekly-schedule', label: 'סידור שבועי', icon: CalendarDays },
   { to: '/bonuses', label: 'בונוסים', icon: Gift },
+  { to: '/advances', label: 'מפרעות', icon: HandCoins },
   { to: '/reports', label: 'דוחות', icon: BarChart2 },
   { to: '/messages', label: 'הודעות', icon: MessageCircle },
   { to: '/qr-codes', label: 'QR ומיקום', icon: QrCode },
@@ -39,7 +40,7 @@ export default function Sidebar() {
   const [bellOpen, setBellOpen] = useState(false)
   const bellRef = useRef(null)
 
-  const adminNav = isSuperAdmin ? superAdminNav : baseAdminNav.filter(i => (i.to !== '/reports' || can('reports')) && (i.to !== '/invoices' || can('invoices')))
+  const adminNav = isSuperAdmin ? superAdminNav : baseAdminNav.filter(i => (i.to !== '/reports' || can('reports')) && (i.to !== '/invoices' || can('invoices')) && (i.to !== '/advances' || can('advances') || can('reports')))
   const nav = currentUser?.role === 'admin'
     ? (isHourlyManager
         ? [adminNav[0], { to: '/my-home', label: 'השעון שלי', icon: Timer, end: true }, { to: '/my-shifts', label: 'המשמרות שלי', icon: CalendarClock }, ...adminNav.slice(1)]
