@@ -89,6 +89,10 @@ export default function EmployeeProfile() {
         <div className="flex-1 min-w-0">
           <h2 className="text-xl font-medium">{emp.full_name}</h2>
           <p className="text-sm text-gray-400 mt-1 break-words">{emp.email} · {emp.phone} · {emp.address}</p>
+          {(emp.contact_name || emp.contact_phone) && (
+            <p className="text-sm text-gray-500 mt-1 break-words">איש קשר נוסף: <b className="text-gray-700">{emp.contact_name || '—'}</b>
+              {emp.contact_phone && <> · <a className="text-brand-700 hover:underline" href={`tel:${emp.contact_phone.replace(/[^\d+]/g, '')}`} dir="ltr">{emp.contact_phone}</a></>}</p>
+          )}
           <div className="mt-2"><StatusBadge status={emp.status} /></div>
         </div>
         {mgr && (
@@ -176,6 +180,14 @@ export default function EmployeeProfile() {
             <div>
               <label className="form-label">כתובת</label>
               <input className="form-control" value={form.address} onChange={e => set('address', e.target.value)} />
+            </div>
+            <div>
+              <label className="form-label">איש קשר נוסף — שם</label>
+              <input className="form-control" value={form.contact_name || ''} onChange={e => set('contact_name', e.target.value)} placeholder="לדוגמה: אמא / בן זוג" />
+            </div>
+            <div>
+              <label className="form-label">איש קשר נוסף — טלפון</label>
+              <input className="form-control" type="tel" value={form.contact_phone || ''} onChange={e => set('contact_phone', e.target.value)} placeholder="050-0000000" />
             </div>
             <div>
               <label className="form-label">סטטוס</label>

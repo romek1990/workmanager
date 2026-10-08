@@ -7,7 +7,7 @@ import { EMP_TYPE_LABELS } from '../data/mockData'
 import { todayISO } from '../utils/helpers'
 
 const defaultForm = {
-  full_name: '', email: '', phone: '', address: '',
+  full_name: '', email: '', phone: '', address: '', contact_name: '', contact_phone: '',
   employee_type: 'hourly', hourly_rate: 45, monthly_salary: 0, weekend_rate: '',
   friday_rate_multiplier: 1.25, saturday_rate_multiplier: 1.5, night_rate_multiplier: 1.25,
   status: 'active', role: 'user',
@@ -177,6 +177,8 @@ export default function Employees() {
           <div><label className="form-label">אימייל</label><input className="form-control" value={form.email} onChange={e => set('email', e.target.value)} placeholder="israel@example.com" /></div>
           <div><label className="form-label">טלפון</label><input className="form-control" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="050-0000000" /></div>
           <div><label className="form-label">כתובת</label><input className="form-control" value={form.address} onChange={e => set('address', e.target.value)} placeholder="תל אביב" /></div>
+          <div><label className="form-label">איש קשר נוסף — שם</label><input className="form-control" value={form.contact_name} onChange={e => set('contact_name', e.target.value)} placeholder="לדוגמה: אמא / בן זוג" /></div>
+          <div><label className="form-label">איש קשר נוסף — טלפון</label><input className="form-control" type="tel" value={form.contact_phone} onChange={e => set('contact_phone', e.target.value)} placeholder="050-0000000" /></div>
           <div>
             <label className="form-label">סוג העסקה</label>
             <select className="form-control" value={form.employee_type} onChange={e => set('employee_type', e.target.value)}>
