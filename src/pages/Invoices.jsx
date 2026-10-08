@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Receipt, Camera, Upload, ChevronDown, ExternalLink, Pencil, Trash2, RefreshCw, Loader2, AlertTriangle, Search, Eye, X, FileText, Truck, Files, Plus, ArrowUp, ArrowDown, ImagePlus, Undo2, Copy } from 'lucide-react'
+import { Receipt, Camera, Upload, ChevronDown, ExternalLink, Pencil, Trash2, RefreshCw, Loader2, AlertTriangle, Search, Eye, X, FileText, Truck, Files, Plus, ArrowUp, ArrowDown, ImagePlus, Undo2, Copy, CalendarDays, Info } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { fetchAll } from '../lib/fetchAll'
@@ -18,6 +18,10 @@ const TYPES = {
   credit_note: { label: 'זיכוי / חזרות', plural: 'זיכויים / חזרות', icon: Undo2, badge: 'bg-rose-100 text-rose-800' },
 }
 const typeOf = r => (TYPES[r.doc_type] ? r.doc_type : 'invoice')
+// upload date = the day the document was added to the system (local time), not the date printed on it
+const uploadDay = r => (r.created_at ? localISODate(new Date(r.created_at)) : '')
+const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); return localISODate(d) }
+const fmtTime = iso => (iso ? new Date(iso).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '')
 
 // "אולגודס בע"מ", "אולגודס בעמ", "Olgoods Ltd." → same key (mirrors the invoice-scan function)
 const normName = s => String(s || '').toLowerCase().replace(/["'״׳`]/g, '').replace(/[^\p{L}\p{N}]+/gu, '').replace(/(בעמ|ltd|limited|inc)$/u, '')
@@ -95,6 +99,9 @@ export default function Invoices() {
   const [openMonths, setOpenMonths] = useState({})
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
+  const [uploadPreset, setUploadPreset] = useState('') // '' | today | yesterday | week | custom
+  const [uploadDate, setUploadDate] = useState('')
+  const [showUploadHelp, setShowUploadHelp] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({})
   const [removing, setRemoving] = useState(null)
@@ -285,10 +292,19 @@ export default function Invoices() {
   }), [rows])
 
   // month → supplier → { invoices, delivery notes }
+  const uploadRange = useMemo(() => {
+    if (uploadPreset === 'today') return { from: daysAgo(0), to: daysAgo(0) }
+    if (uploadPreset === 'yesterday') return { from: daysAgo(1), to: daysAgo(1) }
+    if (uploadPreset === 'week') return { from: daysAgo(6), to: daysAgo(0) }
+    if (uploadPreset === 'custom' && uploadDate) return { from: uploadDate, to: uploadDate }
+    return null
+  }, [uploadPreset, uploadDate])
+  const inUploadRange = r => !uploadRange || (uploadDay(r) >= uploadRange.from && uploadDay(r) <= uploadRange.to)
+
   const grouped = useMemo(() => {
     const q = search.trim()
     const filtered = rows.filter(r =>
-      (typeFilter === 'all' || typeOf(r) === typeFilter) &&
+      (typeFilter === 'all' || typeOf(r) === typeFilter) && inUploadRange(r) &&
       (!q || (r.supplier_name || '').includes(q) || (r.invoice_number || '').includes(q) || digits(r.supplier_tax_id).includes(q)))
     const months = {}
     for (const r of filtered) {
@@ -313,14 +329,16 @@ export default function Invoices() {
       const cr = all.filter(r => typeOf(r) === 'credit_note')
       return { month: m, suppliers, invCount: inv.length, noteCount: dn.length, creditCount: cr.length, invTotal: sumOf(inv), noteTotal: sumOf(dn), creditTotal: sumOf(cr) }
     })
-  }, [rows, search, typeFilter, supplierNames])
+  }, [rows, search, typeFilter, supplierNames, uploadRange])
+  const uploadCount = useMemo(() => grouped.reduce((t, g) => t + g.invCount + g.noteCount + g.creditCount, 0), [grouped])
 
   const dupRows = useMemo(() => rows.filter(r => r.duplicate_of), [rows])
   const dupOrig = dup ? rows.find(r => r.id === dup.duplicate_of) : null
 
   const knownSuppliers = useMemo(() => [...new Set(Object.values(supplierNames))].sort((a, b) => a.localeCompare(b, 'he')), [supplierNames])
   const thisMonth = localISODate().slice(0, 7)
-  const isOpen = m => openMonths[m] ?? (m === thisMonth || grouped[0]?.month === m)
+  // when filtering by upload date, open every month so the results are visible right away
+  const isOpen = m => openMonths[m] ?? (!!uploadRange || m === thisMonth || grouped[0]?.month === m)
 
   if (!allowed) {
     return (
@@ -337,6 +355,7 @@ export default function Invoices() {
         <span className="tabular-nums w-[84px] shrink-0">{r.invoice_date ? fmtDate(r.invoice_date) : '—'}</span>
         <span className="text-xs flex-1" style={{ color: 'var(--text-dim)' }}>
           {r.invoice_number ? `מס׳ ${r.invoice_number}` : ''}{r.notes ? ` · ${r.notes}` : ''}{r.uploaded_by_name ? ` · הועלה ע״י ${r.uploaded_by_name}` : ''}
+          {uploadRange && r.created_at ? ` · הועלה ${fmtDate(uploadDay(r))} ${fmtTime(r.created_at)}` : ''}
         </span>
         {r.status === 'processing' && <span className="text-xs text-brand-700 inline-flex items-center gap-1"><Loader2 size={12} className="animate-spin" />סורק...</span>}
         {r.duplicate_of && (
@@ -410,6 +429,40 @@ export default function Invoices() {
           <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input className="form-control !pr-8" placeholder="חיפוש לפי ספק, מספר מסמך או ח.פ..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
+      </div>
+
+      <div className="card p-4 mb-4">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <span className="inline-flex items-center gap-2 text-sm font-semibold"><CalendarDays size={16} className="text-brand-600" />סינון לפי תאריך העלאה</span>
+          <button className="inline-flex items-center gap-1 text-xs font-medium text-brand-700" onClick={() => setShowUploadHelp(v => !v)}>
+            <Info size={14} />{showUploadHelp ? 'הסתר הסבר' : 'מה זה?'}
+          </button>
+        </div>
+        {showUploadHelp && (
+          <div className="rounded-xl bg-white/70 p-3 mb-3 text-xs leading-relaxed space-y-1" style={{ color: 'var(--text-dim)' }}>
+            <p><b>תאריך העלאה</b> = היום שבו המסמך צולם או הועלה למערכת. זה <b>לא</b> התאריך שמודפס על החשבונית.</p>
+            <p>לדוגמה: חשבונית מתאריך 15/09 שהעלו אתמול — תופיע כשבוחרים "אתמול", למרות שהיא שייכת לחודש ספטמבר.</p>
+            <p>שימושי כדי לבדוק מה הועלה ביום מסוים, לוודא שכל המסמכים של היום נקלטו, או לראות מה נוסף מאז הבדיקה האחרונה.</p>
+            <p>הסינון עובד יחד עם הכפתורים של סוג המסמך ועם החיפוש.</p>
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {[['', 'הכול'], ['today', 'היום'], ['yesterday', 'אתמול'], ['week', '7 ימים אחרונים'], ['custom', 'בחר תאריך']].map(([k, label]) => (
+            <button key={k || 'all'} onClick={() => setUploadPreset(k)}
+              className={`px-3.5 py-1.5 rounded-xl text-sm font-medium transition ${uploadPreset === k ? 'bg-ink-900 text-white shadow' : 'bg-white/60 text-gray-600 hover:bg-white/80'}`}>
+              {label}
+            </button>
+          ))}
+          {uploadPreset === 'custom' && (
+            <input type="date" className="form-control w-auto" value={uploadDate} max={daysAgo(0)} onChange={e => setUploadDate(e.target.value)} />
+          )}
+        </div>
+        {uploadRange && !loading && (
+          <p className="mt-3 text-xs" style={{ color: 'var(--text-dim)' }}>
+            {uploadCount} מסמכים הועלו {uploadRange.from === uploadRange.to ? `ב־${fmtDate(uploadRange.from)}` : `בין ${fmtDate(uploadRange.from)} ל־${fmtDate(uploadRange.to)}`}
+          </p>
+        )}
+        {uploadPreset === 'custom' && !uploadDate && <p className="mt-2 text-xs" style={{ color: 'var(--text-dim)' }}>בחר תאריך כדי לסנן</p>}
       </div>
 
       {loading ? (
