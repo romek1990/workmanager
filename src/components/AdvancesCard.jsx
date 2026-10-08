@@ -11,9 +11,19 @@ export const ADVANCE_STATUS = {
 }
 
 // Employee side: request an advance and see the status of past ones.
-export default function AdvancesCard({ className = '' }) {
+const MONTH_NAMES = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר']
+
+// ym: 'YYYY-MM' — month to summarise (defaults to the current month)
+export default function AdvancesCard({ className = '', ym }) {
   const { advances, requestAdvance, currentUser } = useApp()
   const mine = advances.filter(a => a.employee_id === currentUser?.id)
+  const monthKey = ym || todayISO().slice(0, 7)
+  const monthAdv = mine.filter(a => (a.date || '').startsWith(monthKey))
+  const approvedTotal = monthAdv.filter(a => a.status === 'approved').reduce((s, a) => s + Number(a.amount || 0), 0)
+  const pendingTotal = monthAdv.filter(a => a.status === 'pending').reduce((s, a) => s + Number(a.amount || 0), 0)
+  const approvedCount = monthAdv.filter(a => a.status === 'approved').length
+  const [yy, mm] = monthKey.split('-')
+  const monthLabel = `${MONTH_NAMES[Number(mm) - 1]} ${yy}`
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ date: todayISO(), amount: '', note: '' })
   const [busy, setBusy] = useState(false)
@@ -58,6 +68,16 @@ export default function AdvancesCard({ className = '' }) {
           ))}
         </div>
       )}
+
+      <div className="mt-3 pt-3 border-t-2 border-black/10 flex items-center justify-between text-sm">
+        <div>
+          <span className="font-bold">סה״כ מפרעות {monthLabel}</span>
+          <span className="text-xs mr-2" style={{ color: 'var(--text-dim)' }}>
+            {approvedCount} מאושרות{pendingTotal > 0 ? ` · ${fmtMoney(pendingTotal)} ממתינות לאישור` : ''}
+          </span>
+        </div>
+        <span className="font-bold tabular-nums text-base">{fmtMoney(approvedTotal)}</span>
+      </div>
 
       <Modal open={open} onClose={() => !busy && setOpen(false)} title="בקשת מפרעה"
         footer={done

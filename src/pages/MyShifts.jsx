@@ -3,6 +3,7 @@ import { ChevronRight, ChevronLeft, Pencil, Trash2, CalendarClock } from 'lucide
 import { useApp } from '../context/AppContext'
 import { fmtHours, fmtDate, calcHours, todayISO, monthEstimate, shiftOverlapMessage } from '../utils/helpers'
 import PayEstimate from '../components/PayEstimate'
+import AdvancesCard from '../components/AdvancesCard'
 import { ShiftTypeBadge, StatusBadge, Modal, PageHeader, Toast, useToast } from '../components/ui'
 import { MONTH_NAMES } from '../data/mockData'
 
@@ -179,6 +180,7 @@ export default function MyShifts() {
       </div>
 
       <PayEstimate est={est} title={`${MONTH_NAMES[month - 1]} ${year} — שעות ושכר`} className="mt-5" />
+      <AdvancesCard ym={prefix} className="mt-5" />
 
       {/* edit */}
       <Modal open={!!editing} onClose={() => !busy && setEditing(null)} title="שינוי משמרת"
