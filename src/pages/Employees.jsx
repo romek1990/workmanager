@@ -8,7 +8,7 @@ import { todayISO } from '../utils/helpers'
 
 const defaultForm = {
   full_name: '', email: '', phone: '', address: '', contact_name: '', contact_phone: '',
-  employee_type: 'hourly', hourly_rate: 45, monthly_salary: 0, weekend_rate: '',
+  employee_type: 'hourly', hourly_rate: 45, monthly_salary: 0, weekend_rate: '', night_rate: '',
   friday_rate_multiplier: 1.25, saturday_rate_multiplier: 1.5, night_rate_multiplier: 1.25,
   status: 'active', role: 'user',
 }
@@ -34,7 +34,7 @@ export default function Employees() {
   const activeCount = employees.filter(e => e.status === 'active').length
 
   const pay = e => e.isManager && !e.tracks_hours ? 'גלובלי' : e.employee_type === 'hourly'
-    ? `₪${e.hourly_rate}/שעה${Number(e.weekend_rate) > 0 ? ` · סופ״ש/חג ₪${e.weekend_rate}` : ''}`
+    ? `₪${e.hourly_rate}/שעה${Number(e.weekend_rate) > 0 ? ` · סופ״ש/חג ₪${e.weekend_rate}` : ''}${Number(e.night_rate) > 0 ? ` · לילה ₪${e.night_rate}` : ''}`
     : `₪${Number(e.monthly_salary || 0).toLocaleString('he-IL')}/חודש`
 
   function normPhone(p) {
@@ -70,7 +70,7 @@ export default function Employees() {
 
     setAdding(true)
     try {
-      await addEmployee({ ...form, weekend_rate: form.employee_type === 'hourly' && Number(form.weekend_rate) > 0 ? Number(form.weekend_rate) : null })
+      await addEmployee({ ...form, weekend_rate: form.employee_type === 'hourly' && Number(form.weekend_rate) > 0 ? Number(form.weekend_rate) : null, night_rate: form.employee_type === 'hourly' && Number(form.night_rate) > 0 ? Number(form.night_rate) : null })
       setModal(false)
       setForm(defaultForm)
       setAlert({ title: 'עובד נוסף', message: 'העובד נוסף בהצלחה למערכת' })
@@ -193,6 +193,11 @@ export default function Employees() {
                   <label className="form-label">שכר סופ״ש וחגים (₪ לשעה)</label>
                   <input type="number" min="0" className="form-control" value={form.weekend_rate} onChange={e => set('weekend_rate', e.target.value)} placeholder="ריק = שכר רגיל" />
                   <p className="text-[11px] text-gray-400 mt-1">תעריף קבוע משישי 16:00 עד שבת 16:00, ובחגים מ-16:00 בערב החג עד 16:00 בחג</p>
+                </div>
+                <div>
+                  <label className="form-label">שכר לילה (₪ לשעה)</label>
+                  <input type="number" min="0" className="form-control" value={form.night_rate} onChange={e => set('night_rate', e.target.value)} placeholder="ריק = לפי הכלל הרגיל" />
+                  <p className="text-[11px] text-gray-400 mt-1">תעריף קבוע ל-00:00–08:00 (מחוץ לסופ״ש/חג)</p>
                 </div>
               </>
             : <div><label className="form-label">שכר חודשי (₪)</label><input type="number" className="form-control" value={form.monthly_salary} onChange={e => set('monthly_salary', +e.target.value)} /></div>

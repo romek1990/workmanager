@@ -56,7 +56,7 @@ export default function PrintShiftsModal({ open, onClose, employees, shifts, bon
       return `<section>
         <div class="head">
           <div><h1>${esc(emp.full_name)}${isManager(emp.id) ? ' <span class="tag">מנהל</span>' : ''}</h1>
-          <p>${isGlobal ? 'גלובלי' : `שעתי · ₪${emp.hourly_rate} לשעה${Number(emp.weekend_rate) > 0 ? ` · סופ״ש/חג ₪${emp.weekend_rate} לשעה` : ''}${eligible ? ` · זכאי לתוספת ₪${rules.premium} לשעת לילה/סופ״ש/חג` : ''}`}</p></div>
+          <p>${isGlobal ? 'גלובלי' : `שעתי · ₪${emp.hourly_rate} לשעה${Number(emp.weekend_rate) > 0 ? ` · סופ״ש/חג ₪${emp.weekend_rate} לשעה` : ''}${Number(emp.night_rate) > 0 ? ` · לילה ₪${emp.night_rate} לשעה` : ''}${eligible ? ` · זכאי לתוספת ₪${rules.premium} לשעת לילה/סופ״ש/חג` : ''}`}</p></div>
           <div class="period">${period}</div>
         </div>
         ${list.length ? `<table>

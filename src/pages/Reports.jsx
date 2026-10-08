@@ -251,7 +251,7 @@ function exportEmployeePDF(row) {
       <h1>📋 דוח עובד — ${row.emp.full_name}${isManager(row.emp.id) ? ' (מנהל)' : ''}</h1>
       <p>תקופה: ${fmtDate(from)} — ${fmtDate(to)}</p>
       <p>סוג העסקה: ${row.emp.employee_type === 'hourly' ? 'שעתי' : 'גלובלי'}</p>
-      ${row.emp.employee_type === 'hourly' ? `<p>תעריף שעתי: ₪${row.emp.hourly_rate}/שעה${Number(row.emp.weekend_rate) > 0 ? ` · סופ״ש/חג: ₪${row.emp.weekend_rate}/שעה` : ''}</p>` : ''}
+      ${row.emp.employee_type === 'hourly' ? `<p>תעריף שעתי: ₪${row.emp.hourly_rate}/שעה${Number(row.emp.weekend_rate) > 0 ? ` · סופ״ש/חג: ₪${row.emp.weekend_rate}/שעה` : ''}${Number(row.emp.night_rate) > 0 ? ` · לילה: ₪${row.emp.night_rate}/שעה` : ''}</p>` : ''}
       <p>הופק בתאריך: ${new Date().toLocaleDateString('he-IL')}</p>
 
       <table>

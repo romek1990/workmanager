@@ -10,6 +10,8 @@ import { SHIFT_TYPE_LABELS, STATUS_LABELS } from '../data/mockData'
 // Fixed weekend/holiday rate (profiles.weekend_rate): when set for an hourly employee, every minute
 // inside the weekend or holiday window is paid at that rate INSTEAD of the regular rate, and gets
 // no premium on top. Night-only minutes (00:00–08:00 on a weekday) keep the regular rule.
+// Fixed night rate (profiles.night_rate): same idea for night-only minutes (00:00–08:00 outside the
+// weekend/holiday window) — paid at that rate instead of the regular rate, no premium on top.
 let PAY_RULES = { threshold: 40, premium: 2, holidays: new Set() }
 export function setPayRules({ threshold, premium, holidays } = {}) {
   PAY_RULES = {
@@ -57,29 +59,35 @@ export function weekendRateOf(employee) {
   return Number(employee.weekend_rate) > 0 ? Number(employee.weekend_rate) : 0
 }
 
+// the employee's fixed night (00:00–08:00) hourly rate, or 0 when not set
+export function nightRateOf(employee) {
+  if (!employee || employee.employee_type === 'global') return 0
+  return Number(employee.night_rate) > 0 ? Number(employee.night_rate) : 0
+}
+
 export function eligibleForPremium(employee) {
   return !!employee && employee.employee_type !== 'global' && (Number(employee.hourly_rate) || 0) < PAY_RULES.threshold
 }
 
-// { base, premium, premiumHours, weekendHours, weekendPay } for one shift.
-// base includes the weekend-rate part (weekendPay) when the employee has a fixed weekend rate.
+// { base, premium, premiumHours, weekendHours, weekendPay, nightHours, nightPay } for one shift.
+// base includes the fixed-rate parts (weekendPay / nightPay) when the employee has those rates.
 export function shiftPayParts(shift, employee) {
-  const none = { base: 0, premium: 0, premiumHours: 0, weekendHours: 0, weekendPay: 0 }
+  const none = { base: 0, premium: 0, premiumHours: 0, weekendHours: 0, weekendPay: 0, nightHours: 0, nightPay: 0 }
   if (!employee || employee.employee_type === 'global') return none
   const hours = Number(shift.total_hours) || 0
   const rate = Number(employee.hourly_rate) || 0
   const w = windowMinutes(shift)
   const wkRate = weekendRateOf(employee)
-  if (wkRate) {
-    const weekendHours = Math.min(w.weekend / 60, hours)
-    const weekendPay = weekendHours * wkRate
-    const premiumHours = (w.premium - w.weekend) / 60        // night-only hours still get the premium
-    const premium = eligibleForPremium(employee) ? premiumHours * PAY_RULES.premium : 0
-    return { base: (hours - weekendHours) * rate + weekendPay, premium, premiumHours, weekendHours, weekendPay }
-  }
-  const premiumHours = w.premium / 60
+  const ntRate = nightRateOf(employee)
+  const nightOnly = w.premium - w.weekend                    // night minutes outside the weekend window
+  const weekendHours = wkRate ? Math.min(w.weekend / 60, hours) : 0
+  const nightHours = ntRate ? Math.min(nightOnly / 60, hours - weekendHours) : 0
+  const weekendPay = weekendHours * wkRate
+  const nightPay = nightHours * ntRate
+  // window minutes not covered by a fixed rate still get the premium (if eligible)
+  const premiumHours = ((wkRate ? 0 : w.weekend) + (ntRate ? 0 : nightOnly)) / 60
   const premium = eligibleForPremium(employee) ? premiumHours * PAY_RULES.premium : 0
-  return { base: hours * rate, premium, premiumHours, weekendHours: 0, weekendPay: 0 }
+  return { base: (hours - weekendHours - nightHours) * rate + weekendPay + nightPay, premium, premiumHours, weekendHours, weekendPay, nightHours, nightPay }
 }
 
 export function calcShiftPay(shift, employee) {
@@ -179,6 +187,8 @@ export function monthEstimate({ shifts = [], bonuses = [], emp, ym }) {
   const weekendHours = isGlobal || !emp ? 0 : counted.reduce((a, s) => a + shiftPayParts(s, emp).weekendHours, 0)
   const weekendPay = isGlobal || !emp ? 0 : counted.reduce((a, s) => a + shiftPayParts(s, emp).weekendPay, 0)
   const premium = isGlobal || !emp ? 0 : counted.reduce((a, s) => a + shiftPayParts(s, emp).premium, 0)
+  const nightHours = isGlobal || !emp ? 0 : counted.reduce((a, s) => a + shiftPayParts(s, emp).nightHours, 0)
+  const nightPay = isGlobal || !emp ? 0 : counted.reduce((a, s) => a + shiftPayParts(s, emp).nightPay, 0)
   const basePay = isGlobal ? Number(emp?.monthly_salary) || 0 : approvedPay + pendingPay
   return {
     ym,
@@ -189,6 +199,7 @@ export function monthEstimate({ shifts = [], bonuses = [], emp, ym }) {
     total: basePay + bonus,
     rate: Number(emp?.hourly_rate) || 0,
     weekendRate: weekendRateOf(emp), weekendHours, weekendPay,
+    nightRate: nightRateOf(emp), nightHours, nightPay,
     premium, premiumHours, premiumEligible: eligibleForPremium(emp), threshold: PAY_RULES.threshold, premiumRate: PAY_RULES.premium,
   }
 }
