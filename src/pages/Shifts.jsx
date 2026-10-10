@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Plus, CalendarClock, AlertTriangle } from 'lucide-react'
+import { Plus, CalendarClock } from 'lucide-react'
+import { isLongShift as isLong, LongHours, LONG_ROW, LONG_EDGE } from '../components/LongShift'
 import { useApp } from '../context/AppContext'
 import { ShiftTypeBadge, StatusBadge, Modal, AlertModal, Avatar, PageHeader, StatChip, SearchInput, Toast, useToast, ReadOnlyBanner, ManagerBadge } from '../components/ui'
 import { calcHours, todayISO, fmtHours, fmtDate, shiftOverlapMessage } from '../utils/helpers'
@@ -7,17 +8,6 @@ import { calcHours, todayISO, fmtHours, fmtDate, shiftOverlapMessage } from '../
 const defaultForm = { employee_email: '', date: todayISO(), start_time: '08:00', end_time: '16:00', shift_type: 'regular', notes: '' }
 const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
 const t5 = t => (t ? String(t).slice(0, 5) : null)
-const LONG_SHIFT_HOURS = 12
-const isLong = s => s.status !== 'active' && Number(s.total_hours) > LONG_SHIFT_HOURS
-
-function LongHours({ hours }) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums bg-rose-100 text-rose-700 border border-rose-200" title="משמרת ארוכה מ-12 שעות">
-      <AlertTriangle size={12} />{fmtHours(hours)}
-    </span>
-  )
-}
-
 export default function Shifts() {
   const { employees, shifts, addShift, updateShiftStatus, can, canResolveShift, hourlyManagers, isManager } = useApp()
   const canShifts = can('shifts')
@@ -141,8 +131,8 @@ export default function Shifts() {
                   {filtered.map(s => {
                     const long = isLong(s)
                     return (
-                    <tr key={s.id} className={long ? 'transition-colors bg-rose-50/70 hover:bg-rose-100/60' : 'transition-colors hover:bg-brand-500/5'}>
-                      <td className={`table-td ${long ? 'shadow-[inset_-3px_0_0_#f43f5e]' : ''}`}>
+                    <tr key={s.id} className={long ? `transition-colors ${LONG_ROW}` : 'transition-colors hover:bg-brand-500/5'}>
+                      <td className={`table-td ${long ? LONG_EDGE : ''}`}>
                         <div className="flex items-center gap-2.5 font-medium"><Avatar name={s.employee_name} size="sm" />{s.employee_name}<ManagerBadge show={isManager(s.employee_id)} /></div>
                       </td>
                       <td className="table-td tabular-nums" style={{ color: 'var(--text-dim)' }}>{fmtDate(s.date)}</td>
@@ -163,7 +153,7 @@ export default function Shifts() {
             {/* mobile */}
             <div className="md:hidden divide-y divide-black/5">
               {filtered.map(s => (
-                <div key={s.id} className={`px-4 py-3.5 ${isLong(s) ? 'bg-rose-50/70 shadow-[inset_-3px_0_0_#f43f5e]' : ''}`}>
+                <div key={s.id} className={`px-4 py-3.5 ${isLong(s) ? `bg-rose-50/70 ${LONG_EDGE}` : ''}`}>
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5 font-medium text-sm min-w-0">
                       <Avatar name={s.employee_name} size="sm" /><span className="truncate">{s.employee_name}</span><ManagerBadge show={isManager(s.employee_id)} />

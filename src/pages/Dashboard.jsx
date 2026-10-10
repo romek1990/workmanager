@@ -3,6 +3,7 @@ import { Users, Clock, Gift, Hourglass, Sparkles } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { StatCard, ShiftTypeBadge, Avatar, Toast, useToast, ManagerBadge } from '../components/ui'
 import { fmtMoney, fmtHours } from '../utils/helpers'
+import { isLongShift, LongHours, LONG_ROW, LONG_EDGE } from '../components/LongShift'
 import OnShiftNow from '../components/OnShiftNow'
 
 const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
@@ -154,9 +155,9 @@ export default function Dashboard() {
                   {pending.map(s => (
                     <tr
                       key={s.id}
-                      className={`transition-all duration-300 hover:bg-brand-500/5 ${leaving[s.id] ? 'row-leave' : ''}`}
+                      className={`transition-all duration-300 ${isLongShift(s) ? LONG_ROW : 'hover:bg-brand-500/5'} ${leaving[s.id] ? 'row-leave' : ''}`}
                     >
-                      <td className="table-td px-6">
+                      <td className={`table-td px-6 ${isLongShift(s) ? LONG_EDGE : ''}`}>
                         <div className="flex items-center gap-2.5 font-medium">
                           <Avatar name={s.employee_name} size="sm" />
                           {s.employee_name}
@@ -168,7 +169,7 @@ export default function Dashboard() {
                       <td className="table-td px-6 tabular-nums font-medium">
                         {fmtTime(s.end_time) || <span className="badge badge-warning">פתוחה</span>}
                       </td>
-                      <td className="table-td px-6 tabular-nums">{fmtHours(s.total_hours)}</td>
+                      <td className="table-td px-6 tabular-nums">{isLongShift(s) ? <LongHours hours={s.total_hours} /> : fmtHours(s.total_hours)}</td>
                       <td className="table-td px-6"><ShiftTypeBadge type={s.shift_type} /></td>
                       <td className="table-td px-6" style={{ color: 'var(--text-dim)' }}>{s.notes || '—'}</td>
                       <td className="table-td px-6">
@@ -188,7 +189,7 @@ export default function Dashboard() {
               {pending.map(s => (
                 <div
                   key={s.id}
-                  className={`px-5 py-4 transition-all duration-300 ${leaving[s.id] ? 'row-leave' : ''}`}
+                  className={`px-5 py-4 transition-all duration-300 ${isLongShift(s) ? `bg-rose-50/70 ${LONG_EDGE}` : ''} ${leaving[s.id] ? 'row-leave' : ''}`}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5 font-medium text-sm">
@@ -199,7 +200,7 @@ export default function Dashboard() {
                     <ShiftTypeBadge type={s.shift_type} />
                   </div>
                   <div className="text-xs mt-2 tabular-nums" style={{ color: 'var(--text-dim)' }}>
-                    {fmtDate(s.date)} · <span dir="ltr">{fmtTime(s.start_time) || '—'}–{fmtTime(s.end_time) || '?'}</span> · {fmtHours(s.total_hours)} שעות{s.notes ? ` · ${s.notes}` : ''}
+                    {fmtDate(s.date)} · <span dir="ltr">{fmtTime(s.start_time) || '—'}–{fmtTime(s.end_time) || '?'}</span> · {isLongShift(s) ? <LongHours hours={s.total_hours} /> : `${fmtHours(s.total_hours)} שעות`}{s.notes ? ` · ${s.notes}` : ''}
                   </div>
                   {canResolveShift(s) && <div className="flex gap-2 mt-3">
                     <button disabled={leaving[s.id]} className="btn btn-success flex-1 justify-center py-2 text-xs" onClick={() => resolve(s, 'approved')}>אשר</button>
