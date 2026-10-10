@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Plus, CalendarClock } from 'lucide-react'
+import { Plus, CalendarClock, AlertTriangle } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { ShiftTypeBadge, StatusBadge, Modal, AlertModal, Avatar, PageHeader, StatChip, SearchInput, Toast, useToast, ReadOnlyBanner, ManagerBadge } from '../components/ui'
 import { calcHours, todayISO, fmtHours, fmtDate, shiftOverlapMessage } from '../utils/helpers'
@@ -7,6 +7,16 @@ import { calcHours, todayISO, fmtHours, fmtDate, shiftOverlapMessage } from '../
 const defaultForm = { employee_email: '', date: todayISO(), start_time: '08:00', end_time: '16:00', shift_type: 'regular', notes: '' }
 const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
 const t5 = t => (t ? String(t).slice(0, 5) : null)
+const LONG_SHIFT_HOURS = 12
+const isLong = s => s.status !== 'active' && Number(s.total_hours) > LONG_SHIFT_HOURS
+
+function LongHours({ hours }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums bg-rose-100 text-rose-700 border border-rose-200" title="משמרת ארוכה מ-12 שעות">
+      <AlertTriangle size={12} />{fmtHours(hours)}
+    </span>
+  )
+}
 
 export default function Shifts() {
   const { employees, shifts, addShift, updateShiftStatus, can, canResolveShift, hourlyManagers, isManager } = useApp()
@@ -42,6 +52,7 @@ export default function Shifts() {
 
   const approvedHours = filtered.filter(s => s.status === 'approved').reduce((a, s) => a + (Number(s.total_hours) || 0), 0)
   const pendingCount = filtered.filter(s => s.status === 'pending').length
+  const longCount = filtered.filter(isLong).length
 
   async function resolve(s, status) {
     setBusy(b => ({ ...b, [s.id]: true }))
@@ -93,6 +104,7 @@ export default function Shifts() {
         <StatChip label="משמרות בתצוגה" value={filtered.length} />
         <StatChip label="שעות מאושרות" value={fmtHours(approvedHours)} tone="green" />
         <StatChip label="ממתינות לאישור" value={pendingCount} tone={pendingCount ? 'amber' : 'default'} />
+        {longCount > 0 && <StatChip label="מעל 12 שעות" value={longCount} tone="amber" />}
       </div>
 
       <div className="card animate-rise" style={{ animationDelay: '.15s' }}>
@@ -126,21 +138,24 @@ export default function Shifts() {
                   <tr>{['עובד', 'תאריך', 'התחלה', 'סיום', 'שעות', 'סוג', 'סטטוס', 'הערות', 'פעולות'].map(h => <th key={h} className="table-th">{h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {filtered.map(s => (
-                    <tr key={s.id} className="transition-colors hover:bg-brand-500/5">
-                      <td className="table-td">
+                  {filtered.map(s => {
+                    const long = isLong(s)
+                    return (
+                    <tr key={s.id} className={long ? 'transition-colors bg-rose-50/70 hover:bg-rose-100/60' : 'transition-colors hover:bg-brand-500/5'}>
+                      <td className={`table-td ${long ? 'shadow-[inset_-3px_0_0_#f43f5e]' : ''}`}>
                         <div className="flex items-center gap-2.5 font-medium"><Avatar name={s.employee_name} size="sm" />{s.employee_name}<ManagerBadge show={isManager(s.employee_id)} /></div>
                       </td>
                       <td className="table-td tabular-nums" style={{ color: 'var(--text-dim)' }}>{fmtDate(s.date)}</td>
                       <td className="table-td tabular-nums">{t5(s.start_time) || '—'}</td>
                       <td className="table-td tabular-nums">{t5(s.end_time) || '—'}</td>
-                      <td className="table-td tabular-nums font-medium">{s.status === 'active' ? '—' : fmtHours(s.total_hours)}</td>
+                      <td className="table-td tabular-nums font-medium">{s.status === 'active' ? '—' : long ? <LongHours hours={s.total_hours} /> : fmtHours(s.total_hours)}</td>
                       <td className="table-td"><ShiftTypeBadge type={s.shift_type} /></td>
                       <td className="table-td"><StatusBadge status={s.status} shift /></td>
                       <td className="table-td max-w-[200px] truncate" style={{ color: 'var(--text-dim)' }}>{s.notes || '—'}</td>
                       <td className="table-td">{actions(s)}</td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -148,7 +163,7 @@ export default function Shifts() {
             {/* mobile */}
             <div className="md:hidden divide-y divide-black/5">
               {filtered.map(s => (
-                <div key={s.id} className="px-4 py-3.5">
+                <div key={s.id} className={`px-4 py-3.5 ${isLong(s) ? 'bg-rose-50/70 shadow-[inset_-3px_0_0_#f43f5e]' : ''}`}>
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2.5 font-medium text-sm min-w-0">
                       <Avatar name={s.employee_name} size="sm" /><span className="truncate">{s.employee_name}</span><ManagerBadge show={isManager(s.employee_id)} />
@@ -158,7 +173,7 @@ export default function Shifts() {
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs mt-2 tabular-nums" style={{ color: 'var(--text-dim)' }}>
                     <span>{fmtDate(s.date)}</span>·
                     <span dir="ltr">{t5(s.start_time) || '—'}–{t5(s.end_time) || '…'}</span>·
-                    <span className="font-semibold text-gray-700">{s.status === 'active' ? 'פתוחה' : `${fmtHours(s.total_hours)} ש'`}</span>
+                    {isLong(s) ? <LongHours hours={s.total_hours} /> : <span className="font-semibold text-gray-700">{s.status === 'active' ? 'פתוחה' : `${fmtHours(s.total_hours)} ש'`}</span>}
                     <ShiftTypeBadge type={s.shift_type} />
                   </div>
                   {s.notes && <p className="text-xs mt-1.5" style={{ color: 'var(--text-dim)' }}>{s.notes}</p>}
