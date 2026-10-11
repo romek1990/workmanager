@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, MoonStar, CalendarRange, RefreshCw, Eye } fr
 import { supabase } from '../lib/supabase'
 import { useApp } from '../context/AppContext'
 import { PageHeader, StatChip } from '../components/ui'
+import { t } from '../i18n'
 
 // Read-only view of the full work schedule for employees (any week, past or future)
 
@@ -42,7 +43,7 @@ export default function WorkSchedule() {
     setLoading(true)
     setError('')
     const { data, error } = await supabase.rpc('get_week_schedule', { p_week_start: weekStart })
-    if (error) { setError('לא הצלחנו לטעון את הסידור. נסה שוב'); setEntries([]) }
+    if (error) { setError(t('לא הצלחנו לטעון את הסידור. נסה שוב')); setEntries([]) }
     else setEntries(data || [])
     setLoading(false)
   }, [weekStart])
@@ -55,7 +56,8 @@ export default function WorkSchedule() {
   const weekLabel = `${fmtDate(weekStart)} — ${fmtDate(addDays(weekStart, 6))}`
   const me = currentUser?.id
   const visible = onlyMine ? entries.filter(e => e.employee_id === me) : entries
-  const days = DAYS.map((name, i) => {
+  const days = DAYS.map((heName, i) => {
+    const name = t(heName)
     const date = addDays(weekStart, i)
     return {
       name, i, date,
@@ -82,9 +84,9 @@ export default function WorkSchedule() {
         <div className="font-bold mt-0.5 truncate flex items-center gap-1.5" style={{ color }}>
           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
           {e.full_name || ''}
-          {isMe && <span className="text-[10px] font-bold text-white bg-brand-600 rounded-full px-1.5 py-px shrink-0">אני</span>}
+          {isMe && <span className="text-[10px] font-bold text-white bg-brand-600 rounded-full px-1.5 py-px shrink-0">{t('אני')}</span>}
         </div>
-        <div className="text-gray-400 mt-0.5 tabular-nums">{fmtMins(shiftMinutes(e.start_time, e.end_time))} ש'</div>
+        <div className="text-gray-400 mt-0.5 tabular-nums">{fmtMins(shiftMinutes(e.start_time, e.end_time))} {t('ש\'')}</div>
         {e.notes && <div className="text-gray-500 mt-1 pt-1 border-t border-black/5 leading-snug">{e.notes}</div>}
       </div>
     )
@@ -94,26 +96,26 @@ export default function WorkSchedule() {
 
   return (
     <div className="p-4 md:px-10 md:py-8">
-      <PageHeader icon={CalendarRange} title="סידור עבודה" subtitle={`שבוע ${weekLabel}`}>
+      <PageHeader icon={CalendarRange} title={t('סידור עבודה')} subtitle={t('שבוע {weekLabel}', { weekLabel })}>
         <div className="flex items-center gap-1 glass rounded-2xl p-1 shadow-glass">
-          <button className="p-2 rounded-xl hover:bg-white" onClick={() => setWeekStart(addDays(weekStart, -7))} title="שבוע קודם"><ChevronRight size={16} /></button>
+          <button className="p-2 rounded-xl hover:bg-white" onClick={() => setWeekStart(addDays(weekStart, -7))} title={t('שבוע קודם')}><ChevronRight size={16} className="dir-icon" /></button>
           <button className="px-3 py-1.5 rounded-xl text-sm font-semibold hover:bg-white disabled:text-brand-700 disabled:bg-white disabled:shadow-soft"
-            disabled={weekStart === thisWeek} onClick={() => setWeekStart(thisWeek)}>השבוע</button>
-          <button className="p-2 rounded-xl hover:bg-white" onClick={() => setWeekStart(addDays(weekStart, 7))} title="שבוע הבא"><ChevronLeft size={16} /></button>
+            disabled={weekStart === thisWeek} onClick={() => setWeekStart(thisWeek)}>{t('השבוע')}</button>
+          <button className="p-2 rounded-xl hover:bg-white" onClick={() => setWeekStart(addDays(weekStart, 7))} title={t('שבוע הבא')}><ChevronLeft size={16} className="dir-icon" /></button>
         </div>
         <input type="date" className="form-control !w-auto !py-1.5 text-sm" value={weekStart}
-          onChange={e => e.target.value && setWeekStart(getWeekStart(new Date(e.target.value + 'T12:00')))} title="קפיצה לתאריך" />
-        <button className="btn" onClick={load} disabled={loading} title="רענון"><RefreshCw size={15} className={loading ? 'animate-spin' : ''} /></button>
+          onChange={e => e.target.value && setWeekStart(getWeekStart(new Date(e.target.value + 'T12:00')))} title={t('קפיצה לתאריך')} />
+        <button className="btn" onClick={load} disabled={loading} title={t('רענון')}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} /></button>
       </PageHeader>
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
-        <StatChip label="המשמרות שלי השבוע" value={mine.length} />
-        <StatChip label="השעות שלי" value={fmtMins(myMins)} tone="green" />
+        <StatChip label={t('המשמרות שלי השבוע')} value={mine.length} />
+        <StatChip label={t('השעות שלי')} value={fmtMins(myMins)} tone="green" />
         <label className="inline-flex items-center gap-2 text-sm font-medium cursor-pointer select-none glass rounded-2xl px-3 py-2">
           <input type="checkbox" className="w-4 h-4 accent-brand-600" checked={onlyMine} onChange={e => setOnlyMine(e.target.checked)} />
-          רק המשמרות שלי
+          {t('רק המשמרות שלי')}
         </label>
-        <span className="inline-flex items-center gap-1.5 text-xs text-gray-400"><Eye size={13} /> צפייה בלבד</span>
+        <span className="inline-flex items-center gap-1.5 text-xs text-gray-400"><Eye size={13} /> {t('צפייה בלבד')}</span>
       </div>
 
       {error && <div className="card p-4 mb-4 text-sm text-red-600">{error}</div>}
@@ -129,7 +131,7 @@ export default function WorkSchedule() {
                   <div className={`text-sm font-extrabold ${d.i === todayIdx ? 'text-brand-800' : 'text-gray-800'}`}>{d.name}</div>
                   <div className="flex items-center justify-center gap-1.5 mt-0.5">
                     <span className="text-xs font-medium tabular-nums text-gray-500">{fmtDate(d.date)}</span>
-                    {d.i === todayIdx && <span className="text-[10px] font-bold text-white bg-brand-600 rounded-full px-1.5 py-px">היום</span>}
+                    {d.i === todayIdx && <span className="text-[10px] font-bold text-white bg-brand-600 rounded-full px-1.5 py-px">{t('היום')}</span>}
                   </div>
                   {noteChip(d.note)}
                 </th>
@@ -159,7 +161,7 @@ export default function WorkSchedule() {
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-sm">{d.name}</span>
                 <span className="text-xs tabular-nums text-gray-500">{fmtDate(d.date)}</span>
-                {d.i === todayIdx && <span className="text-[10px] font-bold text-white bg-brand-600 rounded-full px-1.5 py-px">היום</span>}
+                {d.i === todayIdx && <span className="text-[10px] font-bold text-white bg-brand-600 rounded-full px-1.5 py-px">{t('היום')}</span>}
               </div>
               <span className="text-[11px] font-semibold text-gray-500">{d.list.length || ''}</span>
             </div>
@@ -167,7 +169,7 @@ export default function WorkSchedule() {
               {d.note && <div className="-mt-1.5 mb-2">{noteChip(d.note)}</div>}
               {d.list.length
                 ? <div className="grid grid-cols-2 gap-2">{d.list.map(card)}</div>
-                : <div className="text-center text-gray-300 text-xs">אין משמרות</div>}
+                : <div className="text-center text-gray-300 text-xs">{t('אין משמרות')}</div>}
             </div>
           </div>
         ))}

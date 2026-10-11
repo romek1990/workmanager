@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X, ScanLine } from 'lucide-react'
 import jsQR from 'jsqr'
+import { t } from '../i18n'
 
 // Full-screen camera scanner for the store's clock-in / clock-out QR codes.
 // Uses the browser's BarcodeDetector when available, otherwise jsQR (works on iPhone too).
@@ -26,7 +27,7 @@ export default function QrScanner({ open, onClose, onResult }) {
     const handle = text => {
       const m = String(text || '').match(/\/clock\?a=(in|out)/)
       if (m) { stop(); onResult(m[1]); return true }
-      setHint('זה לא קוד הכניסה/יציאה של החנות')
+      setHint(t('זה לא קוד הכניסה/יציאה של החנות'))
       return false
     }
 
@@ -71,8 +72,8 @@ export default function QrScanner({ open, onClose, onResult }) {
         tick()
       } catch (e) {
         setError(e?.name === 'NotAllowedError'
-          ? 'כדי לסרוק צריך לאשר גישה למצלמה. אפשר את המצלמה לאתר בהגדרות הדפדפן ונסה שוב.'
-          : 'לא הצלחנו לפתוח את המצלמה. אפשר גם לסרוק עם אפליקציית המצלמה של הטלפון.')
+          ? t('כדי לסרוק צריך לאשר גישה למצלמה. אפשר את המצלמה לאתר בהגדרות הדפדפן ונסה שוב.')
+          : t('לא הצלחנו לפתוח את המצלמה. אפשר גם לסרוק עם אפליקציית המצלמה של הטלפון.'))
       }
     })()
 
@@ -83,8 +84,8 @@ export default function QrScanner({ open, onClose, onResult }) {
   return createPortal(
     <div className="fixed inset-0 z-[100] bg-black flex flex-col">
       <div className="flex items-center justify-between p-4 text-white">
-        <span className="font-bold flex items-center gap-2"><ScanLine size={18} />סריקת קוד QR</span>
-        <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center" aria-label="סגור"><X size={20} /></button>
+        <span className="font-bold flex items-center gap-2"><ScanLine size={18} />{t('סריקת קוד QR')}</span>
+        <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center" aria-label={t('סגור')}><X size={20} /></button>
       </div>
       <div className="relative flex-1 flex items-center justify-center overflow-hidden">
         <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" muted playsInline />
@@ -95,7 +96,7 @@ export default function QrScanner({ open, onClose, onResult }) {
         {error && <p className="relative mx-6 text-center text-white bg-black/60 rounded-2xl p-5 text-sm leading-relaxed">{error}</p>}
       </div>
       <p className="p-5 text-center text-white/90 text-sm">
-        {hint || 'כוון את המצלמה לקוד הכניסה או היציאה שתלוי בחנות'}
+        {hint || t('כוון את המצלמה לקוד הכניסה או היציאה שתלוי בחנות')}
       </p>
     </div>,
     document.body

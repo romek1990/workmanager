@@ -90,7 +90,7 @@ serve(async (req) => {
 
     const { data: target, error: targetErr } = await admin
       .from("profiles")
-      .select("id, full_name, email, phone, role")
+      .select("id, full_name, email, phone, role, language")
       .eq("id", employeeId)
       .single();
     if (targetErr || !target) return json({ error: "עובד לא נמצא" }, 404);
@@ -114,10 +114,18 @@ serve(async (req) => {
     const phone = normalizePhone(target.phone);
     if (phone) {
       const firstName = (target.full_name || "").split(" ")[0] || "";
-      const waText =
-        `היי ${firstName} 👋\n` +
-        `נשלח אליך עכשיו מייל לאיפוס הסיסמה במערכת *WorkManager*.\n` +
-        `יש לפתוח אותו וללחוץ על "הגדרת סיסמה" כדי להתחבר מחדש. 🔐`;
+      const l = target.role === "admin" ? "he" : target.language;
+      const waText = l === "ru"
+        ? `Привет, ${firstName} 👋\n` +
+          `Мы только что отправили вам письмо для сброса пароля в системе *WorkManager*.\n` +
+          `Откройте его и нажмите «Установить пароль», чтобы снова войти. 🔐`
+        : l === "en"
+        ? `Hi ${firstName} 👋\n` +
+          `We just sent you an email to reset your *WorkManager* password.\n` +
+          `Open it and tap "Set password" to sign in again. 🔐`
+        : `היי ${firstName} 👋\n` +
+          `נשלח אליך עכשיו מייל לאיפוס הסיסמה במערכת *WorkManager*.\n` +
+          `יש לפתוח אותו וללחוץ על "הגדרת סיסמה" כדי להתחבר מחדש. 🔐`;
       try {
         await sendWhatsApp(phone, waText);
         whatsapp = { sent: true };

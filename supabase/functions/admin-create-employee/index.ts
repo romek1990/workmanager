@@ -27,7 +27,35 @@ function normalizePhone(raw?: string | null): string | null {
 // First-login invite: a "set password" link by WhatsApp (reliable), falling back to email.
 // The Supabase default mailer often lands in spam, so WhatsApp is the primary channel.
 // deno-lint-ignore no-explicit-any
-async function sendInvite(admin: any, person: { id: string; full_name: string; email: string; phone?: string | null }, sender: { id: string; full_name: string }, isManager: boolean) {
+// first-login invite + welcome note in the employee's language (profiles.language: he | ru | en)
+const INVITE = {
+  he: (first: string, url: string, email: string) =>
+    `היי ${first} 👋\n` +
+    `נפתח לך משתמש במערכת *WorkManager* של פלורנטין מרקט.\n\n` +
+    `להגדרת סיסמה ולכניסה ראשונה לחץ כאן:\n${url}\n\n` +
+    `שם המשתמש שלך: ${email}\n` +
+    `⏳ הקישור בתוקף לשעה. אם פג תוקפו — בקש מהמנהל לשלוח שוב.`,
+  ru: (first: string, url: string, email: string) =>
+    `Привет, ${first} 👋\n` +
+    `Для вас создан пользователь в системе *WorkManager* компании Florentin Market.\n\n` +
+    `Чтобы задать пароль и войти в первый раз, нажмите здесь:\n${url}\n\n` +
+    `Ваш логин: ${email}\n` +
+    `⏳ Ссылка действует один час. Если срок истёк — попросите менеджера отправить её снова.`,
+  en: (first: string, url: string, email: string) =>
+    `Hi ${first} 👋\n` +
+    `A user was created for you in Florentin Market's *WorkManager* system.\n\n` +
+    `To set your password and sign in for the first time, tap here:\n${url}\n\n` +
+    `Your username: ${email}\n` +
+    `⏳ The link is valid for one hour. If it expires, ask your manager to send it again.`,
+};
+const WELCOME = {
+  he: (y: number) => ({ title: "📋 יש למלא טופס 101", message: `ברוך הבא! יש למלא טופס 101 לשנת ${y} בהקדם` }),
+  ru: (y: number) => ({ title: "📋 Заполните форму 101", message: `Добро пожаловать! Пожалуйста, заполните форму 101 за ${y} год как можно скорее` }),
+  en: (y: number) => ({ title: "📋 Please fill in Form 101", message: `Welcome! Please fill in Form 101 for ${y} as soon as possible` }),
+};
+const langOf = (l?: string | null): "he" | "ru" | "en" => (l === "ru" || l === "en" ? l : "he");
+
+async function sendInvite(admin: any, person: { id: string; full_name: string; email: string; phone?: string | null; language?: string | null }, sender: { id: string; full_name: string }, isManager: boolean) {
   const redirectTo = "https://workmanager-florentin.com/set-password";
   const phone = normalizePhone(person.phone);
   if (phone && GREEN_ID && GREEN_TOKEN) {
@@ -38,12 +66,13 @@ async function sendInvite(admin: any, person: { id: string; full_name: string; e
     const url = hashed ? `${redirectTo}?t=${hashed}` : null;
     if (!linkErr && url) {
       const first = (person.full_name || "").split(" ")[0] || "";
-      const text =
-        `היי ${first} 👋\n` +
-        `נפתח לך משתמש ${isManager ? "מנהל " : ""}במערכת *WorkManager* של פלורנטין מרקט.\n\n` +
-        `להגדרת סיסמה ולכניסה ראשונה לחץ כאן:\n${url}\n\n` +
-        `שם המשתמש שלך: ${person.email}\n` +
-        `⏳ הקישור בתוקף לשעה. אם פג תוקפו — בקש מהמנהל לשלוח שוב.`;
+      const text = isManager
+        ? `היי ${first} 👋\n` +
+          `נפתח לך משתמש מנהל במערכת *WorkManager* של פלורנטין מרקט.\n\n` +
+          `להגדרת סיסמה ולכניסה ראשונה לחץ כאן:\n${url}\n\n` +
+          `שם המשתמש שלך: ${person.email}\n` +
+          `⏳ הקישור בתוקף לשעה. אם פג תוקפו — בקש מהמנהל לשלוח שוב.`
+        : INVITE[langOf(person.language)](first, url, person.email);
       try {
         const host = GREEN_ID.slice(0, 4);
         const res = await fetch(`https://${host}.api.greenapi.com/waInstance${GREEN_ID}/sendMessage/${GREEN_TOKEN}`, {
@@ -194,12 +223,11 @@ serve(async (req) => {
 
     await adminClient.from("notifications").insert({
       user_id: newId,
-      title: "📋 יש למלא טופס 101",
-      message: `ברוך הבא! יש למלא טופס 101 לשנת ${new Date().getFullYear()} בהקדם`,
+      ...WELCOME[langOf(emp.language)](new Date().getFullYear()),
       type: "warning",
     });
 
-    const invite = await sendInvite(adminClient, { id: newId, full_name: emp.full_name, email: emp.email, phone: emp.phone }, { id: callerProfile?.id, full_name: callerProfile?.full_name }, false);
+    const invite = await sendInvite(adminClient, { id: newId, full_name: emp.full_name, email: emp.email, phone: emp.phone, language: emp.language }, { id: callerProfile?.id, full_name: callerProfile?.full_name }, false);
 
     return new Response(JSON.stringify({ profile: profileRow, invite: invite.channel }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

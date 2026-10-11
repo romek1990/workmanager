@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext'
 import { Avatar, StatusBadge, Modal, AlertModal, PageHeader, StatChip, SearchInput, ReadOnlyBanner, ManagerBadge } from '../components/ui'
 import { EMP_TYPE_LABELS } from '../data/mockData'
 import { todayISO } from '../utils/helpers'
+import { LANGS } from '../i18n'
 
 const defaultForm = {
   full_name: '', email: '', phone: '', address: '', contact_name: '', contact_phone: '',
@@ -179,6 +180,12 @@ export default function Employees() {
           <div><label className="form-label">כתובת</label><input className="form-control" value={form.address} onChange={e => set('address', e.target.value)} placeholder="תל אביב" /></div>
           <div><label className="form-label">איש קשר נוסף — שם</label><input className="form-control" value={form.contact_name} onChange={e => set('contact_name', e.target.value)} placeholder="לדוגמה: אמא / בן זוג" /></div>
           <div><label className="form-label">איש קשר נוסף — טלפון</label><input className="form-control" type="tel" value={form.contact_phone} onChange={e => set('contact_phone', e.target.value)} placeholder="050-0000000" /></div>
+          <div>
+            <label className="form-label">שפת המערכת לעובד</label>
+            <select className="form-control" value={form.language || 'he'} onChange={e => set('language', e.target.value)}>
+              {LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+            </select>
+          </div>
           <div>
             <label className="form-label">סוג העסקה</label>
             <select className="form-control" value={form.employee_type} onChange={e => set('employee_type', e.target.value)}>

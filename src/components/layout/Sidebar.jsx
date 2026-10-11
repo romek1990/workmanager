@@ -5,7 +5,9 @@ import { useApp } from '../../context/AppContext'
 import { Avatar } from '../ui'
 import SystemLockButton from '../SystemLockButton'
 import NotificationBell from '../NotificationBell'
+import LanguagePicker from '../LanguagePicker'
 import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, CalendarDays, Menu, X, Shield, FileText, CalendarRange, MessageCircle, UserCog, QrCode, Timer, Receipt, HandCoins } from 'lucide-react'
+import { t } from '../../i18n'
 
 const baseAdminNav = [
   { to: '/', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
@@ -56,10 +58,10 @@ export default function Sidebar() {
       <div className="px-5 pt-7 pb-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="פלורנטין מרקט" className="w-10 h-10 rounded-xl shrink-0 shadow-[0_6px_16px_rgba(15,157,88,0.35)]" />
+            <img src="/logo.png" alt={t('פלורנטין מרקט')} className="w-10 h-10 rounded-xl shrink-0 shadow-[0_6px_16px_rgba(15,157,88,0.35)]" />
             <div className="leading-tight">
               <span className="block font-bold text-[15px]" style={{ color: 'var(--text)' }}>WorkManager</span>
-              <span className="block text-[11px]" style={{ color: 'var(--text-dim)' }}>פלורנטין מרקט</span>
+              <span className="block text-[11px]" style={{ color: 'var(--text-dim)' }}>{t('פלורנטין מרקט')}</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -73,7 +75,7 @@ export default function Sidebar() {
 
       <nav className="flex-1 px-4 py-1 overflow-y-auto space-y-1">
         <p className="text-[11px] font-semibold px-3 mb-1.5" style={{ color: 'var(--text-dim)' }}>
-          {currentUser?.role === 'admin' ? 'ניהול' : 'האזור שלי'}
+          {currentUser?.role === 'admin' ? t('ניהול') : t('האזור שלי')}
         </p>
         {nav.map(({ to, label, icon: Icon, end }) => (
           <NavLink
@@ -89,7 +91,7 @@ export default function Sidebar() {
             }
           >
             <Icon size={17} />
-            {label}
+            {t(label)}
           </NavLink>
         ))}
       </nav>
@@ -99,16 +101,17 @@ export default function Sidebar() {
           <Avatar name={currentUser?.name} size="sm" />
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-bold truncate">{currentUser?.name}</p>
-            <p className="text-xs text-gray-400">{currentUser?.role === 'admin' ? 'מנהל מערכת' : 'עובד'}</p>
+            <p className="text-xs text-gray-400">{currentUser?.role === 'admin' ? t('מנהל מערכת') : t('עובד')}</p>
           </div>
         </div>
+        {currentUser?.role !== 'admin' && <LanguagePicker className="mb-2.5" />}
         <SystemLockButton />
         <button
           onClick={handleLogout}
           className="w-full text-xs text-center py-1.5 rounded-xl border border-white bg-white/60 text-gray-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 flex items-center justify-center gap-1.5 transition-colors"
         >
           <LogOut size={13} />
-          יציאה מהמערכת
+          {t('יציאה מהמערכת')}
         </button>
       </div>
     </>
@@ -118,13 +121,13 @@ export default function Sidebar() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className={`md:hidden fixed top-4 right-4 z-50 glass rounded-xl p-2 shadow-glass ${open ? "hidden" : ""}`}
+        className={`md:hidden fixed top-4 start-4 z-50 glass rounded-xl p-2 shadow-glass ${open ? "hidden" : ""}`}
       >
         <Menu size={20} className="text-gray-600" />
       </button>
 
       {!open && (
-        <div className="md:hidden fixed top-4 left-4 z-50 glass rounded-xl shadow-glass">
+        <div className="md:hidden fixed top-4 end-4 z-50 glass rounded-xl shadow-glass">
           <NotificationBell align="left" />
         </div>
       )}
@@ -134,10 +137,10 @@ export default function Sidebar() {
       )}
 
       <aside className={`
-        fixed top-0 right-0 h-screen flex flex-col z-50 w-60
-        bg-white/85 md:bg-white/55 backdrop-blur-2xl backdrop-saturate-150 border-l border-white/70
+        fixed top-0 start-0 h-screen flex flex-col z-50 w-60
+        bg-white/85 md:bg-white/55 backdrop-blur-2xl backdrop-saturate-150 border-e border-white/70
         transition-transform duration-300
-        ${open ? 'translate-x-0' : 'translate-x-full'}
+        ${open ? 'translate-x-0' : 'ltr:-translate-x-full rtl:translate-x-full'}
         md:translate-x-0
       `}>
         {sidebarContent}

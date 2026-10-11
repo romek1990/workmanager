@@ -1,4 +1,5 @@
 import { SHIFT_TYPE_LABELS, STATUS_LABELS } from '../data/mockData'
+import { t } from '../i18n'
 
 // ── Pay rules ──────────────────────────────────────────────────────
 // Hourly pay = hours × rate. Employees whose rate is BELOW the threshold (set by the super admin,
@@ -208,5 +209,5 @@ export function monthEstimate({ shifts = [], bonuses = [], emp, ym }) {
 export function shiftOverlapMessage(e) {
   const m = String(e?.message || '').match(/shift overlap:(\S+) (\S+)/)
   if (!m) return null
-  return `יש כבר משמרת שחופפת לשעות האלה (${m[1]} · ${m[2].replace('-', '–')}). אי אפשר לרשום שתי משמרות באותן שעות.`
+  return t('יש כבר משמרת שחופפת לשעות האלה ({date} · {time}). אי אפשר לרשום שתי משמרות באותן שעות.', { date: m[1], time: m[2].replace('-', '–') })
 }

@@ -25,6 +25,7 @@ import ClockScan, { PENDING_CLOCK_KEY } from './pages/ClockScan'
 import QrCodes from './pages/QrCodes'
 import Invoices from './pages/Invoices'
 import { MeshBackground } from './components/ui'
+import { t, useLang } from './i18n'
 
 
 
@@ -44,13 +45,14 @@ function HomeRedirect({ role, tracksHours }) {
 
 function AppRoutes() {
   const { currentUser, loading } = useApp()
+  useLang() // re-render the whole app when the language changes
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <MeshBackground />
         <div className="text-center relative z-10">
           <div className="w-10 h-10 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-sm text-gray-400">טוען...</p>
+          <p className="text-sm text-gray-400">{t('טוען...')}</p>
         </div>
       </div>
     )

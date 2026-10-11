@@ -3,6 +3,7 @@ import { HandCoins, Plus, ChevronRight, ChevronLeft } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { Modal } from './ui'
 import { fmtDate, fmtMoney, todayISO } from '../utils/helpers'
+import { t } from '../i18n'
 
 export const ADVANCE_STATUS = {
   pending: { label: 'ממתינה לאישור', cls: 'bg-amber-100 text-amber-800' },
@@ -39,7 +40,7 @@ export default function AdvancesCard({ className = '', ym }) {
   const pendingCount = monthAdv.filter(a => a.status === 'pending').length
 
   const [yy, mm] = monthKey.split('-')
-  const monthLabel = `${MONTH_NAMES[Number(mm) - 1]} ${yy}`
+  const monthLabel = `${t(MONTH_NAMES[Number(mm) - 1])} ${yy}`
 
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ date: todayISO(), amount: '', note: '' })
@@ -49,13 +50,13 @@ export default function AdvancesCard({ className = '', ym }) {
 
   async function submit() {
     const amount = Number(form.amount)
-    if (!form.date || !amount || amount <= 0) { setErr('יש להזין תאריך וסכום'); return }
+    if (!form.date || !amount || amount <= 0) { setErr(t('יש להזין תאריך וסכום')); return }
     setBusy(true); setErr('')
     try {
       await requestAdvance({ ...form, amount })
       setDone(true)
     } catch {
-      setErr('שליחת הבקשה נכשלה, נסה שוב')
+      setErr(t('שליחת הבקשה נכשלה, נסה שוב'))
     }
     setBusy(false)
   }
@@ -67,21 +68,21 @@ export default function AdvancesCard({ className = '', ym }) {
   return (
     <div className={`card p-5 ${className}`}>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-bold flex items-center gap-2"><HandCoins size={18} className="text-brand-600" />מפרעות</h2>
-        <button className="btn btn-primary text-xs py-1.5 px-3" onClick={openForm}><Plus size={14} />בקשת מפרעה</button>
+        <h2 className="font-bold flex items-center gap-2"><HandCoins size={18} className="text-brand-600" />{t('מפרעות')}</h2>
+        <button className="btn btn-primary text-xs py-1.5 px-3" onClick={openForm}><Plus size={14} />{t('בקשת מפרעה')}</button>
       </div>
 
       {/* month navigator (only when the page doesn't control the month) */}
       {!ym && (
         <div className="flex items-center justify-center gap-3 mb-3">
-          <button className="btn p-1.5" onClick={() => setOwnYm(m => shiftMonth(m, -1))} aria-label="חודש קודם"><ChevronRight size={16} /></button>
+          <button className="btn p-1.5" onClick={() => setOwnYm(m => shiftMonth(m, -1))} aria-label={t('חודש קודם')}><ChevronRight size={16} className="dir-icon" /></button>
           <span className="text-sm font-bold min-w-[110px] text-center">{monthLabel}</span>
-          <button className="btn p-1.5" onClick={() => setOwnYm(m => shiftMonth(m, 1))} disabled={ownYm >= currentYm} aria-label="חודש הבא"><ChevronLeft size={16} /></button>
+          <button className="btn p-1.5" onClick={() => setOwnYm(m => shiftMonth(m, 1))} disabled={ownYm >= currentYm} aria-label={t('חודש הבא')}><ChevronLeft size={16} className="dir-icon" /></button>
         </div>
       )}
 
       {monthAdv.length === 0 ? (
-        <p className="text-sm py-2" style={{ color: 'var(--text-dim)' }}>אין מפרעות בחודש {monthLabel}.</p>
+        <p className="text-sm py-2" style={{ color: 'var(--text-dim)' }}>{t('אין מפרעות בחודש')} {monthLabel}.</p>
       ) : (
         <div className="divide-y divide-black/5">
           {monthAdv.map(a => (
@@ -92,7 +93,7 @@ export default function AdvancesCard({ className = '', ym }) {
                   <span dir="ltr">{fmtDate(a.date)}</span>{a.note ? ` · ${a.note}` : ''}
                 </span>
               </div>
-              <span className={`shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ${ADVANCE_STATUS[a.status]?.cls}`}>{ADVANCE_STATUS[a.status]?.label}</span>
+              <span className={`shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ${ADVANCE_STATUS[a.status]?.cls}`}>{t(ADVANCE_STATUS[a.status]?.label || '')}</span>
             </div>
           ))}
         </div>
@@ -101,36 +102,36 @@ export default function AdvancesCard({ className = '', ym }) {
       {/* month total */}
       <div className="mt-3 pt-3 border-t-2 border-black/10">
         <div className="flex items-center justify-between">
-          <span className="font-bold text-sm">סה״כ מפרעות — {monthLabel}</span>
+          <span className="font-bold text-sm">{t('סה״כ מפרעות —')} {monthLabel}</span>
           <span className="font-bold tabular-nums text-lg" dir="ltr">{fmtMoney(approvedTotal)}</span>
         </div>
         <p className="text-xs mt-0.5" style={{ color: 'var(--text-dim)' }}>
-          {approvedCount === 0 ? 'אין מפרעות מאושרות' : `${approvedCount} מפרעות מאושרות`}
-          {pendingCount > 0 && ` · עוד ${fmtMoney(pendingTotal)} ממתינות לאישור (לא כלול בסה״כ)`}
+          {approvedCount === 0 ? t('אין מפרעות מאושרות') : t('{approvedCount} מפרעות מאושרות', { approvedCount })}
+          {pendingCount > 0 && t(' · עוד {v} ממתינות לאישור (לא כלול בסה״כ)', { v: fmtMoney(pendingTotal) })}
         </p>
       </div>
 
-      <Modal open={open} onClose={() => !busy && setOpen(false)} title="בקשת מפרעה"
+      <Modal open={open} onClose={() => !busy && setOpen(false)} title={t('בקשת מפרעה')}
         footer={done
-          ? <button className="btn btn-primary" onClick={() => setOpen(false)}>סגור</button>
+          ? <button className="btn btn-primary" onClick={() => setOpen(false)}>{t('סגור')}</button>
           : <>
-              <button className="btn" onClick={() => setOpen(false)} disabled={busy}>ביטול</button>
-              <button className="btn btn-primary" onClick={submit} disabled={busy}>{busy ? 'שולח...' : 'שלח לאישור'}</button>
+              <button className="btn" onClick={() => setOpen(false)} disabled={busy}>{t('ביטול')}</button>
+              <button className="btn btn-primary" onClick={submit} disabled={busy}>{busy ? t('שולח...') : t('שלח לאישור')}</button>
             </>}>
         {done ? (
-          <p className="text-sm">הבקשה נשלחה למנהל ✅<br />תקבל עדכון כאן אחרי שהמנהל יאשר.</p>
+          <p className="text-sm">{t('הבקשה נשלחה למנהל ✅')}<br />{t('תקבל עדכון כאן אחרי שהמנהל יאשר.')}</p>
         ) : (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="form-label">תאריך קבלת המפרעה</label>
+              <label className="form-label">{t('תאריך קבלת המפרעה')}</label>
               <input type="date" className="form-control" max={todayISO()} value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
             </div>
             <div>
-              <label className="form-label">סכום (₪)</label>
+              <label className="form-label">{t('סכום (₪)')}</label>
               <input type="number" min="1" className="form-control" dir="ltr" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
             </div>
             <div className="col-span-2">
-              <label className="form-label">הערה (לא חובה)</label>
+              <label className="form-label">{t('הערה (לא חובה)')}</label>
               <input className="form-control" value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))} />
             </div>
             {err && <p className="col-span-2 text-sm text-red-600">{err}</p>}

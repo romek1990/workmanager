@@ -4,6 +4,7 @@ import { runWhatsAppJob, summarize } from '../lib/whatsappAuto'
 import emailjs from '@emailjs/browser'
 import { useApp } from '../context/AppContext'
 import { Modal, AlertModal, PageHeader, StatChip, Avatar } from '../components/ui'
+import { tFor } from '../i18n'
 
 const EMAILJS_SERVICE = 'service_atutffw'
 const EMAILJS_TEMPLATE = 'template_sx0nowk'
@@ -198,9 +199,10 @@ export default function WeeklySchedule() {
     </table>`
   }
 
-  function buildMyShiftsText(employeeId) {
+  // in the employee's own language (he/ru/en) — sent to them by WhatsApp / email
+  function buildMyShiftsText(employeeId, lang = 'he') {
     const myEntries = weekEntries.filter(e => e.employee_id === employeeId)
-    if (myEntries.length === 0) return 'אין לך משמרות השבוע'
+    if (myEntries.length === 0) return tFor(lang, 'אין לך משמרות השבוע')
     let text = ''
     myEntries
       .sort((a, b) => a.day_of_week - b.day_of_week)
@@ -208,7 +210,7 @@ export default function WeeklySchedule() {
         const night = isMidnightCross(entry.start_time, entry.end_time)
         const date = addDays(weekStart, entry.day_of_week)
         const note = dayNotes.find(n => n.date === date)
-        text += `${DAYS[entry.day_of_week]} ${formatDate(date)}${note ? ` — ${note.note}` : ''}:\n`
+        text += `${tFor(lang, DAYS[entry.day_of_week])} ${formatDate(date)}${note ? ` — ${note.note}` : ''}:\n`
         text += `  ${entry.start_time.slice(0,5)}–${entry.end_time.slice(0,5)}${night ? ' 🌙' : ''} (${calcHours(entry.start_time, entry.end_time)})`
         if (entry.notes) text += ` — ${entry.notes}`
         text += '\n\n'
@@ -234,7 +236,7 @@ export default function WeeklySchedule() {
           // every active employee gets a message: their own shifts, or "not scheduled this week"
           const items = activeEmps.map(e => ({
             employeeId: e.id,
-            shiftsText: weekEntries.some(x => x.employee_id === e.id) ? buildMyShiftsText(e.id).trim() : '',
+            shiftsText: weekEntries.some(x => x.employee_id === e.id) ? buildMyShiftsText(e.id, e.language).trim() : '',
           }))
           lines.push(summarize(await runWhatsAppJob('schedule', { weekLabel: weekDates, items })))
         } catch (e) {
@@ -259,7 +261,7 @@ export default function WeeklySchedule() {
       try {
         await emailjs.send(
           EMAILJS_SERVICE, EMAILJS_TEMPLATE,
-          { to_email: emp.email, employee_name: emp.full_name, week_dates: weekDates, my_shifts: buildMyShiftsText(empId), all_shifts: allShiftsText },
+          { to_email: emp.email, employee_name: emp.full_name, week_dates: weekDates, my_shifts: buildMyShiftsText(empId, emp.language), all_shifts: allShiftsText },
           { publicKey: EMAILJS_PUBLIC_KEY }
         )
         sent++

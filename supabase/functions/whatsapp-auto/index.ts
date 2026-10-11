@@ -77,7 +77,45 @@ async function sendWhatsApp(phone: string, message: string) {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const firstName = (name?: string | null) => (name || "").trim().split(/\s+/)[0] || "";
 
-type Recipient = { id: string; full_name: string | null; phone: string | null };
+type Recipient = { id: string; full_name: string | null; phone: string | null; language?: string | null };
+
+// ── employee-facing texts in the employee's language (profiles.language: he | ru | en) ──
+type Lang = "he" | "ru" | "en";
+const lang = (l?: string | null): Lang => (l === "ru" || l === "en" ? l : "he");
+const MSG = {
+  schedule: {
+    he: (n: string, w: string, mine: string) => `היי ${n}, הסידור לשבוע ${w} פורסם 📅\n\nהמשמרות שלך:\n${mine}\n\nלצפייה במערכת: ${SITE}`,
+    ru: (n: string, w: string, mine: string) => `Привет, ${n}! Опубликован график на неделю ${w} 📅\n\nВаши смены:\n${mine}\n\nПосмотреть в системе: ${SITE}`,
+    en: (n: string, w: string, mine: string) => `Hi ${n}, the schedule for the week of ${w} is out 📅\n\nYour shifts:\n${mine}\n\nView it in the system: ${SITE}`,
+  },
+  scheduleNone: {
+    he: (n: string, w: string) => `היי ${n}, הסידור לשבוע ${w} פורסם 📅\nהשבוע לא שובצת למשמרות.\n\nלצפייה במערכת: ${SITE}`,
+    ru: (n: string, w: string) => `Привет, ${n}! Опубликован график на неделю ${w} 📅\nНа этой неделе у вас нет смен.\n\nПосмотреть в системе: ${SITE}`,
+    en: (n: string, w: string) => `Hi ${n}, the schedule for the week of ${w} is out 📅\nYou have no shifts this week.\n\nView it in the system: ${SITE}`,
+  },
+  form101: {
+    he: (n: string, y: number) => `היי ${n}, עדיין לא מילאת טופס 101 לשנת ${y} 📋\nזה לוקח כמה דקות ואפשר למלא מהטלפון:\n${SITE}/form-101`,
+    ru: (n: string, y: number) => `Привет, ${n}! Вы ещё не заполнили форму 101 за ${y} год 📋\nЭто займёт несколько минут, заполнить можно с телефона:\n${SITE}/form-101`,
+    en: (n: string, y: number) => `Hi ${n}, you haven't filled in Form 101 for ${y} yet 📋\nIt takes a few minutes and you can do it from your phone:\n${SITE}/form-101`,
+  },
+  openShift: {
+    he: (n: string, start: string, dm: string) => `היי ${n}, המשמרת שלך פתוחה מאז ${start} (${dm}) ⏰\nאם כבר סיימת — היכנס/י למערכת ולחץ/י "סיים משמרת":\n${SITE}`,
+    ru: (n: string, start: string, dm: string) => `Привет, ${n}! Ваша смена открыта с ${start} (${dm}) ⏰\nЕсли вы уже закончили — зайдите в систему и нажмите «Закончить смену»:\n${SITE}`,
+    en: (n: string, start: string, dm: string) => `Hi ${n}, your shift has been open since ${start} (${dm}) ⏰\nIf you've already finished, sign in and tap "End shift":\n${SITE}`,
+  },
+  reminder: {
+    he: (n: string, start: string, end: string, notes: string) => `היי ${n}, תזכורת: המשמרת שלך מתחילה היום ב-${start} (עד ${end}) ⏰${notes ? `\n${notes}` : ""}\nאל תשכח/י ללחוץ "התחל משמרת" כשמגיעים:\n${SITE}`,
+    ru: (n: string, start: string, end: string, notes: string) => `Привет, ${n}! Напоминание: ваша смена сегодня начинается в ${start} (до ${end}) ⏰${notes ? `\n${notes}` : ""}\nНе забудьте нажать «Начать смену», когда придёте:\n${SITE}`,
+    en: (n: string, start: string, end: string, notes: string) => `Hi ${n}, reminder: your shift starts today at ${start} (until ${end}) ⏰${notes ? `\n${notes}` : ""}\nDon't forget to tap "Start shift" when you arrive:\n${SITE}`,
+  },
+};
+
+// language of each user id (for rows that don't carry it)
+async function languagesOf(admin: any, ids: string[]): Promise<Map<string, Lang>> {
+  if (!ids.length) return new Map();
+  const { data } = await admin.from("profiles").select("id, language").in("id", ids);
+  return new Map((data || []).map((p: any) => [p.id, lang(p.language)]));
+}
 type Outgoing = { r: Recipient; text: string };
 
 // sends sequentially, logs every attempt, returns a summary
@@ -120,7 +158,7 @@ async function deliver(admin: any, kind: string, sender: { id: string | null; na
 async function activeEmployees(admin: any): Promise<Recipient[]> {
   const { data, error } = await admin
     .from("profiles")
-    .select("id, full_name, phone")
+    .select("id, full_name, phone, language")
     .eq("status", "active")
     .neq("role", "admin");
   if (error) throw error;
@@ -136,9 +174,10 @@ async function jobSchedule(admin: any, sender: { id: string | null; name: string
   const emps = await activeEmployees(admin);
   const batch: Outgoing[] = emps.map((r) => {
     const mine = byEmp.get(r.id)?.trim();
+    const l = lang(r.language);
     const text = mine
-      ? `היי ${firstName(r.full_name)}, הסידור לשבוע ${weekLabel} פורסם 📅\n\nהמשמרות שלך:\n${mine}\n\nלצפייה במערכת: ${SITE}`
-      : `היי ${firstName(r.full_name)}, הסידור לשבוע ${weekLabel} פורסם 📅\nהשבוע לא שובצת למשמרות.\n\nלצפייה במערכת: ${SITE}`;
+      ? MSG.schedule[l](firstName(r.full_name), weekLabel, mine)
+      : MSG.scheduleNone[l](firstName(r.full_name), weekLabel);
     return { r, text };
   });
   return deliver(admin, "schedule", sender, batch, true);
@@ -164,7 +203,7 @@ async function jobForm101(admin: any, sender: { id: string | null; name: string 
 
   const batch = missing.map((r) => ({
     r,
-    text: `היי ${firstName(r.full_name)}, עדיין לא מילאת טופס 101 לשנת ${year} 📋\nזה לוקח כמה דקות ואפשר למלא מהטלפון:\n${SITE}/form-101`,
+    text: MSG.form101[lang(r.language)](firstName(r.full_name), year),
   }));
   const out = await deliver(admin, "form101", sender, batch, false);
   return { ...out, missing: missing.length };
@@ -174,7 +213,7 @@ async function jobOpenShifts(admin: any, sender: { id: string | null; name: stri
   const cutoff = new Date(Date.now() - OPEN_SHIFT_HOURS * 3600000).toISOString();
   const { data: open, error } = await admin
     .from("shifts")
-    .select("id, employee_id, employee_name, date, start_time, clock_in_at, profiles:employee_id(id, full_name, phone)")
+    .select("id, employee_id, employee_name, date, start_time, clock_in_at, profiles:employee_id(id, full_name, phone, language)")
     .eq("status", "active").is("open_alert_sent_at", null).lt("clock_in_at", cutoff);
   if (error) throw error;
   if (!open?.length) return { sent: 0, failed: 0, skipped: 0, results: [] };
@@ -184,7 +223,7 @@ async function jobOpenShifts(admin: any, sender: { id: string | null; name: stri
     const [y, m, d] = String(s.date).split("-");
     return {
       r,
-      text: `היי ${firstName(r.full_name)}, המשמרת שלך פתוחה מאז ${s.start_time} (${d}.${m}) ⏰\nאם כבר סיימת — היכנס/י למערכת ולחץ/י "סיים משמרת":\n${SITE}`,
+      text: MSG.openShift[lang(r.language)](firstName(r.full_name), s.start_time, `${d}.${m}`),
     };
   });
   const out = await deliver(admin, "open_shift", sender, batch, false);
@@ -257,12 +296,13 @@ async function jobShiftReminders(admin: any, sender: { id: string | null; name: 
   // mark first so an overlapping cron run can't double-send
   await admin.from("weekly_schedule").update({ reminder_sent_at: new Date().toISOString() }).in("id", due.map((d: any) => d.id));
 
+  const langs = await languagesOf(admin, due.map((d: any) => d.employee_id));
   const batch: Outgoing[] = due.map((d: any) => {
     const start = String(d.start_time).slice(0, 5);
     const end = String(d.end_time).slice(0, 5);
     return {
       r: { id: d.employee_id, full_name: d.full_name, phone: d.phone },
-      text: `היי ${firstName(d.full_name)}, תזכורת: המשמרת שלך מתחילה היום ב-${start} (עד ${end}) ⏰${d.notes ? `\n${d.notes}` : ""}\nאל תשכח/י ללחוץ "התחל משמרת" כשמגיעים:\n${SITE}`,
+      text: MSG.reminder[langs.get(d.employee_id) || "he"](firstName(d.full_name), start, end, d.notes || ""),
     };
   });
   return deliver(admin, "shift_reminder", sender, batch, false);

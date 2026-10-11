@@ -7,6 +7,7 @@ import PayEstimate from '../components/PayEstimate'
 import AdvancesCard from '../components/AdvancesCard'
 import { ShiftTypeBadge, StatusBadge, StatCard, CardSection, Table, AlertModal, Modal } from '../components/ui'
 import { calcShiftPay, fmtMoney, calcHours, todayISO, fmtHours, hoursFromMinutes, minutesBetween, localISODate, monthEstimate, shiftOverlapMessage } from '../utils/helpers'
+import { t, getLocale } from '../i18n'
 
 const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
 
@@ -46,7 +47,7 @@ function calcHoursStr(start, end) {
   if (mins <= 0) mins += 24 * 60
   const h = Math.floor(mins / 60)
   const m = mins % 60
-  return m === 0 ? `${h}ש'` : `${h}ש' ${m}ד'`
+  return m === 0 ? t('{h}ש\'', { h }) : t('{h}ש\' {m}ד\'', { h, m })
 }
 
 export default function UserHome() {
@@ -60,8 +61,8 @@ export default function UserHome() {
   const [manualLoading, setManualLoading] = useState(false)
 
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(t)
+    const timer = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(timer)
   }, [])
 
   const myShifts = shifts.filter(s => s.employee_email === currentUserEmail || s.employee_id === currentUser?.id)
@@ -102,13 +103,13 @@ export default function UserHome() {
     try {
       if (!active) {
         const row = await clockIn()
-        setAlert({ title: 'המשמרת התחילה', message: `נרשמה כניסה בשעה ${row.start_time}. אפשר לסגור את הדף — המשמרת נשמרת.` })
+        setAlert({ title: t('המשמרת התחילה'), message: t('נרשמה כניסה בשעה {start_time}. אפשר לסגור את הדף — המשמרת נשמרת.', { start_time: row.start_time }) })
       } else {
         const row = await clockOut()
-        setAlert({ title: 'משמרת הסתיימה', message: `${row.start_time}–${row.end_time} (${fmtHours(row.total_hours)} שעות) — ממתינה לאישור המנהל` })
+        setAlert({ title: t('משמרת הסתיימה'), message: t('{start_time}–{end_time} ({v} שעות) — ממתינה לאישור המנהל', { start_time: row.start_time, end_time: row.end_time, v: fmtHours(row.total_hours) }) })
       }
     } catch (e) {
-      setAlert({ title: 'לא נרשם', message: clockErrorMessage(e) })
+      setAlert({ title: t('לא נרשם'), message: clockErrorMessage(e) })
     } finally {
       setClockBusy(false)
     }
@@ -141,9 +142,9 @@ export default function UserHome() {
       })
       setManualModal(false)
       setManualForm(defaultManualForm)
-      setAlert({ title: 'משמרת נוספה', message: 'המשמרת נרשמה וממתינה לאישור המנהל' })
+      setAlert({ title: t('משמרת נוספה'), message: t('המשמרת נרשמה וממתינה לאישור המנהל') })
     } catch (e) {
-      setAlert({ title: 'המשמרת לא נרשמה', message: shiftOverlapMessage(e) || e.message })
+      setAlert({ title: t('המשמרת לא נרשמה'), message: shiftOverlapMessage(e) || e.message })
     }
     setManualLoading(false)
   }
@@ -159,17 +160,17 @@ export default function UserHome() {
 
   return (
     <div className="p-6 pt-14 md:pt-6">
-      <h1 className="text-lg font-medium mb-5">שלום, {emp?.full_name || currentUser?.name} 👋</h1>
+      <h1 className="text-lg font-medium mb-5">{t('שלום,')} {emp?.full_name || currentUser?.name} 👋</h1>
 
       {/* Clock card */}
       <div className="card p-8 text-center mb-5">
-        <p className="text-sm text-gray-400 mb-1">יום {DAY_NAMES[now.getDay()]}, {now.toLocaleDateString('he-IL')}</p>
+        <p className="text-sm text-gray-400 mb-1">{t('יום {day}', { day: t(DAY_NAMES[now.getDay()]) })}, {now.toLocaleDateString(getLocale())}</p>
         <div className="text-5xl font-light tracking-tight my-3 tabular-nums">
           {now.toLocaleTimeString('he-IL')}
         </div>
         {active && (
           <p className="text-sm text-brand-600 mb-3 tabular-nums">
-            ⏱ משמרת פעילה מ-{openShift.start_time}: <b>{elapsed()}</b>
+            {t('⏱ משמרת פעילה מ-')}{openShift.start_time}: <b>{elapsed()}</b>
           </p>
         )}
         <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
@@ -183,15 +184,15 @@ export default function UserHome() {
             }`}
           >
             {clockBusy
-              ? <><span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />רגע...</>
-              : active ? <><Square size={16} />סיים משמרת</> : <><Play size={16} />התחל משמרת</>}
+              ? <><span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />{t('רגע...')}</>
+              : active ? <><Square size={16} />{t('סיים משמרת')}</> : <><Play size={16} />{t('התחל משמרת')}</>}
           </button>
           <button
             onClick={() => setScanOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-3 rounded-xl font-medium text-sm border border-brand-500/30 text-brand-700 bg-brand-500/5 hover:bg-brand-500/10 transition-colors"
           >
             <ScanLine size={16} />
-            סריקת QR
+            {t('סריקת QR')}
           </button>
           {!active && (
             <button
@@ -199,25 +200,25 @@ export default function UserHome() {
               className="inline-flex items-center gap-2 px-4 py-3 rounded-xl font-medium text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
             >
               <Plus size={16} />
-              הזן משמרת ידנית
+              {t('הזן משמרת ידנית')}
             </button>
           )}
         </div>
       </div>
 
       {/* Stats */}
-      <PayEstimate est={est} title="החודש שלי — שעות ושכר" className="mb-5 animate-rise" />
+      <PayEstimate est={est} title={t('החודש שלי — שעות ושכר')} className="mb-5 animate-rise" />
       <AdvancesCard className="mb-5" />
       <div className="grid grid-cols-2 gap-3 mb-5 stagger">
-        <StatCard label="משמרות שדווחו החודש" value={monthShifts.filter(s => s.status !== 'rejected').length} sub={`${est.pendingCount} ממתינות לאישור`} icon={CalendarDays} accent="emerald" />
-        <StatCard label="משמרות שאושרו" value={est.approvedCount} sub="החודש" icon={CalendarCheck} accent="emerald" delay={80} />
+        <StatCard label={t('משמרות שדווחו החודש')} value={monthShifts.filter(s => s.status !== 'rejected').length} sub={t('{pendingCount} ממתינות לאישור', { pendingCount: est.pendingCount })} icon={CalendarDays} accent="emerald" />
+        <StatCard label={t('משמרות שאושרו')} value={est.approvedCount} sub={t('החודש')} icon={CalendarCheck} accent="emerald" delay={80} />
       </div>
 
       {/* סידור שבועי */}
       <div className="card p-4 mb-5">
         <div className="flex items-center gap-2 mb-4">
           <CalendarCheck size={18} className="text-brand-600" />
-          <h2 className="text-sm font-medium text-gray-800">הסידור שלי השבוע</h2>
+          <h2 className="text-sm font-medium text-gray-800">{t('הסידור שלי השבוע')}</h2>
           <span className="text-xs text-gray-400">
             {formatDate(weekStart)} — {formatDate(addDays(weekStart, 6))}
           </span>
@@ -225,7 +226,7 @@ export default function UserHome() {
 
         {myWeekEntries.length === 0 ? (
           <div className="text-center py-6 text-sm text-gray-400">
-            אין משמרות מתוכננות לשבוע זה
+            {t('אין משמרות מתוכננות לשבוע זה')}
           </div>
         ) : (
           <div className="grid grid-cols-7 gap-1">
@@ -251,7 +252,7 @@ export default function UserHome() {
                 >
                   {/* שם היום */}
                   <div className={`font-semibold ${isToday ? 'text-brand-700' : 'text-gray-600'}`}>
-                    {dayName}
+                    {t(dayName)}
                   </div>
                   {/* תאריך */}
                   <div className={`text-[10px] ${isToday ? 'text-brand-500' : 'text-gray-400'}`}>
@@ -261,7 +262,7 @@ export default function UserHome() {
                   {entry ? (
                     <>
                       <div className={`font-medium text-[11px] ${night ? 'text-indigo-700' : 'text-green-700'}`}>
-                        {night && <MoonStar size={9} className="inline ml-0.5" />}
+                        {night && <MoonStar size={9} className="inline ms-0.5" />}
                         {entry.start_time.slice(0, 5)}–{entry.end_time.slice(0, 5)}
                       </div>
                       <div className={`text-[10px] ${night ? 'text-indigo-500' : 'text-green-500'}`}>
@@ -275,7 +276,7 @@ export default function UserHome() {
                       )}
                     </>
                   ) : (
-                    <div className="text-[10px] text-gray-300 mt-1">חופש</div>
+                    <div className="text-[10px] text-gray-300 mt-1">{t('חופש')}</div>
                   )}
                 </div>
               )
@@ -288,8 +289,8 @@ export default function UserHome() {
         onResult={a => { setScanOpen(false); navigate(`/clock?a=${a}`) }} />
 
       {/* Recent shifts */}
-      <CardSection title="משמרות אחרונות" action={<Link to="/my-shifts" className="text-xs font-semibold text-brand-700">שינוי או מחיקה ←</Link>}>
-        <Table headers={['תאריך', 'שעות', 'סוג', 'סטטוס']} emptyMessage="אין משמרות עדיין">
+      <CardSection title={t('משמרות אחרונות')} action={<Link to="/my-shifts" className="text-xs font-semibold text-brand-700">{t('שינוי או מחיקה ←')}</Link>}>
+        <Table headers={[t('תאריך'), t('שעות'), t('סוג'), t('סטטוס')]} emptyMessage={t('אין משמרות עדיין')}>
           {myShifts.slice(0, 6).map(s => (
             <tr key={s.id} className="hover:bg-gray-50">
               <td className="table-td text-sm">{s.date}</td>
@@ -302,38 +303,38 @@ export default function UserHome() {
       </CardSection>
 
       {/* מודל הזנת משמרת ידנית */}
-      <Modal open={manualModal} onClose={() => setManualModal(false)} title="הזנת משמרת ידנית"
+      <Modal open={manualModal} onClose={() => setManualModal(false)} title={t('הזנת משמרת ידנית')}
         footer={<>
-          <button className="btn" onClick={() => setManualModal(false)}>ביטול</button>
+          <button className="btn" onClick={() => setManualModal(false)}>{t('ביטול')}</button>
           <button className="btn btn-primary" onClick={handleManualShift} disabled={manualLoading}>
-            {manualLoading ? 'שומר...' : 'שלח לאישור'}
+            {manualLoading ? t('שומר...') : t('שלח לאישור')}
           </button>
         </>}>
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
-            <label className="form-label">תאריך</label>
+            <label className="form-label">{t('תאריך')}</label>
             <input type="date" className="form-control" value={manualForm.date}
               onChange={e => setM('date', e.target.value)}
               max={todayISO()} />
           </div>
           <div>
-            <label className="form-label">שעת התחלה</label>
+            <label className="form-label">{t('שעת התחלה')}</label>
             <input type="time" className="form-control" value={manualForm.start_time}
               onChange={e => setM('start_time', e.target.value)} />
           </div>
           <div>
-            <label className="form-label">שעת סיום</label>
+            <label className="form-label">{t('שעת סיום')}</label>
             <input type="time" className="form-control" value={manualForm.end_time}
               onChange={e => setM('end_time', e.target.value)} />
           </div>
           <div className="col-span-2">
-            <label className="form-label">הערות</label>
+            <label className="form-label">{t('הערות')}</label>
             <input className="form-control" value={manualForm.notes}
               onChange={e => setM('notes', e.target.value)}
-              placeholder="סיבה להזנה ידנית (אופציונלי)" />
+              placeholder={t('סיבה להזנה ידנית (אופציונלי)')} />
           </div>
           <div className="col-span-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-xs text-amber-700">
-            ⚠️ משמרת זו תישלח לאישור המנהל לפני שתיספר לשכר
+            {t('⚠️ משמרת זו תישלח לאישור המנהל לפני שתיספר לשכר')}
           </div>
         </div>
       </Modal>

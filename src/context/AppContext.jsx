@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { fetchAll } from '../lib/fetchAll'
 import { shiftOverlapMessage, setPayRules } from '../utils/helpers'
+import { t, setLang, storedLang } from '../i18n'
 
 const AppContext = createContext(null)
 
@@ -18,16 +19,19 @@ export function getPosition() {
 // Friendly Hebrew message for clock-in/out failures
 export function clockErrorMessage(e) {
   const m = String(e?.message || '')
-  if (m.includes('geo:denied')) return 'כדי להירשם למשמרת צריך לאשר גישה למיקום. בהגדרות הדפדפן אפשר את המיקום לאתר ונסה שוב.'
-  if (m.includes('geo:')) return 'לא הצלחנו לקבל את המיקום שלך. ודא שה-GPS דלוק ונסה שוב.'
-  if (m.includes('location required')) return 'נדרש מיקום כדי להירשם למשמרת. רענן את הדף ונסה שוב.'
+  if (m.includes('geo:denied')) return t('כדי להירשם למשמרת צריך לאשר גישה למיקום. בהגדרות הדפדפן אפשר את המיקום לאתר ונסה שוב.')
+  if (m.includes('geo:')) return t('לא הצלחנו לקבל את המיקום שלך. ודא שה-GPS דלוק ונסה שוב.')
+  if (m.includes('location required')) return t('נדרש מיקום כדי להירשם למשמרת. רענן את הדף ונסה שוב.')
   const far = m.match(/too far:(\d+)/)
-  if (far) return `אתה נמצא כ-${Number(far[1]) >= 1000 ? (Number(far[1]) / 1000).toFixed(1) + ' ק"מ' : far[1] + ' מטר'} מהחנות. אפשר להירשם למשמרת רק מהחנות.`
+  if (far) {
+    const dist = Number(far[1]) >= 1000 ? t('{km} ק"מ', { km: (Number(far[1]) / 1000).toFixed(1) }) : t('{m} מטר', { m: far[1] })
+    return t('אתה נמצא כ-{dist} מהחנות. אפשר להירשם למשמרת רק מהחנות.', { dist })
+  }
   if (m.includes('shift overlap')) return shiftOverlapMessage(e)
-  if (m.includes('no open shift')) return 'אין משמרת פתוחה.'
-  if (m.includes('user blocked')) return 'המשתמש חסום. נא לפנות למנהל'
-  if (m.includes('system locked')) return 'המערכת סגורה זמנית. נא לפנות למנהל'
-  return 'הפעולה נכשלה, נסה שוב'
+  if (m.includes('no open shift')) return t('אין משמרת פתוחה.')
+  if (m.includes('user blocked')) return t('המשתמש חסום. נא לפנות למנהל')
+  if (m.includes('system locked')) return t('המערכת סגורה זמנית. נא לפנות למנהל')
+  return t('הפעולה נכשלה, נסה שוב')
 }
 
 export const LOCKED_MSG = 'המערכת סגורה זמנית. נא לפנות למנהל'
@@ -87,10 +91,10 @@ export function AppProvider({ children }) {
         setAuthNotice(LOCKED_MSG)
       }
     }
-    const t = setInterval(check, 60000)
+    const timer = setInterval(check, 60000)
     const onVisible = () => document.visibilityState === 'visible' && check()
     document.addEventListener('visibilitychange', onVisible)
-    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible) }
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible) }
   }, [currentUser?.id])
 
   async function setSystemLock(locked, code) {
@@ -121,12 +125,31 @@ export function AppProvider({ children }) {
     }
     setSystemLocked(!!locked)
     if (data) {
+      applyUserLanguage(data)
       setCurrentUser({ ...data, name: data.full_name })
       await logActivity(authUser.id, data.full_name, authUser.email, 'התחברות', 'התחבר למערכת')
       await loadAllData(data.role, authUser.id)
       // notifications load from the polling effect below
     }
     setLoading(false)
+  }
+
+  // Employees choose their own language (saved on their profile, so it follows them to any device).
+  // Managers always see Hebrew — the management screens are Hebrew-only.
+  function applyUserLanguage(profile) {
+    if (profile.role === 'admin') { setLang('he', { remember: false }); return }
+    if (profile.language) { setLang(profile.language); return }
+    const picked = storedLang() // chosen on the login screen before the first sign-in
+    setLang(picked)
+    if (picked !== 'he') supabase.rpc('set_my_language', { p_lang: picked }).then(() => {}, () => {})
+  }
+
+  async function setMyLanguage(code) {
+    setLang(code)
+    if (!currentUser) return
+    setCurrentUser(u => (u ? { ...u, language: code } : u))
+    const { error } = await supabase.rpc('set_my_language', { p_lang: code })
+    if (error) console.warn('language not saved to profile', error.message)
   }
 
   async function loadNotifications(userId) {
@@ -173,10 +196,10 @@ export function AppProvider({ children }) {
       lastScheduleStamp.current = stamp
     }
     tick()
-    const t = setInterval(tick, 45000)
+    const timer = setInterval(tick, 45000)
     const onVisible = () => document.visibilityState === 'visible' && tick()
     document.addEventListener('visibilitychange', onVisible)
-    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible) }
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible) }
   }, [currentUser?.id])
 
   async function addNotification(userId, title, message, type = 'info') {
@@ -347,6 +370,7 @@ export function AppProvider({ children }) {
       await logActivity(currentUser.id, currentUser.name, currentUser.email, 'יציאה', 'יצא מהמערכת')
     }
     await supabase.auth.signOut()
+    setLang(storedLang(), { remember: false }) // login screen: this device's last choice
     setCurrentUser(null)
     setEmployees([]); setShifts([]); setBonuses([]); setWeeklySchedule([]); setDayNotes([]); setNotifications([])
   }
@@ -597,7 +621,7 @@ export function AppProvider({ children }) {
       notifications, unreadCount, scheduleVersion,
       currentUser, currentRole, currentUserEmail,
       loading, authNotice, isSuperAdmin, can, systemLocked, setSystemLock, payRules, setWageThreshold, advances, requestAdvance, addAdvance, decideAdvance, updateAdvance, deleteAdvance, loadAdvances, isHourlyManager, canResolveShift, hourlyManagers, managers, isManager,
-      login, logout,
+      login, logout, setMyLanguage,
       addEmployee, updateEmployee,
       addShift, updateShiftStatus,
       clockIn, clockOut, adminCloseShift, refreshShifts, employeeUpdateShift, employeeRemoveShift,

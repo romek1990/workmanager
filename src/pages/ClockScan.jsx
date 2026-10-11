@@ -4,6 +4,7 @@ import { LogIn, LogOut, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 import { useApp, clockErrorMessage } from '../context/AppContext'
 import { fmtHours } from '../utils/helpers'
 import { supabase } from '../lib/supabase'
+import { t } from '../i18n'
 
 export const PENDING_CLOCK_KEY = 'wm_pending_clock'
 
@@ -23,7 +24,7 @@ export default function ClockScan() {
     ran.current = true
 
     if (currentUser.role === 'admin' && !currentUser.tracks_hours) {
-      setState({ phase: 'info', title: 'קוד לעובדים בלבד', text: 'הקוד מיועד לרישום משמרות של עובדים. מנהלים לא נרשמים דרכו.' })
+      setState({ phase: 'info', title: t('קוד לעובדים בלבד'), text: t('הקוד מיועד לרישום משמרות של עובדים. מנהלים לא נרשמים דרכו.') })
       return
     }
 
@@ -34,21 +35,21 @@ export default function ClockScan() {
           .eq('employee_id', currentUser.id).eq('status', 'active').maybeSingle()
         if (action === 'in') {
           if (open) {
-            setState({ phase: 'info', title: 'אתה כבר במשמרת', text: `המשמרת התחילה ב-${open.start_time}. בסיום המשמרת סרוק את קוד היציאה.` })
+            setState({ phase: 'info', title: t('אתה כבר במשמרת'), text: t('המשמרת התחילה ב-{start_time}. בסיום המשמרת סרוק את קוד היציאה.', { start_time: open.start_time }) })
             return
           }
           const row = await clockIn()
-          setState({ phase: 'done', title: 'המשמרת התחילה', big: row.start_time, text: 'הכניסה נרשמה. אפשר לסגור את הדף — המשמרת נשמרת.' })
+          setState({ phase: 'done', title: t('המשמרת התחילה'), big: row.start_time, text: t('הכניסה נרשמה. אפשר לסגור את הדף — המשמרת נשמרת.') })
         } else {
           if (!open) {
-            setState({ phase: 'info', title: 'אין משמרת פתוחה', text: 'לא נמצאה משמרת פתוחה לסגירה. כדי להתחיל משמרת סרוק את קוד הכניסה.' })
+            setState({ phase: 'info', title: t('אין משמרת פתוחה'), text: t('לא נמצאה משמרת פתוחה לסגירה. כדי להתחיל משמרת סרוק את קוד הכניסה.') })
             return
           }
           const row = await clockOut()
-          setState({ phase: 'done', title: 'המשמרת הסתיימה', big: `${row.start_time}–${row.end_time}`, text: `${fmtHours(row.total_hours)} שעות · נשלח לאישור המנהל` })
+          setState({ phase: 'done', title: t('המשמרת הסתיימה'), big: `${row.start_time}–${row.end_time}`, text: t('{v} שעות · נשלח לאישור המנהל', { v: fmtHours(row.total_hours) }) })
         }
       } catch (e) {
-        setState({ phase: 'error', title: 'הרישום נכשל', text: clockErrorMessage(e), retry: true })
+        setState({ phase: 'error', title: t('הרישום נכשל'), text: clockErrorMessage(e), retry: true })
       }
     })()
   }, [currentUser])
@@ -67,8 +68,8 @@ export default function ClockScan() {
         </div>
         {state.phase === 'working' ? (
           <>
-            <p className="text-lg font-bold">{isIn ? 'רושם כניסה למשמרת...' : 'רושם יציאה ממשמרת...'}</p>
-            <p className="text-xs mt-2" style={{ color: 'var(--text-dim)' }}>אם תתבקש — אשר גישה למיקום</p>
+            <p className="text-lg font-bold">{isIn ? t('רושם כניסה למשמרת...') : t('רושם יציאה ממשמרת...')}</p>
+            <p className="text-xs mt-2" style={{ color: 'var(--text-dim)' }}>{t('אם תתבקש — אשר גישה למיקום')}</p>
           </>
         ) : (
           <>
@@ -77,10 +78,10 @@ export default function ClockScan() {
             <p className="text-sm" style={{ color: 'var(--text-dim)' }}>{state.text}</p>
             <p className="text-sm font-semibold mt-4">{currentUser?.name}</p>
             {state.retry && (
-              <button className="btn btn-success w-full justify-center mt-6 py-3" onClick={() => window.location.reload()}>נסה שוב</button>
+              <button className="btn btn-success w-full justify-center mt-6 py-3" onClick={() => window.location.reload()}>{t('נסה שוב')}</button>
             )}
             <button className={`btn ${state.retry ? '' : 'btn-primary'} w-full justify-center ${state.retry ? 'mt-2' : 'mt-6'} py-3`} onClick={() => navigate(currentUser?.role === 'admin' && !currentUser?.tracks_hours ? '/' : '/my-home', { replace: true })}>
-              לדף הבית
+              {t('לדף הבית')}
             </button>
           </>
         )}

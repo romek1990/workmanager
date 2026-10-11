@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Timer, Square } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { Avatar, Modal, ManagerBadge } from './ui'
+import { t } from '../i18n'
 
 function elapsed(from, now) {
   const mins = Math.max(0, Math.floor((now - from) / 60000))
@@ -41,10 +42,10 @@ export default function OnShiftNow({ onToast }) {
     setBusy(true)
     try {
       const row = await adminCloseShift(closing.id, new Date(endAt))
-      onToast?.(`המשמרת של ${row.employee_name} נסגרה ב-${row.end_time}`)
+      onToast?.(t('המשמרת של {employee_name} נסגרה ב-{end_time}', { employee_name: row.employee_name, end_time: row.end_time }))
       setClosing(null)
     } catch (e) {
-      onToast?.(e.message?.includes('end before start') ? 'שעת הסיום לפני תחילת המשמרת' : 'סגירת המשמרת נכשלה', 'error')
+      onToast?.(e.message?.includes('end before start') ? t('שעת הסיום לפני תחילת המשמרת') : t('סגירת המשמרת נכשלה'), 'error')
     } finally {
       setBusy(false)
     }
@@ -55,15 +56,15 @@ export default function OnShiftNow({ onToast }) {
       <div className="flex items-center justify-between px-6 py-5 border-b border-black/5">
         <h2 className="text-base font-bold flex items-center gap-2">
           {open.length > 0 && <span className="dot-live" />}
-          במשמרת עכשיו
+          {t('במשמרת עכשיו')}
         </h2>
         <span className={`badge ${open.length ? 'badge-success' : 'badge-gray'} font-bold`}>
-          {open.length ? `${open.length} עובדים` : 'אף אחד'}
+          {open.length ? t('{length} עובדים', { length: open.length }) : t('אף אחד')}
         </span>
       </div>
 
       {open.length === 0 ? (
-        <p className="py-8 text-center text-sm" style={{ color: 'var(--text-dim)' }}>אין כרגע עובדים במשמרת</p>
+        <p className="py-8 text-center text-sm" style={{ color: 'var(--text-dim)' }}>{t('אין כרגע עובדים במשמרת')}</p>
       ) : (
         <div className="divide-y divide-black/5">
           {open.map(s => {
@@ -75,7 +76,7 @@ export default function OnShiftNow({ onToast }) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate flex items-center gap-1.5">{s.employee_name}<ManagerBadge show={isManager(s.employee_id)} /></p>
                   <p className="text-xs tabular-nums" style={{ color: 'var(--text-dim)' }}>
-                    נכנס ב-{s.start_time}{s.date !== toLocalInput(now).slice(0, 10) ? ` (${s.date.split('-').reverse().slice(0, 2).join('.')})` : ''}
+                    {t('נכנס ב-')}{s.start_time}{s.date !== toLocalInput(now).slice(0, 10) ? ` (${s.date.split('-').reverse().slice(0, 2).join('.')})` : ''}
                   </p>
                 </div>
                 <span className={`inline-flex items-center gap-1 text-sm font-bold tabular-nums ${long ? 'text-red-600' : 'text-brand-700'}`}>
@@ -83,7 +84,7 @@ export default function OnShiftNow({ onToast }) {
                 </span>
                 {can('shifts') && (
                   <button className="btn btn-danger py-1.5 px-3 text-xs" onClick={() => startClose(s)}>
-                    <Square size={12} /> סגור
+                    <Square size={12} /> {t('סגור')}
                   </button>
                 )}
               </div>
@@ -95,16 +96,16 @@ export default function OnShiftNow({ onToast }) {
       <Modal
         open={!!closing}
         onClose={() => setClosing(null)}
-        title={`סגירת משמרת — ${closing?.employee_name || ''}`}
+        title={t('סגירת משמרת — {v}', { v: closing?.employee_name || '' })}
         footer={<>
-          <button className="btn" onClick={() => setClosing(null)}>ביטול</button>
-          <button className="btn btn-success" onClick={confirmClose} disabled={busy || !endAt}>{busy ? 'סוגר...' : 'סגור משמרת'}</button>
+          <button className="btn" onClick={() => setClosing(null)}>{t('ביטול')}</button>
+          <button className="btn btn-success" onClick={confirmClose} disabled={busy || !endAt}>{busy ? t('סוגר...') : t('סגור משמרת')}</button>
         </>}
       >
         <p className="text-sm mb-4">
-          המשמרת התחילה ב-<b>{closing?.start_time}</b>. בחר את שעת הסיום בפועל — השעות יחושבו לפי דקה והמשמרת תעבור לאישור.
+          {t('המשמרת התחילה ב-')}<b>{closing?.start_time}</b>{t('. בחר את שעת הסיום בפועל — השעות יחושבו לפי דקה והמשמרת תעבור לאישור.')}
         </p>
-        <label className="form-label">שעת סיום</label>
+        <label className="form-label">{t('שעת סיום')}</label>
         <input type="datetime-local" className="form-control" value={endAt} onChange={e => setEndAt(e.target.value)} />
       </Modal>
     </div>

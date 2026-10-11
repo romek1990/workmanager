@@ -6,6 +6,7 @@ import { compressImage } from '../utils/compressImage'
 import { AlertModal } from '../components/ui'
 import { CheckCircle, Upload, FileText, Clock, Plus, Trash2 } from 'lucide-react'
 import SignatureCanvas from 'react-signature-canvas'
+import { t } from '../i18n'
 
 const MARITAL_OPTIONS = ['רווק/ה', 'נשוי/אה', 'גרוש/ה', 'אלמן/ה', 'פרוד/ה']
 const INCOME_TYPES = ['משכורת חודש', 'משכורת בעד משרה נוספת', 'משכורת חלקית', 'שכר עבודה (עובד יומי)', 'קצבה', 'מלגה']
@@ -242,16 +243,16 @@ export default function Form101() {
 
   async function handleSubmit() {
     if (!form.id_number || !form.birth_date || !form.mobile_phone || !form.email || !form.city || !form.address) {
-      setAlert({ title: 'שגיאה', message: 'יש למלא את כל השדות החובה המסומנים בכוכבית' })
+      setAlert({ title: t('שגיאה'), message: t('יש למלא את כל השדות החובה המסומנים בכוכבית') })
       return
     }
     if (form.income_types.length === 0) {
-      setAlert({ title: 'שגיאה', message: 'יש לסמן לפחות סוג הכנסה אחד' })
+      setAlert({ title: t('שגיאה'), message: t('יש לסמן לפחות סוג הכנסה אחד') })
       return
     }
 
     if (form.tax_coord_reasons.includes(2) && !form.tax_coord_employers.some(e => e.name?.trim())) {
-      setAlert({ title: 'שגיאה', message: 'בתיאום מס סימנת "יש לי הכנסות נוספות" — יש למלא לפחות מעסיק אחד בטבלה' })
+      setAlert({ title: t('שגיאה'), message: t('בתיאום מס סימנת "יש לי הכנסות נוספות" — יש למלא לפחות מעסיק אחד בטבלה') })
       return
     }
 
@@ -260,7 +261,7 @@ export default function Form101() {
       signature = sigRef.current.toDataURL()
     }
     if (!signature) {
-      setAlert({ title: 'שגיאה', message: 'יש לחתום על הטופס' })
+      setAlert({ title: t('שגיאה'), message: t('יש לחתום על הטופס') })
       return
     }
 
@@ -306,12 +307,12 @@ export default function Form101() {
       })
 
       await supabase.from('notifications').update({ read: true }).eq('user_id', currentUser.id).ilike('title', '%101%')
-      setAlert({ title: 'נשלח בהצלחה!', message: 'הטופס נשלח לאישור המנהל' })
+      setAlert({ title: t('נשלח בהצלחה!'), message: t('הטופס נשלח לאישור המנהל') })
       await loadExistingForm()
       await loadHistory()
     } catch (e) {
       const m = String(e?.message || '')
-      setAlert({ title: 'שגיאה', message: /invalid input syntax|date/i.test(m) ? 'אחד מהתאריכים בטופס לא תקין — בדוק את שדות התאריך ונסה שוב' : 'שליחת הטופס נכשלה, נסה שוב' })
+      setAlert({ title: t('שגיאה'), message: /invalid input syntax|date/i.test(m) ? t('אחד מהתאריכים בטופס לא תקין — בדוק את שדות התאריך ונסה שוב') : t('שליחת הטופס נכשלה, נסה שוב') })
     }
     setLoading(false)
   }
@@ -322,7 +323,7 @@ export default function Form101() {
     const pdfBytes = await generateForm101PDF({ ...form, year: currentYear, signature: existingForm.signature })
     downloadPDF(pdfBytes, `טופס-101-${emp?.full_name || 'עובד'}.pdf`)
   } catch (e) {
-    setAlert({ title: 'שגיאה', message: 'שגיאה ביצירת PDF: ' + e.message })
+    setAlert({ title: t('שגיאה'), message: t('שגיאה ביצירת PDF: ') + e.message })
   }
 }
   
@@ -336,18 +337,18 @@ export default function Form101() {
   const hasEx = (num) => form.exemptions.includes(num)
 
   const EXEMPTION_OPTIONS = [
-    { num: 1, label: 'אני תושב/ת ישראל' },
-    { num: 2, label: 'אני נכה 100% / עיוור/ת לצמיתות' },
-    { num: 3, label: 'אני תושב/ת קבוע/ה בישוב מזכה' },
-    { num: 4, label: 'אני עולה חדש/ה' },
-    { num: 5, label: 'בגין בן/בת זוגי המתגורר/ת עימי ואין לו/לה הכנסות' },
-    { num: 6, label: 'אני הורה במשפחה חד הורית החי בנפרד' },
-    { num: 7, label: 'בגין ילדיי שבחזקתי' },
-    { num: 8, label: 'בגין ילדיי שאינם בחזקתי' },
-    { num: 9, label: 'אני הורה יחיד לילדיי שבחזקתי' },
-    { num: 11, label: 'אני הורה לילדים עם מוגבלות' },
-    { num: 14, label: 'אני חייל/ת משוחרר/ת / שירתתי בשירות לאומי' },
-    { num: 16, label: 'שירתתי כלוחם/לוחמת מילואים' },
+    { num: 1, label: t('אני תושב/ת ישראל') },
+    { num: 2, label: t('אני נכה 100% / עיוור/ת לצמיתות') },
+    { num: 3, label: t('אני תושב/ת קבוע/ה בישוב מזכה') },
+    { num: 4, label: t('אני עולה חדש/ה') },
+    { num: 5, label: t('בגין בן/בת זוגי המתגורר/ת עימי ואין לו/לה הכנסות') },
+    { num: 6, label: t('אני הורה במשפחה חד הורית החי בנפרד') },
+    { num: 7, label: t('בגין ילדיי שבחזקתי') },
+    { num: 8, label: t('בגין ילדיי שאינם בחזקתי') },
+    { num: 9, label: t('אני הורה יחיד לילדיי שבחזקתי') },
+    { num: 11, label: t('אני הורה לילדים עם מוגבלות') },
+    { num: 14, label: t('אני חייל/ת משוחרר/ת / שירתתי בשירות לאומי') },
+    { num: 16, label: t('שירתתי כלוחם/לוחמת מילואים') },
   ]
 
   return (
@@ -355,105 +356,105 @@ export default function Form101() {
       <div className="flex items-center gap-3 mb-6 flex-wrap">
         <FileText size={22} className="text-brand-600 shrink-0" />
         <div>
-          <h1 className="text-lg font-medium">טופס 101</h1>
-          <p className="text-xs text-gray-400">הצהרת עובד למס הכנסה — שנת {currentYear}</p>
+          <h1 className="text-lg font-medium">{t('טופס 101')}</h1>
+          <p className="text-xs text-gray-400">{t('הצהרת עובד למס הכנסה — שנת')} {currentYear}</p>
         </div>
-        {isApproved && <span className="sm:mr-auto flex items-center gap-1.5 text-xs text-green-600 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full"><CheckCircle size={13} />אושר</span>}
-        {isPending && <span className="sm:mr-auto flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full"><Clock size={13} />ממתין לאישור</span>}
+        {isApproved && <span className="sm:ms-auto flex items-center gap-1.5 text-xs text-green-600 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full"><CheckCircle size={13} />{t('אושר')}</span>}
+        {isPending && <span className="sm:ms-auto flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full"><Clock size={13} />{t('ממתין לאישור')}</span>}
       </div>
 
       {isCancelled && (
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4 text-center text-sm text-gray-600">
-          ↩️ האישור לטופס זה בוטל על ידי המנהל — ניתן לעדכן ולהגיש מחדש
+          {t('↩️ האישור לטופס זה בוטל על ידי המנהל — ניתן לעדכן ולהגיש מחדש')}
         </div>
       )}
 
       <div className="space-y-4">
-        <Section title="א. פרטי המעסיק">
+        <Section title={t('א. פרטי המעסיק')}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="שם המעסיק" value="פלורנטין מרקט בע״מ" disabled />
-            <Field label="מספר תיק ניכויים" value="911000925" disabled />
+            <Field label={t('שם המעסיק')} value={'פלורנטין מרקט בע״מ'} disabled />
+            <Field label={t('מספר תיק ניכויים')} value="911000925" disabled />
           </div>
         </Section>
 
-        <Section title="ב. פרטי העובד/ת">
+        <Section title={t('ב. פרטי העובד/ת')}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="form-label">שם פרטי <Required /></label>
-              <input className="form-control" value={form.first_name} onChange={e => set('first_name', e.target.value)} disabled={disabled} placeholder="ע״פ הרשום בת.ז" />
+              <label className="form-label">{t('שם פרטי')} <Required /></label>
+              <input className="form-control" value={form.first_name} onChange={e => set('first_name', e.target.value)} disabled={disabled} placeholder={t('ע״פ הרשום בת.ז')} />
             </div>
             <div>
-              <label className="form-label">שם משפחה <Required /></label>
-              <input className="form-control" value={form.last_name} onChange={e => set('last_name', e.target.value)} disabled={disabled} placeholder="ע״פ הרשום בת.ז" />
+              <label className="form-label">{t('שם משפחה')} <Required /></label>
+              <input className="form-control" value={form.last_name} onChange={e => set('last_name', e.target.value)} disabled={disabled} placeholder={t('ע״פ הרשום בת.ז')} />
             </div>
             <div>
-              <label className="form-label">מספר ת.ז <Required /></label>
-              <input className="form-control" value={form.id_number} onChange={e => set('id_number', e.target.value)} disabled={disabled} placeholder="9 ספרות" maxLength={9} />
+              <label className="form-label">{t('מספר ת.ז')} <Required /></label>
+              <input className="form-control" value={form.id_number} onChange={e => set('id_number', e.target.value)} disabled={disabled} placeholder={t('9 ספרות')} maxLength={9} />
             </div>
             <div>
-              <label className="form-label">מספר דרכון (אם אין ת.ז)</label>
+              <label className="form-label">{t('מספר דרכון (אם אין ת.ז)')}</label>
               <input className="form-control" value={form.passport_number} onChange={e => set('passport_number', e.target.value)} disabled={disabled} />
             </div>
             <div>
-              <label className="form-label">תאריך לידה <Required /></label>
+              <label className="form-label">{t('תאריך לידה')} <Required /></label>
               <input type="date" className="form-control" value={form.birth_date} onChange={e => set('birth_date', e.target.value)} disabled={disabled} />
             </div>
             <div>
-              <label className="form-label">תאריך עלייה (לעולים חדשים)</label>
+              <label className="form-label">{t('תאריך עלייה (לעולים חדשים)')}</label>
               <input type="date" className="form-control" value={form.aliyah_date} onChange={e => set('aliyah_date', e.target.value)} disabled={disabled} />
             </div>
             <div>
-              <label className="form-label">רחוב <Required /></label>
-              <input className="form-control" value={form.address} onChange={e => set('address', e.target.value)} disabled={disabled} placeholder="שם הרחוב" />
+              <label className="form-label">{t('רחוב')} <Required /></label>
+              <input className="form-control" value={form.address} onChange={e => set('address', e.target.value)} disabled={disabled} placeholder={t('שם הרחוב')} />
             </div>
             <div>
-              <label className="form-label">מספר בית <Required /></label>
+              <label className="form-label">{t('מספר בית')} <Required /></label>
               <input className="form-control" value={form.house_number} onChange={e => set('house_number', e.target.value)} disabled={disabled} />
             </div>
             <div>
-              <label className="form-label">ישוב <Required /></label>
+              <label className="form-label">{t('ישוב')} <Required /></label>
               <input className="form-control" value={form.city} onChange={e => set('city', e.target.value)} disabled={disabled} />
             </div>
             <div>
-              <label className="form-label">מיקוד</label>
+              <label className="form-label">{t('מיקוד')}</label>
               <input className="form-control" value={form.zip_code} onChange={e => set('zip_code', e.target.value)} disabled={disabled} />
             </div>
             <div>
-              <label className="form-label">טלפון נייד <Required /></label>
+              <label className="form-label">{t('טלפון נייד')} <Required /></label>
               <input className="form-control" value={form.mobile_phone} onChange={e => set('mobile_phone', e.target.value)} disabled={disabled} placeholder="050-0000000" />
             </div>
             <div>
-              <label className="form-label">טלפון נוסף</label>
+              <label className="form-label">{t('טלפון נוסף')}</label>
               <input className="form-control" value={form.phone} onChange={e => set('phone', e.target.value)} disabled={disabled} />
             </div>
             <div className="col-span-2">
-              <label className="form-label">כתובת דואר אלקטרוני <Required /></label>
+              <label className="form-label">{t('כתובת דואר אלקטרוני')} <Required /></label>
               <input type="email" className="form-control" value={form.email} onChange={e => set('email', e.target.value)} disabled={disabled} />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-            <RadioGroup label="מין" required value={form.gender} onChange={v => set('gender', v)} options={['זכר', 'נקבה']} disabled={disabled} />
+            <RadioGroup label={t('מין')} required value={form.gender} onChange={v => set('gender', v)} options={['זכר', 'נקבה']} disabled={disabled} />
             <div>
-              <label className="form-label">מצב משפחתי <Required /></label>
+              <label className="form-label">{t('מצב משפחתי')} <Required /></label>
               <select className="form-control" value={form.marital_status} onChange={e => set('marital_status', e.target.value)} disabled={disabled}>
-                {MARITAL_OPTIONS.map(o => <option key={o}>{o}</option>)}
+                {MARITAL_OPTIONS.map(o => <option key={o} value={o}>{t(o)}</option>)}
               </select>
             </div>
-            <RadioGroup label="תושב ישראל" required value={form.is_israel_resident ? 'כן' : 'לא'} onChange={v => set('is_israel_resident', v === 'כן')} options={['כן', 'לא']} disabled={disabled} />
-            <RadioGroup label="חבר קיבוץ/מושב שיתופי" required value={form.is_kibbutz_member ? 'כן' : 'לא'} onChange={v => set('is_kibbutz_member', v === 'כן')} options={['כן', 'לא']} disabled={disabled} />
+            <RadioGroup label={t('תושב ישראל')} required value={form.is_israel_resident ? 'כן' : 'לא'} onChange={v => set('is_israel_resident', v === 'כן')} options={['כן', 'לא']} disabled={disabled} />
+            <RadioGroup label={t('חבר קיבוץ/מושב שיתופי')} required value={form.is_kibbutz_member ? 'כן' : 'לא'} onChange={v => set('is_kibbutz_member', v === 'כן')} options={['כן', 'לא']} disabled={disabled} />
           </div>
           <div className="mt-3">
-            <label className="form-label">קופת חולים <Required /></label>
+            <label className="form-label">{t('קופת חולים')} <Required /></label>
             <select className="form-control" value={form.health_fund} onChange={e => set('health_fund', e.target.value)} disabled={disabled}>
-              <option value="">בחר קופת חולים</option>
-              {['כללית', 'מכבי', 'מאוחדת', 'לאומית'].map(o => <option key={o}>{o}</option>)}
+              <option value="">{t('בחר קופת חולים')}</option>
+              {['כללית', 'מכבי', 'מאוחדת', 'לאומית'].map(o => <option key={o} value={o}>{t(o)}</option>)}
             </select>
           </div>
           <div className="mt-4">
-            <label className="form-label text-sm font-medium">צילום תעודת זהות וספח <Required /></label>
+            <label className="form-label text-sm font-medium">{t('צילום תעודת זהות וספח')} <Required /></label>
             <div className="grid grid-cols-2 gap-3 mt-2">
               <UploadBox 
-  label="צד קדמי" 
+  label={t('צד קדמי')} 
   preview={idFrontPreview} 
   existing={existingForm?.id_front_url} 
   onChange={e => handleFileChange(e, 'front')} 
@@ -461,7 +462,7 @@ export default function Form101() {
   onDelete={() => { setIdFront(null); setIdFrontPreview(null) }}
 />
 <UploadBox 
-  label="ספח (צד אחורי)" 
+  label={t('ספח (צד אחורי)')} 
   preview={idBackPreview} 
   existing={existingForm?.id_back_url} 
   onChange={e => handleFileChange(e, 'back')} 
@@ -473,91 +474,91 @@ export default function Form101() {
         </Section>
 
         {isMarried && (
-        <Section title="ו. פרטים על בן/בת הזוג">
+        <Section title={t('ו. פרטים על בן/בת הזוג')}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="form-label">שם פרטי</label>
+              <label className="form-label">{t('שם פרטי')}</label>
               <input className="form-control" value={form.spouse_first_name} onChange={e => set('spouse_first_name', e.target.value)} disabled={disabled} />
             </div>
             <div>
-              <label className="form-label">שם משפחה</label>
+              <label className="form-label">{t('שם משפחה')}</label>
               <input className="form-control" value={form.spouse_last_name} onChange={e => set('spouse_last_name', e.target.value)} disabled={disabled} />
             </div>
             <div>
-              <label className="form-label">מספר ת.ז</label>
-              <input className="form-control" value={form.spouse_id_number} onChange={e => set('spouse_id_number', e.target.value)} disabled={disabled} placeholder="9 ספרות" maxLength={9} />
+              <label className="form-label">{t('מספר ת.ז')}</label>
+              <input className="form-control" value={form.spouse_id_number} onChange={e => set('spouse_id_number', e.target.value)} disabled={disabled} placeholder={t('9 ספרות')} maxLength={9} />
             </div>
             <div>
-              <label className="form-label">תאריך לידה</label>
+              <label className="form-label">{t('תאריך לידה')}</label>
               <input type="date" className="form-control" value={form.spouse_birth_date} onChange={e => set('spouse_birth_date', e.target.value)} disabled={disabled} />
             </div>
             <div>
-              <label className="form-label">תאריך עלייה (אם רלוונטי)</label>
+              <label className="form-label">{t('תאריך עלייה (אם רלוונטי)')}</label>
               <input type="date" className="form-control" value={form.spouse_aliyah_date} onChange={e => set('spouse_aliyah_date', e.target.value)} disabled={disabled} />
             </div>
             <div>
-              <label className="form-label">מצב הכנסה של בן/בת הזוג</label>
+              <label className="form-label">{t('מצב הכנסה של בן/בת הזוג')}</label>
               <select className="form-control" value={form.spouse_income_status} onChange={e => set('spouse_income_status', e.target.value)} disabled={disabled}>
-                <option value="">בחר</option>
-                {SPOUSE_INCOME_OPTIONS.map(o => <option key={o}>{o}</option>)}
+                <option value="">{t('בחר')}</option>
+                {SPOUSE_INCOME_OPTIONS.map(o => <option key={o} value={o}>{t(o)}</option>)}
               </select>
             </div>
           </div>
         </Section>
         )}
 
-        <Section title="ג. פרטים על ילדים (מתחת לגיל 19)">
+        <Section title={t('ג. פרטים על ילדים (מתחת לגיל 19)')}>
           {form.children.map((child, i) => (
             <div key={i} className="bg-gray-50 rounded-xl p-3 mb-3 border border-gray-100">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-gray-600">ילד {i + 1}</span>
+                <span className="text-xs font-medium text-gray-600">{t('ילד')} {i + 1}</span>
                 {!disabled && <button onClick={() => removeChild(i)} className="text-red-400 hover:text-red-600"><Trash2 size={13} /></button>}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div>
-                  <label className="form-label">שם <Required /></label>
+                  <label className="form-label">{t('שם')} <Required /></label>
                   <input className="form-control text-sm" value={child.name} onChange={e => updateChild(i, 'name', e.target.value)} disabled={disabled} />
                 </div>
                 <div>
-                  <label className="form-label">מספר ת.ז <Required /></label>
+                  <label className="form-label">{t('מספר ת.ז')} <Required /></label>
                   <input className="form-control text-sm" value={child.id_number} onChange={e => updateChild(i, 'id_number', e.target.value)} disabled={disabled} />
                 </div>
                 <div>
-                  <label className="form-label">תאריך לידה <Required /></label>
+                  <label className="form-label">{t('תאריך לידה')} <Required /></label>
                   <input type="date" className="form-control text-sm" value={child.birth_date} onChange={e => updateChild(i, 'birth_date', e.target.value)} disabled={disabled} />
                 </div>
               </div>
               <div className="flex gap-4 mt-2">
-                <Checkbox label="הילד נמצא בחזקתי" checked={child.in_custody} onChange={v => updateChild(i, 'in_custody', v)} disabled={disabled} />
-                <Checkbox label="אני מקבל/ת קצבת ילדים מב״ל" checked={child.receives_allowance} onChange={v => updateChild(i, 'receives_allowance', v)} disabled={disabled} />
+                <Checkbox label={t('הילד נמצא בחזקתי')} checked={child.in_custody} onChange={v => updateChild(i, 'in_custody', v)} disabled={disabled} />
+                <Checkbox label={t('אני מקבל/ת קצבת ילדים מב״ל')} checked={child.receives_allowance} onChange={v => updateChild(i, 'receives_allowance', v)} disabled={disabled} />
               </div>
             </div>
           ))}
           {!disabled && (
             <button onClick={addChild} className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-800 border border-dashed border-brand-200 rounded-lg px-3 py-2 w-full justify-center">
-              <Plus size={13} /> הוסף ילד
+              <Plus size={13} /> {t('הוסף ילד')}
             </button>
           )}
         </Section>
 
-        <Section title="ד. פרטים על הכנסותי ממעסיק זה">
+        <Section title={t('ד. פרטים על הכנסותי ממעסיק זה')}>
           <div>
-            <label className="form-label">אני מקבל/ת <Required /></label>
+            <label className="form-label">{t('אני מקבל/ת')} <Required /></label>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mt-1">
               {INCOME_TYPES.map(type => (
-                <Checkbox key={type} label={type} checked={form.income_types.includes(type)} onChange={() => !disabled && toggleIncomeType(type)} disabled={disabled} />
+                <Checkbox key={type} label={t(type)} checked={form.income_types.includes(type)} onChange={() => !disabled && toggleIncomeType(type)} disabled={disabled} />
               ))}
             </div>
           </div>
           <div className="mt-3">
-            <label className="form-label">תאריך תחילת העבודה בשנת המס <Required /></label>
+            <label className="form-label">{t('תאריך תחילת העבודה בשנת המס')} <Required /></label>
             <input type="date" className="form-control" value={form.work_start_date} onChange={e => set('work_start_date', e.target.value)} disabled={disabled} />
           </div>
         </Section>
 
-        <Section title="ה. פרטים על הכנסות אחרות">
+        <Section title={t('ה. פרטים על הכנסות אחרות')}>
           <RadioGroup
-            label="יש לך הכנסות אחרות?"
+            label={t('יש לך הכנסות אחרות?')}
             required
             value={form.has_other_income ? 'יש לי הכנסות נוספות' : 'אין לי הכנסות אחרות'}
             onChange={v => set('has_other_income', v === 'יש לי הכנסות נוספות')}
@@ -566,67 +567,67 @@ export default function Form101() {
           />
         </Section>
 
-        <Section title="ז. שינויים במהלך השנה">
+        <Section title={t('ז. שינויים במהלך השנה')}>
           <p className="text-xs text-gray-500 mb-3">
-            מלא/י רק אם חל שינוי בפרטים אחרי שהגשת את הטופס (למשל לידת ילד, שינוי מצב משפחתי, כתובת או הכנסה נוספת). עד 3 שינויים — תאריך ההודעה נרשם אוטומטית.
+            {t('מלא/י רק אם חל שינוי בפרטים אחרי שהגשת את הטופס (למשל לידת ילד, שינוי מצב משפחתי, כתובת או הכנסה נוספת). עד 3 שינויים — תאריך ההודעה נרשם אוטומטית.')}
           </p>
           <div className="space-y-3">
             {form.year_changes.map((r, i) => (
               <div key={i} className="rounded-xl border border-gray-200 bg-white/60 p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-gray-600">שינוי {i + 1}{r.notified_date ? ` · דווח ב-${r.notified_date.split('-').reverse().join('/')}` : ''}</span>
-                  {!disabled && <button type="button" onClick={() => removeRow('year_changes', i)} className="text-xs text-red-500 hover:text-red-700">הסר</button>}
+                  <span className="text-xs font-semibold text-gray-600">{t('שינוי')} {i + 1}{r.notified_date ? t(' · דווח ב-{v}', { v: r.notified_date.split('-').reverse().join('/') }) : ''}</span>
+                  {!disabled && <button type="button" onClick={() => removeRow('year_changes', i)} className="text-xs text-red-500 hover:text-red-700">{t('הסר')}</button>}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <div><label className="form-label text-xs">תאריך השינוי</label><input type="date" className="form-control text-sm" value={r.change_date} onChange={ev => setRow('year_changes', i, 'change_date', ev.target.value)} disabled={disabled} /></div>
-                  <div className="sm:col-span-2"><label className="form-label text-xs">פרטי השינוי</label><input className="form-control text-sm" maxLength={90} placeholder="למשל: נולד ילד, עברתי דירה לחיפה" value={r.details} onChange={ev => setRow('year_changes', i, 'details', ev.target.value)} disabled={disabled} /></div>
+                  <div><label className="form-label text-xs">{t('תאריך השינוי')}</label><input type="date" className="form-control text-sm" value={r.change_date} onChange={ev => setRow('year_changes', i, 'change_date', ev.target.value)} disabled={disabled} /></div>
+                  <div className="sm:col-span-2"><label className="form-label text-xs">{t('פרטי השינוי')}</label><input className="form-control text-sm" maxLength={90} placeholder={t('למשל: נולד ילד, עברתי דירה לחיפה')} value={r.details} onChange={ev => setRow('year_changes', i, 'details', ev.target.value)} disabled={disabled} /></div>
                 </div>
               </div>
             ))}
             {!disabled && form.year_changes.length < 3 && (
-              <button type="button" onClick={() => addRow('year_changes', emptyChange)} className="text-xs font-semibold text-brand-700 hover:text-brand-900">+ הוסף שינוי</button>
+              <button type="button" onClick={() => addRow('year_changes', emptyChange)} className="text-xs font-semibold text-brand-700 hover:text-brand-900">{t('+ הוסף שינוי')}</button>
             )}
-            {disabled && form.year_changes.length === 0 && <p className="text-xs text-gray-400">לא דווחו שינויים</p>}
+            {disabled && form.year_changes.length === 0 && <p className="text-xs text-gray-400">{t('לא דווחו שינויים')}</p>}
           </div>
         </Section>
 
-        <Section title="ח. אני מבקש/ת פטור או זיכוי ממס">
+        <Section title={t('ח. אני מבקש/ת פטור או זיכוי ממס')}>
           <div className="space-y-2">
             {EXEMPTION_OPTIONS.map(ex => (
               <div key={ex.num}>
                 <Checkbox label={`${ex.num}. ${ex.label}`} checked={form.exemptions.includes(ex.num)} onChange={() => !disabled && toggleExemption(ex.num)} disabled={disabled} />
 
                 {ex.num === 3 && hasEx(3) && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 mr-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 ms-6">
                     <div>
-                      <label className="form-label text-xs">שם היישוב המזכה</label>
+                      <label className="form-label text-xs">{t('שם היישוב המזכה')}</label>
                       <input className="form-control text-sm" value={form.exemption_3_town} onChange={e => set('exemption_3_town', e.target.value)} disabled={disabled} />
                     </div>
                     <div>
-                      <label className="form-label text-xs">מתאריך</label>
+                      <label className="form-label text-xs">{t('מתאריך')}</label>
                       <input type="date" className="form-control text-sm" value={form.exemption_3_from_date} onChange={e => set('exemption_3_from_date', e.target.value)} disabled={disabled} />
                     </div>
                   </div>
                 )}
 
                 {ex.num === 4 && hasEx(4) && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 mr-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 ms-6">
                     <div>
-                      <label className="form-label text-xs">תאריך עלייה</label>
+                      <label className="form-label text-xs">{t('תאריך עלייה')}</label>
                       <input type="date" className="form-control text-sm" value={form.exemption_4_aliyah_date} onChange={e => set('exemption_4_aliyah_date', e.target.value)} disabled={disabled} />
                     </div>
                     <div>
-                      <label className="form-label text-xs">לא היתה הכנסה עד תאריך</label>
+                      <label className="form-label text-xs">{t('לא היתה הכנסה עד תאריך')}</label>
                       <input type="date" className="form-control text-sm" value={form.exemption_4_income_until_date} onChange={e => set('exemption_4_income_until_date', e.target.value)} disabled={disabled} />
                     </div>
                   </div>
                 )}
 
                 {ex.num === 7 && hasEx(7) && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1 mr-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1 ms-6">
                     {AGE_GROUPS.map(g => (
                       <div key={g.key}>
-                        <label className="form-label text-xs">{g.label}</label>
+                        <label className="form-label text-xs">{t(g.label)}</label>
                         <input className="form-control text-sm" value={form.exemption_7_children[g.key] || ''} onChange={e => setChildCount('exemption_7_children', g.key, e.target.value)} disabled={disabled} />
                       </div>
                     ))}
@@ -634,10 +635,10 @@ export default function Form101() {
                 )}
 
                 {ex.num === 8 && hasEx(8) && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1 mr-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1 ms-6">
                     {AGE_GROUPS.map(g => (
                       <div key={g.key}>
-                        <label className="form-label text-xs">{g.label}</label>
+                        <label className="form-label text-xs">{t(g.label)}</label>
                         <input className="form-control text-sm" value={form.exemption_8_children[g.key] || ''} onChange={e => setChildCount('exemption_8_children', g.key, e.target.value)} disabled={disabled} />
                       </div>
                     ))}
@@ -645,28 +646,28 @@ export default function Form101() {
                 )}
 
                 {ex.num === 11 && hasEx(11) && (
-                  <div className="mt-1 mr-6">
-                    <label className="form-label text-xs">מספר ילדים עם מוגבלות</label>
+                  <div className="mt-1 ms-6">
+                    <label className="form-label text-xs">{t('מספר ילדים עם מוגבלות')}</label>
                     <input className="form-control text-sm" value={form.exemption_11_disabled_children} onChange={e => set('exemption_11_disabled_children', e.target.value)} disabled={disabled} />
                   </div>
                 )}
 
                 {ex.num === 14 && hasEx(14) && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 mr-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1 ms-6">
                     <div>
-                      <label className="form-label text-xs">תאריך תחילת שירות</label>
+                      <label className="form-label text-xs">{t('תאריך תחילת שירות')}</label>
                       <input type="date" className="form-control text-sm" value={form.exemption_14_service_start} onChange={e => set('exemption_14_service_start', e.target.value)} disabled={disabled} />
                     </div>
                     <div>
-                      <label className="form-label text-xs">תאריך סיום שירות</label>
+                      <label className="form-label text-xs">{t('תאריך סיום שירות')}</label>
                       <input type="date" className="form-control text-sm" value={form.exemption_14_service_end} onChange={e => set('exemption_14_service_end', e.target.value)} disabled={disabled} />
                     </div>
                   </div>
                 )}
 
                 {ex.num === 16 && hasEx(16) && (
-                  <div className="mt-1 mr-6">
-                    <label className="form-label text-xs">מספר ימי מילואים</label>
+                  <div className="mt-1 ms-6">
+                    <label className="form-label text-xs">{t('מספר ימי מילואים')}</label>
                     <input className="form-control text-sm" value={form.exemption_16_reserve_days} onChange={e => set('exemption_16_reserve_days', e.target.value)} disabled={disabled} />
                   </div>
                 )}
@@ -675,41 +676,41 @@ export default function Form101() {
           </div>
         </Section>
 
-        <Section title="ט. אני מבקש/ת תיאום מס בגלל הסיבות הבאות">
-          <p className="text-xs text-gray-500 mb-3">רק אם רלוונטי — מי שעובד רק כאן ואין לו הכנסה נוספת לא צריך לסמן כלום.</p>
+        <Section title={t('ט. אני מבקש/ת תיאום מס בגלל הסיבות הבאות')}>
+          <p className="text-xs text-gray-500 mb-3">{t('רק אם רלוונטי — מי שעובד רק כאן ואין לו הכנסה נוספת לא צריך לסמן כלום.')}</p>
           <div className="space-y-3">
             {TAX_COORD_OPTIONS.map(opt => (
               <div key={opt.num}>
-                <Checkbox label={`${opt.num}. ${opt.label}`} checked={form.tax_coord_reasons.includes(opt.num)} onChange={() => !disabled && toggleTaxReason(opt.num)} disabled={disabled} />
+                <Checkbox label={`${opt.num}. ${t(opt.label)}`} checked={form.tax_coord_reasons.includes(opt.num)} onChange={() => !disabled && toggleTaxReason(opt.num)} disabled={disabled} />
                 {opt.hint && form.tax_coord_reasons.includes(opt.num) && (
-                  <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mt-1.5 mr-6">{opt.hint}</p>
+                  <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mt-1.5 ms-6">{t(opt.hint)}</p>
                 )}
 
                 {opt.num === 2 && form.tax_coord_reasons.includes(2) && (
-                  <div className="mt-2 mr-6 space-y-3">
+                  <div className="mt-2 ms-6 space-y-3">
                     {form.tax_coord_employers.map((e, i) => (
                       <div key={i} className="rounded-xl border border-gray-200 bg-white/60 p-3">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-semibold text-gray-600">מעסיק / משלם משכורת {i + 1}</span>
-                          {!disabled && <button type="button" onClick={() => removeRow('tax_coord_employers', i)} className="text-xs text-red-500 hover:text-red-700">הסר</button>}
+                          <span className="text-xs font-semibold text-gray-600">{t('מעסיק / משלם משכורת')} {i + 1}</span>
+                          {!disabled && <button type="button" onClick={() => removeRow('tax_coord_employers', i)} className="text-xs text-red-500 hover:text-red-700">{t('הסר')}</button>}
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <div><label className="form-label text-xs">שם</label><input className="form-control text-sm" value={e.name} onChange={ev => setRow('tax_coord_employers', i, 'name', ev.target.value)} disabled={disabled} /></div>
-                          <div><label className="form-label text-xs">כתובת</label><input className="form-control text-sm" value={e.address} onChange={ev => setRow('tax_coord_employers', i, 'address', ev.target.value)} disabled={disabled} /></div>
-                          <div><label className="form-label text-xs">מספר תיק ניכויים</label><input className="form-control text-sm tabular-nums" dir="ltr" inputMode="numeric" maxLength={9} placeholder="9XXXXXXXX" value={e.file_number} onChange={ev => setRow('tax_coord_employers', i, 'file_number', ev.target.value.replace(/\D/g, ''))} disabled={disabled} /></div>
+                          <div><label className="form-label text-xs">{t('שם')}</label><input className="form-control text-sm" value={e.name} onChange={ev => setRow('tax_coord_employers', i, 'name', ev.target.value)} disabled={disabled} /></div>
+                          <div><label className="form-label text-xs">{t('כתובת')}</label><input className="form-control text-sm" value={e.address} onChange={ev => setRow('tax_coord_employers', i, 'address', ev.target.value)} disabled={disabled} /></div>
+                          <div><label className="form-label text-xs">{t('מספר תיק ניכויים')}</label><input className="form-control text-sm tabular-nums" dir="ltr" inputMode="numeric" maxLength={9} placeholder="9XXXXXXXX" value={e.file_number} onChange={ev => setRow('tax_coord_employers', i, 'file_number', ev.target.value.replace(/\D/g, ''))} disabled={disabled} /></div>
                           <div>
-                            <label className="form-label text-xs">סוג ההכנסה</label>
+                            <label className="form-label text-xs">{t('סוג ההכנסה')}</label>
                             <select className="form-control text-sm" value={e.income_type} onChange={ev => setRow('tax_coord_employers', i, 'income_type', ev.target.value)} disabled={disabled}>
-                              {INCOME_TYPE_OPTIONS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                              {INCOME_TYPE_OPTIONS.map(([k, l]) => <option key={k} value={k}>{t(l)}</option>)}
                             </select>
                           </div>
-                          <div><label className="form-label text-xs">הכנסה חודשית (₪)</label><input className="form-control text-sm tabular-nums" inputMode="decimal" value={e.monthly_income} onChange={ev => setRow('tax_coord_employers', i, 'monthly_income', ev.target.value)} disabled={disabled} /></div>
-                          <div><label className="form-label text-xs">המס שנוכה (₪, לפי התלושים)</label><input className="form-control text-sm tabular-nums" inputMode="decimal" value={e.tax_deducted} onChange={ev => setRow('tax_coord_employers', i, 'tax_deducted', ev.target.value)} disabled={disabled} /></div>
+                          <div><label className="form-label text-xs">{t('הכנסה חודשית (₪)')}</label><input className="form-control text-sm tabular-nums" inputMode="decimal" value={e.monthly_income} onChange={ev => setRow('tax_coord_employers', i, 'monthly_income', ev.target.value)} disabled={disabled} /></div>
+                          <div><label className="form-label text-xs">{t('המס שנוכה (₪, לפי התלושים)')}</label><input className="form-control text-sm tabular-nums" inputMode="decimal" value={e.tax_deducted} onChange={ev => setRow('tax_coord_employers', i, 'tax_deducted', ev.target.value)} disabled={disabled} /></div>
                         </div>
                       </div>
                     ))}
                     {!disabled && form.tax_coord_employers.length < 3 && (
-                      <button type="button" onClick={() => addRow('tax_coord_employers', emptyEmployer)} className="text-xs font-semibold text-brand-700 hover:text-brand-900">+ הוסף מעסיק נוסף</button>
+                      <button type="button" onClick={() => addRow('tax_coord_employers', emptyEmployer)} className="text-xs font-semibold text-brand-700 hover:text-brand-900">{t('+ הוסף מעסיק נוסף')}</button>
                     )}
                   </div>
                 )}
@@ -718,11 +719,11 @@ export default function Form101() {
           </div>
         </Section>
 
-        <Section title="י. הצהרה">
+        <Section title={t('י. הצהרה')}>
           <p className="text-xs text-gray-600 mb-3 leading-relaxed">
-            אני מצהיר/ה כי הפרטים שמסרתי בטופס זה הינם מלאים ונכונים. ידוע לי שהשמטה או מסירת פרטים לא נכונים הינה עבירה על פקודת מס הכנסה. אני מתחייב/ת להודיע למעסיק על כל שינוי שיחול בפרטיי האישיים ובפרטים דלעיל תוך שבוע ימים מתאריך השינוי.
+            {t('אני מצהיר/ה כי הפרטים שמסרתי בטופס זה הינם מלאים ונכונים. ידוע לי שהשמטה או מסירת פרטים לא נכונים הינה עבירה על פקודת מס הכנסה. אני מתחייב/ת להודיע למעסיק על כל שינוי שיחול בפרטיי האישיים ובפרטים דלעיל תוך שבוע ימים מתאריך השינוי.')}
           </p>
-          <label className="form-label">חתימת המבקש/ת <Required /></label>
+          <label className="form-label">{t('חתימת המבקש/ת')} <Required /></label>
           {!disabled ? (
             <div className="border-2 border-gray-200 rounded-xl overflow-hidden bg-white">
               <SignatureCanvas
@@ -731,60 +732,60 @@ export default function Form101() {
                 backgroundColor="white"
               />
               <div className="border-t border-gray-100 px-3 py-1.5 flex justify-end">
-                <button onClick={() => sigRef.current?.clear()} className="text-xs text-gray-400 hover:text-gray-600">נקה חתימה</button>
+                <button onClick={() => sigRef.current?.clear()} className="text-xs text-gray-400 hover:text-gray-600">{t('נקה חתימה')}</button>
               </div>
             </div>
           ) : (
-            form.signature && <img src={form.signature} alt="חתימה" className="border rounded-xl max-h-24" />
+            form.signature && <img src={form.signature} alt={t('חתימה')} className="border rounded-xl max-h-24" />
           )}
         </Section>
 
         {!isApproved && (
           <button onClick={handleSubmit} disabled={loading} className="w-full btn btn-primary py-3 text-sm font-medium">
-            {loading ? 'שולח...' : isPending ? '🔄 עדכן וישלח מחדש' : '📤 שלח לאישור'}
+            {loading ? t('שולח...') : isPending ? t('🔄 עדכן וישלח מחדש') : t('📤 שלח לאישור')}
           </button>
         )}
 
         {isApproved && (
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center text-sm text-green-700">
-            ✅ הטופס לשנת {currentYear} אושר על ידי המנהל — לא ניתן לערוך. האפשרות להגשה תיפתח מחדש בשנת {currentYear + 1}.
+            {t('✅ הטופס לשנת {year} אושר על ידי המנהל — לא ניתן לערוך. האפשרות להגשה תיפתח מחדש בשנת {next}.', { year: currentYear, next: currentYear + 1 })}
           </div>
         )}
       </div>
 {existingForm && (
   <button onClick={handleDownloadPDF}
     className="w-full btn border border-brand-200 text-brand-600 hover:bg-brand-50 py-3 text-sm font-medium flex items-center justify-center gap-2">
-    📄 הורד טופס 101 כ-PDF
+    {t('📄 הורד טופס 101 כ-PDF')}
   </button>
 )}
 
       {history.length > 0 && (
         <div className="card p-4 mt-4">
           <h2 className="text-sm font-semibold text-brand-800 bg-brand-50 -mx-4 -mt-4 px-4 py-2.5 mb-3 rounded-t-xl border-b border-brand-100">
-            היסטוריית הגשות 101
+            {t('היסטוריית הגשות 101')}
           </h2>
           <div className="space-y-2">
             {history.map(h => (
               <div key={h.id} className="flex items-center justify-between gap-2 flex-wrap border border-gray-100 rounded-lg px-3 py-2.5">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-medium">שנת {h.year}</span>
+                  <span className="text-sm font-medium">{t('שנת')} {h.year}</span>
                   {h.submitted_at && (
                     <span className="text-xs text-gray-400">
-                      הוגש ב-{new Date(h.submitted_at).toLocaleDateString('he-IL')}
+                      {t('הוגש ב-')}{new Date(h.submitted_at).toLocaleDateString('he-IL')}
                     </span>
                   )}
                 </div>
                 {h.status === 'approved' && (
-                  <span className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full"><CheckCircle size={12} />אושר</span>
+                  <span className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full"><CheckCircle size={12} />{t('אושר')}</span>
                 )}
                 {h.status === 'pending' && (
-                  <span className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full"><Clock size={12} />ממתין לאישור</span>
+                  <span className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full"><Clock size={12} />{t('ממתין לאישור')}</span>
                 )}
                 {h.status === 'rejected' && (
-                  <span className="flex items-center gap-1.5 text-xs text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">נדחה</span>
+                  <span className="flex items-center gap-1.5 text-xs text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">{t('נדחה')}</span>
                 )}
                 {h.status === 'cancelled' && (
-                  <span className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-full">↩️ בוטל</span>
+                  <span className="flex items-center gap-1.5 text-xs text-gray-500 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-full">{t('↩️ בוטל')}</span>
                 )}
               </div>
             ))}
@@ -807,7 +808,7 @@ function Section({ title, children }) {
 }
 
 function Required() {
-  return <span className="text-red-500 mr-0.5">*</span>
+  return <span className="text-red-500 ms-0.5">*</span>
 }
 
 function Field({ label, value, disabled }) {
@@ -827,7 +828,7 @@ function RadioGroup({ label, required, value, onChange, options, disabled }) {
         {options.map(opt => (
           <label key={opt} className="flex items-center gap-2 text-sm cursor-pointer">
             <input type="radio" checked={value === opt} onChange={() => !disabled && onChange(opt)} disabled={disabled} className="w-3.5 h-3.5" />
-            {opt}
+            {t(opt)}
           </label>
         ))}
       </div>
@@ -851,21 +852,21 @@ function UploadBox({ label, preview, existing, onChange, disabled, onDelete }) {
       {!disabled && (
         <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl p-3 cursor-pointer hover:border-brand-300 hover:bg-brand-50 transition-colors">
           <Upload size={18} className="text-gray-400 mb-1" />
-          <span className="text-xs text-gray-400">לחץ להעלאה</span>
+          <span className="text-xs text-gray-400">{t('לחץ להעלאה')}</span>
           <input type="file" accept="image/*" className="hidden" onChange={onChange} />
         </label>
       )}
       {(preview || existing) && (
         <div className="mt-1 flex items-center justify-between">
           <div className="text-xs text-green-600 flex items-center gap-1">
-            <CheckCircle size={11} /> {preview ? 'קובץ נבחר' : 'קובץ קיים'}
+            <CheckCircle size={11} /> {preview ? t('קובץ נבחר') : t('קובץ קיים')}
           </div>
           {!disabled && (preview || existing) && (
             <button
               onClick={onDelete}
               className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1"
             >
-              <Trash2 size={11} /> מחק
+              <Trash2 size={11} /> {t('מחק')}
             </button>
           )}
         </div>

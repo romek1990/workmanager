@@ -6,6 +6,7 @@ import { CheckCircle, XCircle, Eye, FileText, Clock, User, Download, Mail, Messa
 import { runWhatsAppJob, summarize } from '../lib/whatsappAuto'
 import { generateForm101PDF, downloadPDF } from '../utils/generateForm101'
 import emailjs from '@emailjs/browser'
+import { tFor } from '../i18n'
 
 export default function Admin101() {
   const { employees, can } = useApp()
@@ -72,20 +73,22 @@ export default function Admin101() {
 
       const form = forms.find(f => f.id === id)
       if (form) {
+        // in the employee's own language
+        const lang = employees.find(e => e.id === form.employee_id)?.language || 'he'
         const titles = {
           approved: '✅ טופס 101 אושר',
           rejected: '❌ טופס 101 נדחה',
           cancelled: '↩️ אישור טופס 101 בוטל',
         }
         const messages = {
-          approved: `טופס 101 שלך לשנת ${currentYear} אושר בהצלחה`,
-          rejected: `טופס 101 שלך לשנת ${currentYear} נדחה — אנא מלא מחדש`,
-          cancelled: `אישור טופס 101 שלך לשנת ${currentYear} בוטל על ידי המנהל — ניתן להגיש את הטופס מחדש`,
+          approved: 'טופס 101 שלך לשנת {year} אושר בהצלחה',
+          rejected: 'טופס 101 שלך לשנת {year} נדחה — אנא מלא מחדש',
+          cancelled: 'אישור טופס 101 שלך לשנת {year} בוטל על ידי המנהל — ניתן להגיש את הטופס מחדש',
         }
         await supabase.from('notifications').insert({
           user_id: form.employee_id,
-          title: titles[status],
-          message: messages[status],
+          title: tFor(lang, titles[status]),
+          message: tFor(lang, messages[status], { year: currentYear }),
           type: status === 'approved' ? 'success' : status === 'cancelled' ? 'warning' : 'error'
         })
       }

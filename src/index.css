@@ -22,7 +22,6 @@
 }
 
 body {
-  direction: rtl;
   font-family: 'Heebo', Arial, sans-serif;
   background-color: var(--paper);
   color: var(--text);
@@ -174,10 +173,13 @@ body {
     min-height: 1.5rem;
   }
   .table-th {
-    @apply text-right text-xs font-semibold px-4 py-2.5 border-b border-black/5;
+    @apply text-start text-xs font-semibold px-4 py-2.5 border-b border-black/5;
     color: var(--text-dim);
   }
   .table-td {
     @apply px-4 py-3 text-sm border-b border-black/[0.045];
   }
 }
+
+/* Direction-aware icons (chevrons/arrows drawn for RTL) flip in LTR languages */
+[dir='ltr'] .dir-icon { transform: scaleX(-1); }

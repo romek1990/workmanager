@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { Avatar, ShiftTypeBadge, StatusBadge, CardSection, Table, Modal, AlertModal } from '../components/ui'
 import { EMP_TYPE_LABELS } from '../data/mockData'
 import { calcShiftPay, fmtMoney, fmtHours, eligibleForPremium, getPayRules } from '../utils/helpers'
+import { LANGS } from '../i18n'
 
 const RESET_PW_URL = 'https://nwetajywazzpxkdknqsf.supabase.co/functions/v1/admin-reset-password'
 
@@ -181,6 +182,14 @@ export default function EmployeeProfile() {
               <label className="form-label">כתובת</label>
               <input className="form-control" value={form.address} onChange={e => set('address', e.target.value)} />
             </div>
+            {form.role !== 'admin' && (
+              <div>
+                <label className="form-label">שפת המערכת לעובד</label>
+                <select className="form-control" value={form.language || 'he'} onChange={e => set('language', e.target.value)}>
+                  {LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+                </select>
+              </div>
+            )}
             <div>
               <label className="form-label">איש קשר נוסף — שם</label>
               <input className="form-control" value={form.contact_name || ''} onChange={e => set('contact_name', e.target.value)} placeholder="לדוגמה: אמא / בן זוג" />

@@ -3,18 +3,19 @@ import { createPortal } from 'react-dom'
 import { X, Check } from 'lucide-react'
 import { SHIFT_TYPE_LABELS, STATUS_LABELS } from '../../data/mockData'
 import { shiftTypeBadgeClass, statusBadgeClass, getInitials } from '../../utils/helpers'
+import { t } from '../../i18n'
 
 // ── Badge ──────────────────────────────────────────────────────────────
 export function ShiftTypeBadge({ type }) {
-  return <span className={`badge ${shiftTypeBadgeClass(type)}`}>{SHIFT_TYPE_LABELS[type] || type}</span>
+  return <span className={`badge ${shiftTypeBadgeClass(type)}`}>{t(SHIFT_TYPE_LABELS[type] || type || '')}</span>
 }
 
 // shift: true → a shift's status ('active' means clocked in right now)
 export function StatusBadge({ status, shift = false }) {
   if (shift && status === 'active') {
-    return <span className="badge badge-success gap-1"><span className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse" />במשמרת</span>
+    return <span className="badge badge-success gap-1"><span className="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse" />{t('במשמרת')}</span>
   }
-  return <span className={`badge ${statusBadgeClass(status)}`}>{STATUS_LABELS[status] || status}</span>
+  return <span className={`badge ${statusBadgeClass(status)}`}>{t(STATUS_LABELS[status] || status || '')}</span>
 }
 
 // ── Avatar ─────────────────────────────────────────────────────────────
@@ -232,10 +233,10 @@ export function AlertModal({ open, onClose, title, message }) {
   return createPortal(
     <div className="fixed inset-0 bg-ink-900/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white/90 backdrop-blur-xl border border-white rounded-3xl shadow-glass-lg w-full max-w-sm text-center p-8 animate-rise">
-        <div className="text-4xl mb-3">{/שגיאה|נכשל|לא נרשם|לא נוספ|לא תקין/.test(`${title || ''}`) ? '⚠️' : '✅'}</div>
+        <div className="text-4xl mb-3">{/שגיאה|נכשל|לא נרשם|לא נוספ|לא תקין|ошибк|не удал|не зарегистр|не добав|некоррект|error|failed|not saved|not added|not registered|invalid/i.test(`${title || ''}`) ? '⚠️' : '✅'}</div>
         <h3 className="text-base font-bold mb-1">{title}</h3>
         <p className="text-sm text-gray-500 mb-6 whitespace-pre-line">{message}</p>
-        <button className="btn btn-primary px-8" onClick={onClose}>סגור</button>
+        <button className="btn btn-primary px-8" onClick={onClose}>{t('סגור')}</button>
       </div>
     </div>,
     document.body
@@ -243,7 +244,7 @@ export function AlertModal({ open, onClose, title, message }) {
 }
 
 // ── Table wrapper ──────────────────────────────────────────────────────
-export function Table({ headers, children, emptyMessage = 'אין נתונים' }) {
+export function Table({ headers, children, emptyMessage }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -252,7 +253,7 @@ export function Table({ headers, children, emptyMessage = 'אין נתונים' 
         </thead>
         <tbody>
           {React.Children.count(children) === 0
-            ? <tr><td colSpan={headers.length} className="text-center py-12 text-sm" style={{ color: 'var(--text-dim)' }}>{emptyMessage}</td></tr>
+            ? <tr><td colSpan={headers.length} className="text-center py-12 text-sm" style={{ color: 'var(--text-dim)' }}>{emptyMessage ?? t('אין נתונים')}</td></tr>
             : children}
         </tbody>
       </table>
@@ -278,5 +279,5 @@ export function CardSection({ title, action, children, className = '' }) {
 // small tag shown next to a manager's name wherever people are listed
 export function ManagerBadge({ show = false }) {
   if (!show) return null
-  return <span className="badge badge-warning text-[10px] shrink-0">מנהל</span>
+  return <span className="badge badge-warning text-[10px] shrink-0">{t('מנהל')}</span>
 }
