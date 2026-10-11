@@ -15,6 +15,7 @@ import Reports from './pages/Reports'
 import UserHome from './pages/UserHome'
 import MyShifts from './pages/MyShifts'
 import WeeklySchedule from './pages/WeeklySchedule'
+import WorkSchedule from './pages/WorkSchedule'
 import ActivityLogs from './pages/ActivityLogs'
 import Form101 from './pages/Form101'
 import Admin101 from './pages/Admin101'
@@ -91,6 +92,7 @@ function AppRoutes() {
           <Route path="/activity-logs" element={<ProtectedRoute requiredRole="admin"><ActivityLogs /></ProtectedRoute>} />
           <Route path="/my-home" element={<ProtectedRoute><UserHome /></ProtectedRoute>} />
           <Route path="/my-shifts" element={<ProtectedRoute><MyShifts /></ProtectedRoute>} />
+          <Route path="/schedule" element={<ProtectedRoute><WorkSchedule /></ProtectedRoute>} />
           <Route path="/clock" element={<ProtectedRoute><ClockScan /></ProtectedRoute>} />
           <Route path="/qr-codes" element={<ProtectedRoute requiredRole="admin"><QrCodes /></ProtectedRoute>} />
           <Route path="*" element={<HomeRedirect role={currentUser.role} tracksHours={!!currentUser.tracks_hours} />} />

@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 
 import { useApp } from '../../context/AppContext'
 import { Avatar } from '../ui'
 import SystemLockButton from '../SystemLockButton'
-import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, CalendarDays, Menu, X, Shield, Bell, FileText, MessageCircle, UserCog, QrCode, Timer, Receipt, HandCoins } from 'lucide-react'
+import NotificationBell from '../NotificationBell'
+import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, CalendarDays, Menu, X, Shield, FileText, CalendarRange, MessageCircle, UserCog, QrCode, Timer, Receipt, HandCoins } from 'lucide-react'
 
 const baseAdminNav = [
   { to: '/', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
@@ -30,16 +31,14 @@ const superAdminNav = [
 const userNav = [
   { to: '/my-home', label: 'דף הבית', icon: Home, end: true },
   { to: '/my-shifts', label: 'המשמרות שלי', icon: CalendarClock },
+  { to: '/schedule', label: 'סידור עבודה', icon: CalendarRange },
   { to: '/form-101', label: 'טופס 101', icon: FileText },
 ]
 
 export default function Sidebar() {
-  const { currentUser, isSuperAdmin, isHourlyManager, can, logout, notifications, unreadCount, markNotificationRead, markAllNotificationsRead } = useApp()
+  const { currentUser, isSuperAdmin, isHourlyManager, can, logout } = useApp()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
-  const [bellOpen, setBellOpen] = useState(false)
-  const bellRef = useRef(null)
-
   const adminNav = isSuperAdmin ? superAdminNav : baseAdminNav.filter(i => (i.to !== '/reports' || can('reports')) && (i.to !== '/invoices' || can('invoices')) && (i.to !== '/advances' || can('advances') || can('reports')))
   const nav = currentUser?.role === 'admin'
     ? (isHourlyManager
@@ -50,33 +49,6 @@ export default function Sidebar() {
   function handleLogout() {
     logout()
     navigate('/login')
-  }
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (bellRef.current && !bellRef.current.contains(e.target)) {
-        setBellOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  function getNotifColor(type) {
-    const map = {
-      warning: 'bg-amber-50 border-amber-200',
-      info: 'bg-brand-50 border-brand-200',
-      success: 'bg-green-50 border-green-200',
-      error: 'bg-red-50 border-red-200',
-    }
-    return map[type] || 'bg-gray-50 border-gray-200'
-  }
-
-  function formatTime(dateStr) {
-    return new Date(dateStr).toLocaleString('he-IL', {
-      day: 'numeric', month: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    })
   }
 
   const sidebarContent = (
@@ -91,58 +63,7 @@ export default function Sidebar() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* פעמון התראות */}
-            {currentUser?.role === 'admin' && (
-              <div ref={bellRef} className="relative">
-                <button
-                  onClick={() => setBellOpen(p => !p)}
-                  className="relative p-2 rounded-xl hover:bg-white/70 transition-colors"
-                >
-                  <Bell size={18} className="text-gray-500" />
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-coral text-white text-[10px] rounded-full flex items-center justify-center font-bold">
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
-                </button>
-
-                {/* דרופדאון התראות */}
-                {bellOpen && (
-                  <div className="absolute top-10 right-0 w-80 bg-white/90 backdrop-blur-xl rounded-2xl shadow-glass-lg border border-white z-50 overflow-hidden animate-rise">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                      <span className="text-sm font-medium">התראות</span>
-                      {unreadCount > 0 && (
-                        <button onClick={markAllNotificationsRead} className="text-xs text-brand-600 hover:text-brand-800">
-                          סמן הכל כנקרא
-                        </button>
-                      )}
-                    </div>
-                    <div className="max-h-80 overflow-y-auto">
-                      {notifications.length === 0 ? (
-                        <div className="px-4 py-6 text-center text-sm text-gray-400">אין התראות</div>
-                      ) : (
-                        notifications.map(n => (
-                          <div
-                            key={n.id}
-                            onClick={() => markNotificationRead(n.id)}
-                            className={`px-4 py-3 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors ${!n.read ? 'bg-brand-50/50' : ''}`}
-                          >
-                            <div className="flex items-start gap-2">
-                              {!n.read && <div className="w-2 h-2 bg-brand-500 rounded-full mt-1.5 shrink-0" />}
-                              <div className={!n.read ? '' : 'mr-4'}>
-                                <p className="text-xs font-medium text-gray-800">{n.title}</p>
-                                <p className="text-xs text-gray-500 mt-0.5">{n.message}</p>
-                                <p className="text-[10px] text-gray-400 mt-1">{formatTime(n.created_at)}</p>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="hidden md:block"><NotificationBell /></div>
             <button onClick={() => setOpen(false)} className="md:hidden text-gray-400 hover:text-gray-600">
               <X size={20} />
             </button>
@@ -201,6 +122,12 @@ export default function Sidebar() {
       >
         <Menu size={20} className="text-gray-600" />
       </button>
+
+      {!open && (
+        <div className="md:hidden fixed top-4 left-4 z-50 glass rounded-xl shadow-glass">
+          <NotificationBell align="left" />
+        </div>
+      )}
 
       {open && (
         <div className="md:hidden fixed inset-0 bg-ink-900/30 backdrop-blur-sm z-40" onClick={() => setOpen(false)} />
