@@ -124,7 +124,7 @@ export function AppProvider({ children }) {
       setCurrentUser({ ...data, name: data.full_name })
       await logActivity(authUser.id, data.full_name, authUser.email, 'התחברות', 'התחבר למערכת')
       await loadAllData(data.role, authUser.id)
-      if (data.role === 'admin') await loadNotifications(authUser.id)
+      // notifications load from the polling effect below
     }
     setLoading(false)
   }
@@ -135,9 +135,49 @@ export function AppProvider({ children }) {
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
-      .limit(20)
+      .limit(30)
     if (data) setNotifications(data)
+    return data
   }
+
+  // newest schedule-related notification — when it changes, the schedule was updated
+  const scheduleStamp = list => (list || []).filter(n => n.kind?.startsWith('schedule')).map(n => `${n.id}@${n.created_at}`)[0] || ''
+  const [scheduleVersion, setScheduleVersion] = useState(0)
+  const lastScheduleStamp = React.useRef(null)
+
+  async function reloadScheduleData(role, userId) {
+    const [wkly, notes] = await Promise.all([
+      fetchAll(() => {
+        let q = supabase.from('weekly_schedule').select('*, profiles(full_name, color)').order('week_start')
+        if (role !== 'admin') q = q.eq('employee_id', userId)
+        return q
+      }),
+      fetchAll(() => supabase.from('day_notes').select('*')),
+    ])
+    if (wkly.data) setWeeklySchedule(wkly.data)
+    if (notes.data) setDayNotes(notes.data)
+  }
+
+  // keep the bell fresh (every 45s and when the tab comes back); employees also get the schedule reloaded on updates
+  useEffect(() => {
+    if (!currentUser) return
+    lastScheduleStamp.current = null
+    const tick = async () => {
+      const list = await loadNotifications(currentUser.id)
+      if (!list) return
+      const stamp = scheduleStamp(list)
+      if (lastScheduleStamp.current !== null && stamp !== lastScheduleStamp.current && currentUser.role !== 'admin') {
+        await reloadScheduleData(currentUser.role, currentUser.id)
+        setScheduleVersion(v => v + 1)
+      }
+      lastScheduleStamp.current = stamp
+    }
+    tick()
+    const t = setInterval(tick, 45000)
+    const onVisible = () => document.visibilityState === 'visible' && tick()
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVisible) }
+  }, [currentUser?.id])
 
   async function addNotification(userId, title, message, type = 'info') {
     const { data, error } = await supabase
@@ -554,7 +594,7 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       employees, shifts, bonuses, weeklySchedule, dayNotes,
-      notifications, unreadCount,
+      notifications, unreadCount, scheduleVersion,
       currentUser, currentRole, currentUserEmail,
       loading, authNotice, isSuperAdmin, can, systemLocked, setSystemLock, payRules, setWageThreshold, advances, requestAdvance, addAdvance, decideAdvance, updateAdvance, deleteAdvance, loadAdvances, isHourlyManager, canResolveShift, hourlyManagers, managers, isManager,
       login, logout,
