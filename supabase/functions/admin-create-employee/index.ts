@@ -26,7 +26,6 @@ function normalizePhone(raw?: string | null): string | null {
 
 // First-login invite: a "set password" link by WhatsApp (reliable), falling back to email.
 // The Supabase default mailer often lands in spam, so WhatsApp is the primary channel.
-// deno-lint-ignore no-explicit-any
 // first-login invite + welcome note in the employee's language (profiles.language: he | ru | en)
 const INVITE = {
   he: (first: string, url: string, email: string) =>
@@ -55,6 +54,7 @@ const WELCOME = {
 };
 const langOf = (l?: string | null): "he" | "ru" | "en" => (l === "ru" || l === "en" ? l : "he");
 
+// deno-lint-ignore no-explicit-any
 async function sendInvite(admin: any, person: { id: string; full_name: string; email: string; phone?: string | null; language?: string | null }, sender: { id: string; full_name: string }, isManager: boolean) {
   const redirectTo = "https://workmanager-florentin.com/set-password";
   const phone = normalizePhone(person.phone);
