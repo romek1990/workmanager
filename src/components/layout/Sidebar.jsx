@@ -141,7 +141,7 @@ export default function Sidebar() {
         bg-white/85 md:bg-white/55 backdrop-blur-2xl backdrop-saturate-150 border-e border-white/70
         transition-transform duration-300
         ${open ? 'translate-x-0' : 'ltr:-translate-x-full rtl:translate-x-full'}
-        md:translate-x-0
+        md:!translate-x-0
       `}>
         {sidebarContent}
       </aside>
