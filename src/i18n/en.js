@@ -438,4 +438,16 @@ export default {
   'אישור טופס 101 שלך לשנת {year} בוטל על ידי המנהל — ניתן להגיש את הטופס מחדש': 'Your manager cancelled the approval of your Form 101 for {year} — you can submit it again',
   '📋 יש למלא טופס 101': '📋 Please fill in Form 101',
   'ברוך הבא! יש למלא טופס 101 לשנת {year} בהקדם': 'Welcome! Please fill in Form 101 for {year} as soon as possible',
+  // ── payslips ──
+  'תלושי שכר': 'Payslips',
+  'התלושים שלי': 'My payslips',
+  'כל תלושי השכר שלך, מסודרים לפי חודשים': 'All your payslips, by month',
+  'חודש לא ידוע': 'Unknown month',
+  'לא ניתן לפתוח את הקובץ': 'The file could not be opened',
+  'עוד אין תלושי שכר. כשהמנהל יעלה את התלוש שלך הוא יופיע כאן.': 'No payslips yet. When your manager uploads your payslip it will appear here.',
+  'חדש': 'New',
+  'צפייה': 'View',
+  'הורדה': 'Download',
+  'תלוש שכר': 'Payslip',
+  'פתח בחלון חדש': 'Open in a new window',
 }

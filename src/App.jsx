@@ -24,6 +24,8 @@ import Managers from './pages/Managers'
 import ClockScan, { PENDING_CLOCK_KEY } from './pages/ClockScan'
 import QrCodes from './pages/QrCodes'
 import Invoices from './pages/Invoices'
+import Payslips from './pages/Payslips'
+import MyPayslips from './pages/MyPayslips'
 import { MeshBackground } from './components/ui'
 import { t, useLang } from './i18n'
 
@@ -90,6 +92,8 @@ function AppRoutes() {
           <Route path="/messages" element={<ProtectedRoute requiredRole="admin"><WhatsApp /></ProtectedRoute>} />
           <Route path="/whatsapp" element={<Navigate to="/messages" replace />} />
           <Route path="/invoices" element={<ProtectedRoute requiredRole="admin"><Invoices /></ProtectedRoute>} />
+          <Route path="/payslips" element={<ProtectedRoute requiredRole="admin"><Payslips /></ProtectedRoute>} />
+          <Route path="/my-payslips" element={<ProtectedRoute><MyPayslips /></ProtectedRoute>} />
           <Route path="/managers" element={<ProtectedRoute requiredRole="admin"><Managers /></ProtectedRoute>} />
           <Route path="/activity-logs" element={<ProtectedRoute requiredRole="admin"><ActivityLogs /></ProtectedRoute>} />
           <Route path="/my-home" element={<ProtectedRoute><UserHome /></ProtectedRoute>} />

@@ -17,6 +17,7 @@ const PERMS = [
   { key: 'advances', label: 'מפרעות', desc: 'אישור בקשות והוספת מפרעות לעובדים' },
   { key: 'reports', label: 'דוחות ושכר', desc: 'צפייה בדוחות שעות ושכר' },
   { key: 'invoices', label: 'חשבוניות', desc: 'העלאה, סריקה וניהול חשבוניות ספקים' },
+  { key: 'payslips', label: 'תלושי שכר', desc: 'העלאת תלושים, צפייה בתלושי כל העובדים ושליחה' },
 ]
 const permLabel = k => PERMS.find(p => p.key === k)?.label || k
 

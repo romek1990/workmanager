@@ -6,7 +6,7 @@ import { Avatar } from '../ui'
 import SystemLockButton from '../SystemLockButton'
 import NotificationBell from '../NotificationBell'
 import LanguagePicker from '../LanguagePicker'
-import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, CalendarDays, Menu, X, Shield, FileText, CalendarRange, MessageCircle, UserCog, QrCode, Timer, Receipt, HandCoins } from 'lucide-react'
+import { LayoutDashboard, Users, CalendarClock, Gift, BarChart2, Mail, Home, LogOut, CalendarDays, Menu, X, Shield, FileText, CalendarRange, MessageCircle, UserCog, QrCode, Timer, Receipt, HandCoins, Wallet } from 'lucide-react'
 import { t } from '../../i18n'
 
 const baseAdminNav = [
@@ -21,12 +21,14 @@ const baseAdminNav = [
   { to: '/messages', label: 'הודעות', icon: MessageCircle },
   { to: '/qr-codes', label: 'QR ומיקום', icon: QrCode },
   { to: '/invoices', label: 'חשבוניות', icon: Receipt },
+  { to: '/payslips', label: 'תלושי שכר', icon: Wallet },
 ]
 
 const superAdminNav = [
-  ...baseAdminNav.filter(i => i.to !== '/invoices'),
+  ...baseAdminNav.filter(i => i.to !== '/invoices' && i.to !== '/payslips'),
   { to: '/managers', label: 'מנהלים', icon: UserCog },
   { to: '/invoices', label: 'חשבוניות', icon: Receipt },
+  { to: '/payslips', label: 'תלושי שכר', icon: Wallet },
   { to: '/activity-logs', label: 'לוג פעילות', icon: Shield },
 ]
 
@@ -35,17 +37,18 @@ const userNav = [
   { to: '/my-shifts', label: 'המשמרות שלי', icon: CalendarClock },
   { to: '/schedule', label: 'סידור עבודה', icon: CalendarRange },
   { to: '/form-101', label: 'טופס 101', icon: FileText },
+  { to: '/my-payslips', label: 'תלושי שכר', icon: Wallet },
 ]
 
 export default function Sidebar() {
   const { currentUser, isSuperAdmin, isHourlyManager, can, logout } = useApp()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
-  const adminNav = isSuperAdmin ? superAdminNav : baseAdminNav.filter(i => (i.to !== '/reports' || can('reports')) && (i.to !== '/invoices' || can('invoices')) && (i.to !== '/advances' || can('advances') || can('reports')))
+  const adminNav = isSuperAdmin ? superAdminNav : baseAdminNav.filter(i => (i.to !== '/reports' || can('reports')) && (i.to !== '/invoices' || can('invoices')) && (i.to !== '/payslips' || can('payslips')) && (i.to !== '/advances' || can('advances') || can('reports')))
   const nav = currentUser?.role === 'admin'
     ? (isHourlyManager
         ? [adminNav[0], { to: '/my-home', label: 'השעון שלי', icon: Timer, end: true }, { to: '/my-shifts', label: 'המשמרות שלי', icon: CalendarClock }, ...adminNav.slice(1)]
-        : adminNav)
+        : adminNav).concat(isSuperAdmin ? [] : [{ to: '/my-payslips', label: 'התלושים שלי', icon: Wallet }]) // managers get payslips too
     : userNav
 
   function handleLogout() {

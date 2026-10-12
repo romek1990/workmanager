@@ -42,6 +42,7 @@ export default function NotificationBell({ align = 'right' }) {
       setOpen(false)
       navigate(currentUser?.role === 'admin' ? '/weekly-schedule' : '/schedule')
     }
+    if (n.kind === 'payslip') { setOpen(false); navigate('/my-payslips') }
   }
 
   return (
