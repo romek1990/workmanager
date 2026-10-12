@@ -6,7 +6,7 @@ import QrScanner from '../components/QrScanner'
 import PayEstimate from '../components/PayEstimate'
 import AdvancesCard from '../components/AdvancesCard'
 import { ShiftTypeBadge, StatusBadge, StatCard, CardSection, Table, AlertModal, Modal } from '../components/ui'
-import { calcShiftPay, fmtMoney, calcHours, todayISO, fmtHours, hoursFromMinutes, minutesBetween, localISODate, monthEstimate, shiftOverlapMessage } from '../utils/helpers'
+import { calcShiftPay, fmtMoney, calcHours, todayISO, fmtHours, hoursFromMinutes, minutesBetween, localISODate, monthEstimate, shiftOverlapMessage, fmtDateDay } from '../utils/helpers'
 import { t, getLocale } from '../i18n'
 
 const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
@@ -293,7 +293,7 @@ export default function UserHome() {
         <Table headers={[t('תאריך'), t('שעות'), t('סוג'), t('סטטוס')]} emptyMessage={t('אין משמרות עדיין')}>
           {myShifts.slice(0, 6).map(s => (
             <tr key={s.id} className="hover:bg-gray-50">
-              <td className="table-td text-sm">{s.date}</td>
+              <td className="table-td text-sm tabular-nums whitespace-nowrap">{fmtDateDay(s.date)}</td>
               <td className="table-td text-sm tabular-nums">{fmtHours(s.total_hours)}</td>
               <td className="table-td"><ShiftTypeBadge type={s.shift_type} /></td>
               <td className="table-td"><StatusBadge status={s.status} shift /></td>

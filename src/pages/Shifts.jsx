@@ -3,7 +3,7 @@ import { Plus, CalendarClock } from 'lucide-react'
 import { isLongShift as isLong, LongHours, LONG_ROW, LONG_EDGE } from '../components/LongShift'
 import { useApp } from '../context/AppContext'
 import { ShiftTypeBadge, StatusBadge, Modal, AlertModal, Avatar, PageHeader, StatChip, SearchInput, Toast, useToast, ReadOnlyBanner, ManagerBadge } from '../components/ui'
-import { calcHours, todayISO, fmtHours, fmtDate, shiftOverlapMessage } from '../utils/helpers'
+import { calcHours, todayISO, fmtHours, fmtDate, fmtDateDay, shiftOverlapMessage } from '../utils/helpers'
 
 const defaultForm = { employee_email: '', date: todayISO(), start_time: '08:00', end_time: '16:00', shift_type: 'regular', notes: '' }
 const HEBREW_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
@@ -135,7 +135,7 @@ export default function Shifts() {
                       <td className={`table-td ${long ? LONG_EDGE : ''}`}>
                         <div className="flex items-center gap-2.5 font-medium"><Avatar name={s.employee_name} size="sm" />{s.employee_name}<ManagerBadge show={isManager(s.employee_id)} /></div>
                       </td>
-                      <td className="table-td tabular-nums" style={{ color: 'var(--text-dim)' }}>{fmtDate(s.date)}</td>
+                      <td className="table-td tabular-nums" style={{ color: 'var(--text-dim)' }}>{fmtDateDay(s.date)}</td>
                       <td className="table-td tabular-nums">{t5(s.start_time) || '—'}</td>
                       <td className="table-td tabular-nums">{t5(s.end_time) || '—'}</td>
                       <td className="table-td tabular-nums font-medium">{s.status === 'active' ? '—' : long ? <LongHours hours={s.total_hours} /> : fmtHours(s.total_hours)}</td>
@@ -161,7 +161,7 @@ export default function Shifts() {
                     <StatusBadge status={s.status} shift />
                   </div>
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs mt-2 tabular-nums" style={{ color: 'var(--text-dim)' }}>
-                    <span>{fmtDate(s.date)}</span>·
+                    <span>{fmtDateDay(s.date)}</span>·
                     <span dir="ltr">{t5(s.start_time) || '—'}–{t5(s.end_time) || '…'}</span>·
                     {isLong(s) ? <LongHours hours={s.total_hours} /> : <span className="font-semibold text-gray-700">{s.status === 'active' ? 'פתוחה' : `${fmtHours(s.total_hours)} ש'`}</span>}
                     <ShiftTypeBadge type={s.shift_type} />

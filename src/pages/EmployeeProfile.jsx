@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { Avatar, ShiftTypeBadge, StatusBadge, CardSection, Table, Modal, AlertModal } from '../components/ui'
 import { EMP_TYPE_LABELS } from '../data/mockData'
-import { calcShiftPay, fmtMoney, fmtHours, eligibleForPremium, getPayRules } from '../utils/helpers'
+import { calcShiftPay, fmtMoney, fmtHours, eligibleForPremium, getPayRules, fmtDateDay } from '../utils/helpers'
 import { LANGS } from '../i18n'
 
 const RESET_PW_URL = 'https://nwetajywazzpxkdknqsf.supabase.co/functions/v1/admin-reset-password'
@@ -140,7 +140,7 @@ export default function EmployeeProfile() {
         <Table headers={['תאריך', 'שעות', 'סוג', 'סטטוס', 'הערות']}>
           {empShifts.slice(0, 8).map(s => (
             <tr key={s.id} className="hover:bg-gray-50">
-              <td className="table-td text-sm">{s.date}</td>
+              <td className="table-td text-sm tabular-nums whitespace-nowrap">{fmtDateDay(s.date)}</td>
               <td className="table-td text-sm tabular-nums">{fmtHours(s.total_hours)}</td>
               <td className="table-td"><ShiftTypeBadge type={s.shift_type} /></td>
               <td className="table-td"><StatusBadge status={s.status} shift /></td>

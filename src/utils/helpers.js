@@ -169,6 +169,21 @@ export function fmtDate(iso) {
   return `${d}.${m}.${y}`
 }
 
+const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
+
+// "2026-10-12" → "שני" (translated to the user's language)
+export function fmtDay(iso) {
+  if (!iso) return ''
+  const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number)
+  return t(DAY_NAMES[new Date(y, m - 1, d).getDay()])
+}
+
+// "2026-10-12" → "שני 12.10.2026"
+export function fmtDateDay(iso) {
+  if (!iso) return '—'
+  return `${fmtDay(iso)} ${fmtDate(iso)}`
+}
+
 // Estimated gross pay for one month (ym = 'YYYY-MM'): approved + still-pending shifts, plus bonuses.
 // Rejected shifts and a shift that is still open are not counted.
 export function monthEstimate({ shifts = [], bonuses = [], emp, ym }) {

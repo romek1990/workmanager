@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { ChevronRight, ChevronLeft, Pencil, Trash2, CalendarClock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { fmtHours, fmtDate, calcHours, todayISO, monthEstimate, shiftOverlapMessage } from '../utils/helpers'
+import { fmtHours, fmtDate, fmtDateDay, calcHours, todayISO, monthEstimate, shiftOverlapMessage } from '../utils/helpers'
 import PayEstimate from '../components/PayEstimate'
 import AdvancesCard from '../components/AdvancesCard'
 import { ShiftTypeBadge, StatusBadge, Modal, PageHeader, Toast, useToast } from '../components/ui'
@@ -129,7 +129,7 @@ export default function MyShifts() {
                 <tbody>
                   {myShifts.map(s => (
                     <tr key={s.id} className="hover:bg-brand-500/5">
-                      <td className="table-td tabular-nums">{fmtDate(s.date)}</td>
+                      <td className="table-td tabular-nums whitespace-nowrap">{fmtDateDay(s.date)}</td>
                       <td className="table-td tabular-nums">{t5(s.start_time) || '—'}</td>
                       <td className="table-td tabular-nums">{t5(s.end_time) || '—'}</td>
                       <td className="table-td tabular-nums font-medium">{s.status === 'active' ? '—' : fmtHours(s.total_hours)}</td>
@@ -148,7 +148,7 @@ export default function MyShifts() {
               {myShifts.map(s => (
                 <div key={s.id} className="px-4 py-3.5">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold text-sm tabular-nums">{fmtDate(s.date)}</span>
+                    <span className="font-semibold text-sm tabular-nums">{fmtDateDay(s.date)}</span>
                     <StatusBadge status={s.status} shift />
                   </div>
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs mt-1.5 tabular-nums" style={{ color: 'var(--text-dim)' }}>
@@ -223,7 +223,7 @@ export default function MyShifts() {
           <button className="btn btn-danger" onClick={confirmRemove} disabled={busy}>{busy ? t('מוחק...') : t('מחק משמרת')}</button>
         </>}>
         <p className="text-sm">
-          {t('למחוק את המשמרת של')} <b>{removing && fmtDate(removing.date)}</b>{' '}
+          {t('למחוק את המשמרת של')} <b>{removing && fmtDateDay(removing.date)}</b>{' '}
           (<span dir="ltr">{removing && `${t5(removing.start_time)}–${t5(removing.end_time)}`}</span>)?
         </p>
         <p className="text-xs mt-2" style={{ color: 'var(--text-dim)' }}>{t('המנהל יקבל עדכון שהמשמרת נמחקה.')}</p>
