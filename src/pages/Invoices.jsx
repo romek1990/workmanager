@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Receipt, Camera, Upload, ChevronDown, ExternalLink, Pencil, Trash2, RefreshCw, Loader2, AlertTriangle, Search, Eye, X, FileText, Truck, Files, Plus, ArrowUp, ArrowDown, ImagePlus, Undo2, Copy, CalendarDays, Info } from 'lucide-react'
+import { Receipt, Camera, Upload, ChevronDown, ExternalLink, Pencil, Trash2, RefreshCw, Loader2, AlertTriangle, Search, Eye, X, FileText, Truck, Files, Plus, ArrowUp, ArrowDown, ImagePlus, Undo2, Copy, CalendarDays, Info, Download } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { fetchAll } from '../lib/fetchAll'
 import { compressImage } from '../utils/compressImage'
+import { mergeInvoicesPdf } from '../utils/mergeInvoicesPdf'
 import { PageHeader, Modal, Toast, useToast } from '../components/ui'
 import { fmtDate, fmtMoney, localISODate } from '../utils/helpers'
 
@@ -301,6 +302,29 @@ export default function Invoices() {
   }, [uploadPreset, uploadDate])
   const inUploadRange = r => !uploadRange || (uploadDay(r) >= uploadRange.from && uploadDay(r) <= uploadRange.to)
 
+  // one PDF with all tax invoices (חשבוניות מס) of a month — ignores the search/type/upload filters on purpose
+  const [monthDl, setMonthDl] = useState(null) // { month, done, total }
+  const rowMonth = r => r.month || (r.invoice_date || r.created_at).slice(0, 7)
+  async function downloadMonth(month) {
+    const list = rows
+      .filter(r => rowMonth(r) === month && typeOf(r) === 'invoice' && r.file_path && !r.duplicate_of)
+      .sort((a, b) => (a.supplier_name || '').localeCompare(b.supplier_name || '', 'he') || (a.invoice_date || '').localeCompare(b.invoice_date || ''))
+    if (!list.length) return showToast('אין חשבוניות מס בחודש הזה', 'error')
+    setMonthDl({ month, done: 0, total: list.length })
+    try {
+      const { bytes, failed } = await mergeInvoicesPdf(list, (done, total) => setMonthDl({ month, done, total }))
+      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
+      const a = document.createElement('a')
+      a.href = url; a.download = `חשבוניות מס ${monthLabel(month)}.pdf`
+      document.body.appendChild(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 10000)
+      logActivity?.(currentUser?.id, currentUser?.name, currentUser?.email, 'הורדת חשבוניות חודשית', `${monthLabel(month)} · ${list.length - failed.length} חשבוניות`)
+      showToast(failed.length ? `הורדו ${list.length - failed.length} חשבוניות · ${failed.length} לא נקראו` : `הורדו ${list.length} חשבוניות`, failed.length ? 'error' : 'success')
+    } catch (e) {
+      showToast(e.message || 'ההורדה נכשלה', 'error')
+    } finally { setMonthDl(null) }
+  }
+
   const grouped = useMemo(() => {
     const q = search.trim()
     const filtered = rows.filter(r =>
@@ -476,7 +500,8 @@ export default function Invoices() {
         <div className="space-y-4">
           {grouped.map(g => (
             <div key={g.month} className="card overflow-hidden">
-              <button className="w-full flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-4 text-right hover:bg-brand-500/5" onClick={() => setOpenMonths(m => ({ ...m, [g.month]: !isOpen(g.month) }))}>
+              <div className="flex items-stretch">
+              <button className="flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 px-5 py-4 text-right hover:bg-brand-500/5" onClick={() => setOpenMonths(m => ({ ...m, [g.month]: !isOpen(g.month) }))}>
                 <ChevronDown size={18} className={`transition-transform ${isOpen(g.month) ? '' : '-rotate-90'}`} />
                 <span className="font-bold flex-1">{monthLabel(g.month)}</span>
                 <span className="text-xs" style={{ color: 'var(--text-dim)' }}>
@@ -489,6 +514,13 @@ export default function Invoices() {
                   {g.creditCount > 0 && g.invCount > 0 && <span className="block text-xs font-bold tabular-nums">נטו {fmtMoney(g.invTotal - g.creditTotal)}</span>}
                 </span>
               </button>
+              <button className="shrink-0 flex flex-col items-center justify-center gap-0.5 px-3 border-r border-black/5 text-brand-700 hover:bg-brand-500/10 disabled:opacity-50"
+                title="הורדת כל חשבוניות המס של החודש כקובץ PDF אחד" disabled={!!monthDl}
+                onClick={() => downloadMonth(g.month)}>
+                {monthDl?.month === g.month ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                <span className="text-[10px] font-semibold tabular-nums whitespace-nowrap">{monthDl?.month === g.month ? `${monthDl.done}/${monthDl.total}` : 'PDF'}</span>
+              </button>
+              </div>
               {isOpen(g.month) && (
                 <div className="border-t border-black/5">
                   {g.suppliers.map(s => (
