@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useApp } from '../context/AppContext'
 import { PageHeader, StatChip } from '../components/ui'
 import { t } from '../i18n'
+import { PERIODS, periodOf } from '../utils/shiftPeriods'
 
 // Read-only view of the full work schedule for employees (any week, past or future)
 
@@ -125,6 +126,7 @@ export default function WorkSchedule() {
         <table className="w-full table-fixed border-separate border-spacing-0 text-sm">
           <thead>
             <tr>
+              <th className="w-[84px] bg-white/50 border-b-2 border-b-black/10 border-l border-l-black/[0.07]" />
               {days.map(d => (
                 <th key={d.i} className={`px-2 pt-3 pb-2 text-center align-top border-b-2 ${d.i < 6 ? 'border-l border-l-black/[0.07]' : ''} ${
                   d.i === todayIdx ? 'bg-brand-500/[0.12] border-b-brand-500' : d.i >= 5 ? 'bg-amber-500/[0.06] border-b-black/10' : 'bg-white/50 border-b-black/10'}`}>
@@ -139,16 +141,26 @@ export default function WorkSchedule() {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              {days.map(d => (
-                <td key={d.i} className={`align-top p-2 h-[300px] ${d.i < 6 ? 'border-l border-black/[0.07]' : ''} ${
-                  d.i === todayIdx ? 'bg-brand-500/[0.05]' : d.i >= 5 ? 'bg-amber-500/[0.03]' : ''}`}>
-                  <div className="flex flex-col gap-2">
-                    {d.list.length ? d.list.map(card) : <div className="text-center text-gray-300 text-xs pt-2">—</div>}
-                  </div>
-                </td>
-              ))}
-            </tr>
+            {PERIODS.map((p, pi) => (
+              <tr key={p.key}>
+                <th className={`align-middle px-1 text-center border-l border-l-black/[0.07] ${pi ? 'border-t-2 border-t-black/10' : ''}`} style={{ background: p.bg }}>
+                  <div className="text-lg leading-none">{p.icon}</div>
+                  <div className="text-xs font-extrabold mt-1" style={{ color: p.color }}>{t(p.label)}</div>
+                  <div className="text-[10px] text-gray-400 tabular-nums mt-0.5" dir="ltr">{p.range}</div>
+                </th>
+                {days.map(d => {
+                  const list = d.list.filter(e => periodOf(e.start_time) === p.key)
+                  return (
+                    <td key={d.i} className={`align-top p-2 h-[100px] ${d.i < 6 ? 'border-l border-black/[0.07]' : ''} ${pi ? 'border-t-2 border-t-black/10' : ''} ${
+                      d.i === todayIdx ? 'bg-brand-500/[0.05]' : d.i >= 5 ? 'bg-amber-500/[0.03]' : ''}`}>
+                      <div className="flex flex-col gap-2">
+                        {list.length ? list.map(card) : <div className="text-center text-gray-300 text-xs pt-2">—</div>}
+                      </div>
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
@@ -168,7 +180,17 @@ export default function WorkSchedule() {
             <div className="p-3">
               {d.note && <div className="-mt-1.5 mb-2">{noteChip(d.note)}</div>}
               {d.list.length
-                ? <div className="grid grid-cols-2 gap-2">{d.list.map(card)}</div>
+                ? <div className="space-y-2.5">
+                    {PERIODS.map(p => {
+                      const list = d.list.filter(e => periodOf(e.start_time) === p.key)
+                      return list.length > 0 && (
+                        <div key={p.key} className="rounded-xl p-2" style={{ background: p.bg }}>
+                          <div className="text-[11px] font-extrabold mb-1.5" style={{ color: p.color }}>{p.icon} {t(p.label)}</div>
+                          <div className="grid grid-cols-2 gap-2">{list.map(card)}</div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 : <div className="text-center text-gray-300 text-xs">{t('אין משמרות')}</div>}
             </div>
           </div>

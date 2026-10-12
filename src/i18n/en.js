@@ -450,4 +450,8 @@ export default {
   'הורדה': 'Download',
   'תלוש שכר': 'Payslip',
   'פתח בחלון חדש': 'Open in a new window',
+  // ── schedule rows ──
+  'משמרת בוקר': 'Morning shift',
+  'משמרת ערב': 'Evening shift',
+  'משמרת לילה': 'Night shift',
 }

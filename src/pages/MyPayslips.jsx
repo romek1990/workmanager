@@ -12,7 +12,7 @@ const monthLabel = ym => {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
-// the employee's own payslips — RLS returns only their published slips
+// the employee's own payslips — only slips a manager has sent (RLS enforces the same)
 export default function MyPayslips() {
   const { currentUser } = useApp()
   const [slips, setSlips] = useState([])
@@ -23,7 +23,7 @@ export default function MyPayslips() {
   useEffect(() => {
     if (!currentUser?.id) return
     supabase.from('payslips').select('id, month, file_path, viewed_at, created_at')
-      .eq('employee_id', currentUser.id).eq('status', 'published')
+      .eq('employee_id', currentUser.id).eq('status', 'published').not('sent_at', 'is', null)
       .order('month', { ascending: false, nullsFirst: false })
       .then(({ data }) => { setSlips(data || []); setLoading(false) })
   }, [currentUser?.id])

@@ -184,7 +184,7 @@ export default function Payslips() {
 
   return (
     <div className="p-4 md:px-10 md:py-8">
-      <PageHeader icon={Wallet} title="תלושי שכר" subtitle="מעלים קובץ PDF אחד עם כל התלושים — המערכת מפצלת לפי עובד, מסדרת לפי חודש, וכל עובד רואה רק את התלוש שלו">
+      <PageHeader icon={Wallet} title="תלושי שכר" subtitle="מעלים קובץ PDF אחד עם כל התלושים — המערכת מפצלת לפי עובד, מסדרת לפי חודש, ואחרי לחיצה על שליחה כל עובד רואה רק את התלוש שלו">
         <button className="btn btn-primary" disabled={uploading} onClick={() => fileRef.current?.click()}>
           {uploading ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}העלה קובץ תלושים
         </button>
@@ -209,7 +209,7 @@ export default function Payslips() {
       {pending.length > 0 && (
         <div className="card overflow-hidden mb-4 border border-amber-200">
           <div className="px-5 py-3 bg-amber-50 flex items-center gap-2 text-sm font-semibold text-amber-900">
-            <AlertTriangle size={16} />{pending.length} תלושים ממתינים לשיוך — העובד לא רואה אותם עד שתאשר
+            <AlertTriangle size={16} />{pending.length} תלושים ממתינים לשיוך — יש לשייך אותם לעובד לפני שליחה
           </div>
           <div className="divide-y divide-black/5">
             {pending.map(s => (
@@ -269,7 +269,7 @@ export default function Payslips() {
                         <span className="text-xs flex flex-wrap gap-1.5">
                           {s.sent_at
                             ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5"><CheckCircle2 size={11} />נשלח {fmtDT(s.sent_at)}</span>
-                            : <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2 py-0.5"><Clock size={11} />לא נשלח</span>}
+                            : <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2 py-0.5"><Clock size={11} />לא נשלח — העובד עוד לא רואה</span>}
                           {s.viewed_at && <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 text-sky-800 px-2 py-0.5"><Eye size={11} />העובד צפה</span>}
                         </span>
                         <div className="flex items-center gap-1.5">
@@ -312,7 +312,7 @@ export default function Payslips() {
       <Modal open={!!assigning} onClose={() => busy !== 'assign' && setAssigning(null)} title="שיוך תלוש לעובד"
         footer={<>
           <button className="btn" onClick={() => setAssigning(null)}>ביטול</button>
-          <button className="btn btn-primary" onClick={saveAssign} disabled={!assigning?.employeeId || busy === 'assign'}>{busy === 'assign' ? 'שומר...' : 'שייך והצג לעובד'}</button>
+          <button className="btn btn-primary" onClick={saveAssign} disabled={!assigning?.employeeId || busy === 'assign'}>{busy === 'assign' ? 'שומר...' : 'שייך'}</button>
         </>}>
         {assigning && (
           <div className="space-y-3 text-sm">
@@ -324,7 +324,7 @@ export default function Payslips() {
                 {people.map(p => <option key={p.id} value={p.id}>{p.full_name}{p.status !== 'active' ? ' (לא פעיל)' : ''}</option>)}
               </select>
             </div>
-            <p className="text-xs" style={{ color: 'var(--text-dim)' }}>אחרי השיוך העובד יראה את התלוש בעמוד "תלושי שכר" שלו. בפעם הבאה המערכת תזהה אותו לבד לפי הת.ז.</p>
+            <p className="text-xs" style={{ color: 'var(--text-dim)' }}>העובד יראה את התלוש רק אחרי שתלחץ "שלח לעובד". בפעם הבאה המערכת תזהה אותו לבד לפי הת.ז.</p>
           </div>
         )}
       </Modal>
@@ -335,7 +335,7 @@ export default function Payslips() {
           <button className="btn btn-primary" onClick={() => send(confirmSend.ids)} disabled={busy === 'send'}>{busy === 'send' ? 'שולח...' : <><Send size={14} />שלח</>}</button>
         </>}>
         <p className="text-sm">לשלוח את {confirmSend?.label}?</p>
-        <p className="text-xs mt-2" style={{ color: 'var(--text-dim)' }}>כל עובד יקבל את קובץ התלוש שלו בוואטסאפ והתראה במערכת.</p>
+        <p className="text-xs mt-2" style={{ color: 'var(--text-dim)' }}>רק אחרי השליחה התלוש יופיע לעובד בעמוד "תלושי שכר". הוא יקבל גם את הקובץ בוואטסאפ והתראה במערכת.</p>
       </Modal>
 
       <Modal open={!!removing} onClose={() => busy !== 'del' && setRemoving(null)} title="מחיקת תלוש"
@@ -343,7 +343,7 @@ export default function Payslips() {
           <button className="btn" onClick={() => setRemoving(null)}>ביטול</button>
           <button className="btn btn-danger" onClick={confirmRemove} disabled={busy === 'del'}>{busy === 'del' ? 'מוחק...' : 'מחק'}</button>
         </>}>
-        <p className="text-sm">למחוק את התלוש של <b>{nameOf(removing?.employee_id) || removing?.name_on_slip || 'עובד לא מזוהה'}</b> לחודש {monthLabel(removing?.month)}? גם העובד לא יראה אותו יותר.</p>
+        <p className="text-sm">למחוק את התלוש של <b>{nameOf(removing?.employee_id) || removing?.name_on_slip || 'עובד לא מזוהה'}</b> לחודש {monthLabel(removing?.month)}? אם כבר נשלח — העובד לא יראה אותו יותר.</p>
       </Modal>
 
       <Toast {...toast} />

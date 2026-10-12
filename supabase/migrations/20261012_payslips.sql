@@ -70,3 +70,15 @@ create policy payslips_files_admin on storage.objects for all
 create policy payslips_files_own on storage.objects for select
   using (bucket_id = 'payslips' and exists (
     select 1 from public.payslips s where s.file_path = name and s.employee_id = (select auth.uid()) and s.status = 'published'));
+
+-- employees see a slip only after a manager pressed "send" (sent_at set)
+alter policy payslips_own_select on public.payslips
+  using (employee_id = (select auth.uid()) and status = 'published' and sent_at is not null);
+alter policy payslips_files_own on storage.objects
+  using (bucket_id = 'payslips' and exists (
+    select 1 from public.payslips s where s.file_path = name and s.employee_id = (select auth.uid()) and s.status = 'published' and s.sent_at is not null));
+create or replace function public.mark_payslip_viewed(p_id uuid) returns void
+  language sql security definer set search_path = public as $$
+  update public.payslips set viewed_at = coalesce(viewed_at, now())
+   where id = p_id and employee_id = auth.uid() and status = 'published' and sent_at is not null;
+$$;

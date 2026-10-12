@@ -5,6 +5,7 @@ import emailjs from '@emailjs/browser'
 import { useApp } from '../context/AppContext'
 import { Modal, AlertModal, PageHeader, StatChip, Avatar } from '../components/ui'
 import { tFor } from '../i18n'
+import { PERIODS, periodOf } from '../utils/shiftPeriods'
 
 const EMAILJS_SERVICE = 'service_atutffw'
 const EMAILJS_TEMPLATE = 'template_sx0nowk'
@@ -83,8 +84,10 @@ export default function WeeklySchedule() {
   function prevWeek() { setWeekStart(addDays(weekStart, -7)) }
   function nextWeek() { setWeekStart(addDays(weekStart, 7)) }
 
-  function openAdd(day) {
-    setForm({ ...defaultForm, day_of_week: day })
+  // adding straight into a row pre-fills that row's usual hours
+  function openAdd(day, periodKey) {
+    const p = PERIODS.find(x => x.key === periodKey)
+    setForm({ ...defaultForm, day_of_week: day, ...(p ? { start_time: p.def[0], end_time: p.def[1] } : {}) })
     setModal(true)
   }
 
@@ -163,8 +166,8 @@ export default function WeeklySchedule() {
       { bg: '#f0f9ff', border: '#bae6fd', header: '#e0f2fe', text: '#075985' },
       { bg: '#fefce8', border: '#fde68a', header: '#fef9c3', text: '#854d0e' },
     ]
-    let headers = ''
-    let cells = ''
+    let headers = '<th style="padding:3px 2px;border:2px solid #e5e7eb;background:#f9fafb;width:56px;"></th>'
+    const rows = PERIODS.map(p => ({ p, cells: `<th style="padding:4px 2px;border:2px solid #e5e7eb;background:#f9fafb;font-size:11px;color:${p.color};white-space:nowrap;">${p.icon} ${p.short}</th>` }))
     DAYS.forEach((dayName, i) => {
       const date = addDays(weekStart, i)
       const dayEntries = weekEntries.filter(e => e.day_of_week === i)
@@ -175,11 +178,13 @@ export default function WeeklySchedule() {
         <div style="font-size:10px;color:${c.text};opacity:0.8;">${formatDate(date)}</div>
         ${note ? `<div style="font-size:9px;color:#d97706;">${note.note}</div>` : ''}
       </th>`
+      rows.forEach(row => {
+      const periodEntries = dayEntries.filter(e => periodOf(e.start_time) === row.p.key)
       let cellContent = ''
-      if (dayEntries.length === 0) {
+      if (periodEntries.length === 0) {
         cellContent = '<div style="color:#d1d5db;font-size:11px;text-align:center;padding:4px;">—</div>'
       } else {
-        dayEntries.forEach(entry => {
+        periodEntries.forEach(entry => {
           const empName = entry.profiles?.full_name || activeEmps.find(e => e.id === entry.employee_id)?.full_name || ''
           const night = isMidnightCross(entry.start_time, entry.end_time)
           const entryBg = night ? '#eef2ff' : c.bg
@@ -191,11 +196,12 @@ export default function WeeklySchedule() {
           </div>`
         })
       }
-      cells += `<td style="padding:3px;border:2px solid ${c.border};vertical-align:top;background:#fafafa;">${cellContent}</td>`
+      row.cells += `<td style="padding:3px;border:2px solid ${c.border};vertical-align:top;background:#fafafa;">${cellContent}</td>`
+      })
     })
     return `<table dir="rtl" style="width:100%;border-collapse:collapse;font-size:12px;font-family:Arial;border:2px solid #e5e7eb;">
       <tr>${headers}</tr>
-      <tr>${cells}</tr>
+      ${rows.map(r => `<tr>${r.cells}</tr>`).join('')}
     </table>`
   }
 
@@ -294,15 +300,17 @@ export default function WeeklySchedule() {
   // print the week as a 7-column table (A4 landscape) + hours per employee
   function printSchedule() {
     const esc = v => String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
-    const head = dayData.map(d => {
+    const head = '<th class="pc"></th>' + dayData.map(d => {
       const note = dayNotes.find(n => n.date === d.date)
       return `<th class="${d.i >= 5 ? 'we' : ''}"><div class="dn">${d.name}</div><div class="dd">${formatDate(d.date)}</div>${note ? `<div class="note">${esc(note.note)}</div>` : ''}</th>`
     }).join('')
-    const cells = dayData.map(d => `<td class="${d.i >= 5 ? 'we' : ''}">${d.entries.length ? d.entries.map(e => {
+    const shiftsHtml = list => list.length ? list.map(e => {
       const night = isMidnightCross(e.start_time, e.end_time)
       const c = colorOf(e.employee_id)
       return `<div class="sh${night ? ' night' : ''}" style="background:${c}1f;border-color:${c}66;border-left:5px solid ${c}"><div class="t">${e.start_time.slice(0, 5)}–${e.end_time.slice(0, 5)}${night ? ' (+1)' : ''}</div><div class="nm" style="color:${c}">${esc(empName(e))}</div>${e.notes ? `<div class="nt">${esc(e.notes)}</div>` : ''}</div>`
-    }).join('') : '<div class="empty">—</div>'}</td>`).join('')
+    }).join('') : '<div class="empty">—</div>'
+    const bodyRows = PERIODS.map(p => `<tr><th class="pc" style="color:${p.color}">${p.icon}<br>${p.short}</th>${
+      dayData.map(d => `<td class="${d.i >= 5 ? 'we' : ''}">${shiftsHtml(d.entries.filter(e => periodOf(e.start_time) === p.key))}</td>`).join('')}</tr>`).join('')
     const w = window.open('', '_blank')
     if (!w) { setAlert({ title: 'ההדפסה נחסמה', message: 'הדפדפן חסם חלון קופץ — אפשר חלונות קופצים לאתר ונסה שוב' }); return }
     w.document.write(`<!doctype html><html dir="rtl" lang="he"><head><meta charset="utf-8"><title>סידור שבועי ${weekDates}</title>
@@ -318,6 +326,7 @@ export default function WeeklySchedule() {
         .grid th, .grid td { border: 1px solid #b9c9c0; vertical-align: top; padding: 5px }
         .grid th { background: #e8f5ee; text-align: center; height: 1%; padding: 6px 4px } .grid th.we { background: #fdf3dc }
         .grid td.we { background: #fffaf0 }
+        .grid th.pc { width: 46px; background: #f3f4f6; font-size: 13px; vertical-align: middle }
         .dn { font-size: 18px; font-weight: bold } .dd { font-size: 14px; color: #555 } .note { font-size: 12px; color: #a15c00; margin-top: 2px }
         .sh { border: 1px solid #d5e7dc; border-right: 4px solid #0F9D58; border-radius: 5px; padding: 8px 9px; margin-bottom: 8px; page-break-inside: avoid }
         .sh.night { border-right-color: #6366f1 }
@@ -325,7 +334,7 @@ export default function WeeklySchedule() {
         .empty { color: #bbb; text-align: center }
       </style></head><body>
       <div id="page"><div class="head"><h1>סידור שבועי</h1><p>שבוע ${weekDates}</p></div>
-      <table class="grid"><thead><tr>${head}</tr></thead><tbody><tr>${cells}</tr></tbody></table>
+      <table class="grid"><thead><tr>${head}</tr></thead><tbody>${bodyRows}</tbody></table>
       </div>
       <script>
         // always one A4 landscape page: shrink when the week is crowded, stretch to the full page otherwise
@@ -395,8 +404,8 @@ export default function WeeklySchedule() {
     )
   }
 
-  const addButton = dayIdx => isAdmin && (
-    <button onClick={() => openAdd(dayIdx)}
+  const addButton = (dayIdx, periodKey) => isAdmin && (
+    <button onClick={() => openAdd(dayIdx, periodKey)}
       className="w-full flex items-center justify-center gap-1 text-xs text-gray-400 hover:text-brand-700 border border-dashed border-gray-300/80 hover:border-brand-400 hover:bg-white/70 rounded-xl py-1.5 transition-colors">
       <Plus size={12} /> הוסף
     </button>
@@ -442,6 +451,7 @@ export default function WeeklySchedule() {
         <table className="w-full table-fixed border-separate border-spacing-0 text-sm">
           <thead>
             <tr>
+              <th className="w-[84px] bg-white/50 border-b-2 border-b-black/10 border-l border-l-black/[0.07]" />
               {dayData.map(d => {
                 const today = d.i === todayIdx
                 const weekend = d.i >= 5
@@ -461,21 +471,29 @@ export default function WeeklySchedule() {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              {dayData.map(d => (
-                <td key={d.i}
-                  className={`align-top p-2 h-[300px] ${d.i < 6 ? 'border-l border-black/[0.07]' : ''} ${
-                    d.i === todayIdx ? 'bg-brand-500/[0.05]' : d.i >= 5 ? 'bg-amber-500/[0.03]' : ''}`}>
-                  <div className="flex flex-col gap-2">
-                    {d.entries.map(entryCard)}
-                    {addButton(d.i)}
-                  </div>
-                </td>
-              ))}
-            </tr>
+            {PERIODS.map((p, pi) => (
+              <tr key={p.key}>
+                <th className={`align-middle px-1 text-center border-l border-l-black/[0.07] ${pi ? 'border-t-2 border-t-black/10' : ''}`} style={{ background: p.bg }}>
+                  <div className="text-lg leading-none">{p.icon}</div>
+                  <div className="text-xs font-extrabold mt-1" style={{ color: p.color }}>{p.short}</div>
+                  <div className="text-[10px] text-gray-400 tabular-nums mt-0.5" dir="ltr">{p.range}</div>
+                </th>
+                {dayData.map(d => (
+                  <td key={d.i}
+                    className={`align-top p-2 h-[110px] ${d.i < 6 ? 'border-l border-black/[0.07]' : ''} ${pi ? 'border-t-2 border-t-black/10' : ''} ${
+                      d.i === todayIdx ? 'bg-brand-500/[0.05]' : d.i >= 5 ? 'bg-amber-500/[0.03]' : ''}`}>
+                    <div className="flex flex-col gap-2">
+                      {d.entries.filter(e => periodOf(e.start_time) === p.key).map(entryCard)}
+                      {addButton(d.i, p.key)}
+                    </div>
+                  </td>
+                ))}
+              </tr>
+            ))}
           </tbody>
           <tfoot>
             <tr>
+              <td className="px-1 py-2 text-center text-[11px] font-bold text-gray-500 border-t border-black/10 bg-white/40 border-l border-l-black/[0.07]">סה״כ</td>
               {dayData.map(d => (
                 <td key={d.i}
                   className={`px-2 py-2 text-center text-[11px] border-t border-black/10 bg-white/40 ${d.i < 6 ? 'border-l border-l-black/[0.07]' : ''}`}>
@@ -503,10 +521,20 @@ export default function WeeklySchedule() {
             </div>
             <div className="p-3">
               <div className="-mt-1.5 mb-1">{noteCell(d.date)}</div>
-              <div className="grid grid-cols-2 gap-2">
-                {d.entries.map(entryCard)}
+              <div className="space-y-2.5">
+                {PERIODS.map(p => {
+                  const list = d.entries.filter(e => periodOf(e.start_time) === p.key)
+                  if (!list.length && !isAdmin) return null
+                  return (
+                    <div key={p.key} className="rounded-xl p-2" style={{ background: p.bg }}>
+                      <div className="text-[11px] font-extrabold mb-1.5" style={{ color: p.color }}>{p.icon} {p.label}</div>
+                      {list.length > 0 && <div className="grid grid-cols-2 gap-2">{list.map(entryCard)}</div>}
+                      {isAdmin && <div className={list.length ? 'mt-2' : ''}>{addButton(d.i, p.key)}</div>}
+                    </div>
+                  )
+                })}
+                {!d.entries.length && !isAdmin && <div className="text-center text-gray-300 text-xs">אין משמרות</div>}
               </div>
-              {isAdmin && <div className="mt-2">{addButton(d.i)}</div>}
             </div>
           </div>
         ))}
