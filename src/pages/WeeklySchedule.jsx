@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, ChevronLeft, ChevronRight, MoonStar, Send, Pencil, MessageCircle, Mail, CalendarDays, Printer } from 'lucide-react'
+import { Plus, Copy, Trash2, ChevronLeft, ChevronRight, MoonStar, Send, Pencil, MessageCircle, Mail, CalendarDays, Printer } from 'lucide-react'
 import { runWhatsAppJob, summarize } from '../lib/whatsappAuto'
 import emailjs from '@emailjs/browser'
 import { useApp } from '../context/AppContext'
@@ -404,11 +404,49 @@ export default function WeeklySchedule() {
     )
   }
 
+  // the previous day's shifts in the same row (Sunday → Saturday of the previous week)
+  const prevDayEntries = (dayIdx, periodKey) => {
+    const src = dayIdx > 0
+      ? weekEntries.filter(e => e.day_of_week === dayIdx - 1)
+      : weeklySchedule.filter(e => e.week_start === addDays(weekStart, -7) && e.day_of_week === 6)
+    return src.filter(e => periodOf(e.start_time) === periodKey)
+  }
+
+  async function copyPrevDay(dayIdx, periodKey) {
+    const existing = weekEntries.filter(e => e.day_of_week === dayIdx)
+    const todo = prevDayEntries(dayIdx, periodKey).filter(src =>
+      !existing.some(e => e.employee_id === src.employee_id && e.start_time.slice(0, 5) === src.start_time.slice(0, 5)))
+    if (!todo.length) { setAlert({ title: 'אין מה לשכפל', message: 'כל המשמרות של היום הקודם כבר קיימות ביום הזה' }); return }
+    setLoading(true)
+    let ok = 0
+    const failed = []
+    for (const src of todo) {
+      try {
+        await addScheduleEntry({
+          week_start: weekStart, day_of_week: dayIdx, employee_id: src.employee_id,
+          start_time: src.start_time.slice(0, 5), end_time: src.end_time.slice(0, 5), notes: src.notes || '',
+        })
+        ok++
+      } catch (e) { failed.push(`${empName(src)}: ${e.message}`) }
+    }
+    setLoading(false)
+    if (failed.length) setAlert({ title: `שוכפלו ${ok} משמרות`, message: `לא שוכפלו:\n${failed.join('\n')}` })
+  }
+
   const addButton = (dayIdx, periodKey) => isAdmin && (
-    <button onClick={() => openAdd(dayIdx, periodKey)}
-      className="w-full flex items-center justify-center gap-1 text-xs text-gray-400 hover:text-brand-700 border border-dashed border-gray-300/80 hover:border-brand-400 hover:bg-white/70 rounded-xl py-1.5 transition-colors">
-      <Plus size={12} /> הוסף
-    </button>
+    <>
+      <button onClick={() => openAdd(dayIdx, periodKey)}
+        className="w-full flex items-center justify-center gap-1 text-xs text-gray-400 hover:text-brand-700 border border-dashed border-gray-300/80 hover:border-brand-400 hover:bg-white/70 rounded-xl py-1.5 transition-colors">
+        <Plus size={12} /> הוסף
+      </button>
+      {prevDayEntries(dayIdx, periodKey).length > 0 && (
+        <button onClick={() => copyPrevDay(dayIdx, periodKey)} disabled={loading}
+          title={prevDayEntries(dayIdx, periodKey).map(e => `${empName(e)} ${e.start_time.slice(0, 5)}–${e.end_time.slice(0, 5)}`).join('\n')}
+          className="w-full mt-1.5 flex items-center justify-center gap-1 text-[11px] text-gray-400 hover:text-indigo-700 border border-dashed border-gray-300/80 hover:border-indigo-300 hover:bg-white/70 rounded-xl py-1 transition-colors disabled:opacity-50">
+          <Copy size={11} /> שכפל את היום הקודם
+        </button>
+      )}
+    </>
   )
 
   return (
