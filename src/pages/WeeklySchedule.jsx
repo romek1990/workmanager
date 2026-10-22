@@ -72,6 +72,7 @@ export default function WeeklySchedule() {
   const [editModal, setEditModal] = useState(false)
   const [editEntry, setEditEntry] = useState(null)
   const [editForm, setEditForm] = useState({ employee_id: '', start_time: '', end_time: '', notes: '' })
+  const [copyPick, setCopyPick] = useState(null) // { dayIdx, periodKey, prev, here, selected:Set }
 
   useEffect(() => {
     emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY, blockHeadless: false })
@@ -412,15 +413,25 @@ export default function WeeklySchedule() {
     return src.filter(e => periodOf(e.start_time) === periodKey)
   }
 
-  async function copyPrevDay(dayIdx, periodKey) {
-    const existing = weekEntries.filter(e => e.day_of_week === dayIdx)
-    const todo = prevDayEntries(dayIdx, periodKey).filter(src =>
-      !existing.some(e => e.employee_id === src.employee_id && e.start_time.slice(0, 5) === src.start_time.slice(0, 5)))
-    if (!todo.length) { setAlert({ title: 'אין מה לשכפל', message: 'כל המשמרות של היום הקודם כבר קיימות ביום הזה' }); return }
+  // copy the previous day's row: only employees not already in this day's row.
+  // one candidate → copy straight away; several → let the manager pick
+  function copyPrevDay(dayIdx, periodKey) {
+    const here = weekEntries.filter(e => e.day_of_week === dayIdx && periodOf(e.start_time) === periodKey)
+    const prev = prevDayEntries(dayIdx, periodKey)
+    const candidates = prev.filter(src => !here.some(e => e.employee_id === src.employee_id))
+    if (!candidates.length) {
+      setAlert({ title: 'אין מה לשכפל', message: 'כל העובדים של היום הקודם כבר משובצים במשמרת הזו' })
+      return
+    }
+    if (candidates.length === 1) { doCopy(dayIdx, candidates); return }
+    setCopyPick({ dayIdx, periodKey, prev, here, selected: new Set(candidates.map(c => c.id)) })
+  }
+
+  async function doCopy(dayIdx, list) {
     setLoading(true)
     let ok = 0
     const failed = []
-    for (const src of todo) {
+    for (const src of list) {
       try {
         await addScheduleEntry({
           week_start: weekStart, day_of_week: dayIdx, employee_id: src.employee_id,
@@ -672,6 +683,35 @@ export default function WeeklySchedule() {
               <span className="text-sm font-medium">{label}</span>
             </label>
           ))}
+        </div>
+      </Modal>
+
+      <Modal open={!!copyPick} onClose={() => !loading && setCopyPick(null)}
+        title={copyPick ? `שכפול מ${DAYS[(copyPick.dayIdx + 6) % 7]} ל${DAYS[copyPick.dayIdx]}` : ''}
+        footer={<>
+          <button className="btn" onClick={() => setCopyPick(null)} disabled={loading}>ביטול</button>
+          <button className="btn btn-primary" disabled={loading || !copyPick?.selected.size}
+            onClick={async () => { const c = copyPick; setCopyPick(null); await doCopy(c.dayIdx, c.prev.filter(e => c.selected.has(e.id))) }}>
+            <Copy size={14} />שכפל{copyPick?.selected.size ? ` (${copyPick.selected.size})` : ''}
+          </button>
+        </>}>
+        <p className="text-sm mb-3 text-gray-500">בחר אילו עובדים מהיום הקודם לשבץ גם היום, באותן שעות:</p>
+        <div className="space-y-2">
+          {copyPick?.prev.map(e => {
+            const already = copyPick.here.some(h => h.employee_id === e.employee_id)
+            const on = copyPick.selected.has(e.id)
+            const color = colorOf(e.employee_id)
+            return (
+              <label key={e.id} className={`flex items-center gap-3 p-2.5 rounded-xl border ${already ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${on ? 'border-brand-300 bg-brand-500/10' : 'border-black/10 bg-white/60'}`}>
+                <input type="checkbox" className="w-4 h-4 accent-brand-600" disabled={already} checked={on}
+                  onChange={() => setCopyPick(c => { const n = new Set(c.selected); n.has(e.id) ? n.delete(e.id) : n.add(e.id); return { ...c, selected: n } })} />
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
+                <span className="flex-1 text-sm font-semibold" style={{ color }}>{empName(e)}</span>
+                <span className="text-xs tabular-nums text-gray-600" dir="ltr">{e.start_time.slice(0, 5)}–{e.end_time.slice(0, 5)}</span>
+                {already && <span className="text-[11px] text-gray-500">כבר משובץ</span>}
+              </label>
+            )
+          })}
         </div>
       </Modal>
 
