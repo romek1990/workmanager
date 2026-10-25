@@ -1,8 +1,10 @@
 import React, { useState } from 'react'
-import { Building2, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, KeyRound, MailCheck } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { useNavigate } from 'react-router-dom'
-import { t } from '../i18n'
+import { t, useLang } from '../i18n'
+import { supabase } from '../lib/supabase'
+import { Modal } from '../components/ui'
 import LanguagePicker from '../components/LanguagePicker'
 
 export default function Login() {
@@ -13,6 +15,24 @@ export default function Login() {
   const [showPass, setShowPass] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  useLang()
+  // forgot password: ask for the email → confirm → send the reset link to that email
+  const [reset, setReset] = useState(null) // null | { step: 'confirm' | 'sent', email, busy, error }
+
+  function openReset() { setReset({ step: 'confirm', email: email.trim(), busy: false, error: '' }) }
+
+  async function sendReset() {
+    const addr = (reset.email || '').trim().toLowerCase()
+    if (!/\S+@\S+\.\S+/.test(addr)) { setReset(r => ({ ...r, error: t('יש להזין כתובת אימייל תקינה') })); return }
+    setReset(r => ({ ...r, busy: true, error: '' }))
+    const { error: err } = await supabase.auth.resetPasswordForEmail(addr, { redirectTo: 'https://workmanager-florentin.com/set-password' })
+    // rate limit is the only error worth showing; otherwise always "sent" (doesn't reveal who has an account)
+    if (err && /rate|security purposes|seconds/i.test(err.message || '')) {
+      setReset(r => ({ ...r, busy: false, error: t('נשלחו כבר בקשות רבות — נסה שוב בעוד כמה דקות') }))
+      return
+    }
+    setReset(r => ({ ...r, step: 'sent', email: addr, busy: false }))
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -67,10 +87,44 @@ export default function Login() {
           </form>
 
           <div className="mt-5 pt-4 border-t border-gray-100 text-center">
-            <p className="text-xs text-gray-400">{t('שכחת סיסמא? פנה למנהל המערכת')}</p>
+            <button type="button" onClick={openReset}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:text-brand-900 hover:underline">
+              <KeyRound size={15} />{t('שכחתי סיסמא — איפוס סיסמא')}
+            </button>
           </div>
         </div>
       </div>
+
+      <Modal open={!!reset} onClose={() => !reset?.busy && setReset(null)} title={t('איפוס סיסמא')}
+        footer={reset?.step === 'sent'
+          ? <button className="btn btn-primary" onClick={() => setReset(null)}>{t('סגור')}</button>
+          : <>
+              <button className="btn" onClick={() => setReset(null)} disabled={reset?.busy}>{t('ביטול')}</button>
+              <button className="btn btn-primary" onClick={sendReset} disabled={reset?.busy}>
+                {reset?.busy ? t('שולח...') : t('כן, אפס את הסיסמא')}
+              </button>
+            </>}>
+        {reset?.step === 'sent' ? (
+          <div className="text-center py-2">
+            <MailCheck size={40} className="mx-auto text-brand-600 mb-3" />
+            <p className="font-semibold text-gray-800">{t('הקישור לאיפוס נשלח')}</p>
+            <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+              {t('אם הכתובת {email} רשומה במערכת, יגיע אליה מייל עם קישור להגדרת סיסמא חדשה. כדאי לבדוק גם בתיקיית הספאם.', { email: reset.email })}
+            </p>
+          </div>
+        ) : reset && (
+          <div>
+            <p className="text-sm text-gray-700 leading-relaxed mb-4">
+              {t('האם אתה בטוח שברצונך לאפס את הסיסמא? קישור לאיפוס יישלח למייל הפרטי שלך.')}
+            </p>
+            <label className="form-label">{t('אימייל')}</label>
+            <input type="email" dir="ltr" className="form-control" placeholder="your@email.com" autoFocus
+              value={reset.email} onChange={e => setReset(r => ({ ...r, email: e.target.value, error: '' }))}
+              onKeyDown={e => { if (e.key === 'Enter') sendReset() }} />
+            {reset.error && <p className="text-sm text-red-700 mt-2">{reset.error}</p>}
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }
