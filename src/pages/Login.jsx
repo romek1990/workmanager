@@ -115,9 +115,9 @@ export default function Login() {
         ) : reset && (
           <div>
             <p className="text-sm text-gray-700 leading-relaxed mb-4">
-              {t('האם אתה בטוח שברצונך לאפס את הסיסמא? קישור לאיפוס יישלח למייל הפרטי שלך.')}
+              {t('האם אתה בטוח שברצונך לאפס את הסיסמא? הקישור לאיפוס יישלח רק למייל הפרטי שרשום לך במערכת.')}
             </p>
-            <label className="form-label">{t('אימייל')}</label>
+            <label className="form-label">{t('שם המשתמש שלך (המייל שאיתו אתה נכנס)')}</label>
             <input type="email" dir="ltr" className="form-control" placeholder="your@email.com" autoFocus
               value={reset.email} onChange={e => setReset(r => ({ ...r, email: e.target.value, error: '' }))}
               onKeyDown={e => { if (e.key === 'Enter') sendReset() }} />

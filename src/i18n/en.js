@@ -455,10 +455,11 @@ export default {
   'משמרת ערב': 'Evening shift',
   'משמרת לילה': 'Night shift',
   // ── forgot password (login) ──
+  'שם המשתמש שלך (המייל שאיתו אתה נכנס)': 'Your username (the email you sign in with)',
   'שכחתי סיסמא — איפוס סיסמא': 'Forgot password — reset it',
   'איפוס סיסמא': 'Reset password',
   'כן, אפס את הסיסמא': 'Yes, reset my password',
-  'האם אתה בטוח שברצונך לאפס את הסיסמא? קישור לאיפוס יישלח למייל הפרטי שלך.': 'Are you sure you want to reset your password? A reset link will be sent to your personal email.',
+  'האם אתה בטוח שברצונך לאפס את הסיסמא? הקישור לאיפוס יישלח רק למייל הפרטי שרשום לך במערכת.': 'Are you sure you want to reset your password? The link will be sent only to the personal email registered for you in the system.',
   'יש להזין כתובת אימייל תקינה': 'Enter a valid email address',
   'נשלחו כבר בקשות רבות — נסה שוב בעוד כמה דקות': 'Too many requests — try again in a few minutes',
   'הקישור לאיפוס נשלח': 'Reset link sent',
