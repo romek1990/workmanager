@@ -61,10 +61,12 @@ export default function EmployeeProfile() {
       const body = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(body.error || `שגיאה ${res.status}`)
       await logActivity?.(currentUser?.id, currentUser?.name, currentUser?.email, 'איפוס סיסמה', `אופסה הסיסמה של ${emp.full_name}`)
-      const waNote = body.whatsapp?.sent
-        ? ' וגם הודעת וואטסאפ נשלחה אליו'
-        : (emp.phone ? ' (שליחת הוואטסאפ נכשלה — אפשר לנסות שוב מאוחר יותר)' : '')
-      setAlert({ title: 'הסיסמה אופסה', message: `הסיסמה הישנה בוטלה ונשלח מייל ל-${emp.email} להגדרת סיסמה חדשה${waNote}` })
+      setAlert({
+        title: 'הסיסמה אופסה',
+        message: body.whatsapp?.sent
+          ? `הסיסמה הישנה בוטלה ונשלח לעובד בוואטסאפ קישור להגדרת סיסמה חדשה (תקף לשעה)`
+          : `הסיסמה הישנה בוטלה ונשלח מייל ל-${emp.email} עם קישור להגדרת סיסמה חדשה${emp.phone ? ' (שליחת הוואטסאפ נכשלה)' : ''}`,
+      })
     } catch (e) {
       setAlert({ title: 'שגיאה', message: e.message || 'איפוס הסיסמה נכשל' })
     }

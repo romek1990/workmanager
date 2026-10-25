@@ -1,8 +1,8 @@
 // Supabase Edge Function: admin-reset-password
 // Admin-only. Immediately invalidates an employee's current password
-// (replaces it with a random one only the server knows), sends them a
-// "set password" email so they can choose a new one, and — if they have
-// a phone number on file — a matching WhatsApp notification via GreenAPI.
+// (replaces it with a random one only the server knows) and sends a
+// "set password" link — by WhatsApp in the employee's language when they have
+// a phone number (falls back to email), otherwise by email.
 //
 // POST body: { employeeId: string }
 
@@ -103,58 +103,63 @@ serve(async (req) => {
     });
     if (updateErr) return json({ error: updateErr.message }, 400);
 
-    // ── send the branded "set password" email ──
-    const { error: mailErr } = await admin.auth.resetPasswordForEmail(target.email, {
-      redirectTo: "https://workmanager-florentin.com/set-password",
-    });
-    if (mailErr) return json({ error: mailErr.message }, 400);
-
-    // ── best-effort WhatsApp notification ──
+    // ── a "set password" link: by WhatsApp when there's a phone (with the link itself, in the
+    //    employee's language), otherwise — or if WhatsApp fails — by email ──
+    const redirectTo = "https://workmanager-florentin.com/set-password";
     let whatsapp: { sent: boolean; error?: string } = { sent: false };
     const phone = normalizePhone(target.phone);
     if (phone) {
+      const { data: link, error: linkErr } = await admin.auth.admin.generateLink({ type: "recovery", email: target.email, options: { redirectTo } });
+      // our own page + hashed token: spent only when the user presses "save", so WhatsApp's
+      // link preview can't burn it
+      const hashed = link?.properties?.hashed_token;
+      const url = hashed ? `${redirectTo}?t=${hashed}` : null;
       const firstName = (target.full_name || "").split(" ")[0] || "";
       const l = target.role === "admin" ? "he" : target.language;
-      const waText = l === "ru"
+      const waText = !url ? "" : l === "ru"
         ? `Привет, ${firstName} 👋\n` +
-          `Мы только что отправили вам письмо для сброса пароля в системе *WorkManager*.\n` +
-          `Откройте его и нажмите «Установить пароль», чтобы снова войти. 🔐`
+          `Ваш пароль в системе *WorkManager* (Флорентин Маркет) был сброшен.\n\n` +
+          `Чтобы установить новый пароль и войти, нажмите здесь:\n${url}\n\n` +
+          `Ваш логин: ${target.email}\n` +
+          `⏳ Ссылка действует 1 час. Если срок истёк — попросите менеджера отправить снова.`
         : l === "en"
         ? `Hi ${firstName} 👋\n` +
-          `We just sent you an email to reset your *WorkManager* password.\n` +
-          `Open it and tap "Set password" to sign in again. 🔐`
+          `Your *WorkManager* password was reset.\n\n` +
+          `To set a new password and sign in, tap here:\n${url}\n\n` +
+          `Your username: ${target.email}\n` +
+          `⏳ The link is valid for 1 hour. If it expired, ask your manager to send it again.`
         : `היי ${firstName} 👋\n` +
-          `נשלח אליך עכשיו מייל לאיפוס הסיסמה במערכת *WorkManager*.\n` +
-          `יש לפתוח אותו וללחוץ על "הגדרת סיסמה" כדי להתחבר מחדש. 🔐`;
-      try {
-        await sendWhatsApp(phone, waText);
-        whatsapp = { sent: true };
-        await admin.from("whatsapp_messages").insert({
-          batch_id: crypto.randomUUID(),
-          sent_by: caller.id,
-          sent_by_name: caller.full_name,
-          recipient_id: target.id,
-          recipient_name: target.full_name,
-          phone,
-          message: waText,
-          is_broadcast: false,
-          status: "sent",
-        });
-      } catch (e) {
-        whatsapp = { sent: false, error: String(e) };
-        await admin.from("whatsapp_messages").insert({
-          batch_id: crypto.randomUUID(),
-          sent_by: caller.id,
-          sent_by_name: caller.full_name,
-          recipient_id: target.id,
-          recipient_name: target.full_name,
-          phone,
-          message: waText,
-          is_broadcast: false,
-          status: "failed",
-          error: String(e).slice(0, 500),
-        });
+          `הסיסמה שלך במערכת *WorkManager* אופסה.\n\n` +
+          `להגדרת סיסמה חדשה ולכניסה לחץ כאן:\n${url}\n\n` +
+          `שם המשתמש שלך: ${target.email}\n` +
+          `⏳ הקישור בתוקף לשעה. אם פג תוקפו — בקש מהמנהל לשלוח שוב.`;
+      if (linkErr || !url) {
+        whatsapp = { sent: false, error: String(linkErr?.message || "no link") };
+      } else {
+        const logged = waText.replace(url, "[קישור הגדרת סיסמה]");
+        try {
+          await sendWhatsApp(phone, waText);
+          whatsapp = { sent: true };
+          await admin.from("whatsapp_messages").insert({
+            batch_id: crypto.randomUUID(), sent_by: caller.id, sent_by_name: caller.full_name,
+            recipient_id: target.id, recipient_name: target.full_name, phone,
+            message: logged, is_broadcast: false, status: "sent",
+          });
+        } catch (e) {
+          whatsapp = { sent: false, error: String(e) };
+          await admin.from("whatsapp_messages").insert({
+            batch_id: crypto.randomUUID(), sent_by: caller.id, sent_by_name: caller.full_name,
+            recipient_id: target.id, recipient_name: target.full_name, phone,
+            message: logged, is_broadcast: false, status: "failed", error: String(e).slice(0, 500),
+          });
+        }
       }
+    }
+
+    // email fallback (a new email link replaces the WhatsApp one, so only when WhatsApp wasn't sent)
+    if (!whatsapp.sent) {
+      const { error: mailErr } = await admin.auth.resetPasswordForEmail(target.email, { redirectTo });
+      if (mailErr) return json({ error: mailErr.message }, 400);
     }
 
     return json({ ok: true, email: target.email, whatsapp });
