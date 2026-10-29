@@ -7,6 +7,8 @@
 // POST { invoiceId }         — admin with the "invoices" permission
 // POST { action: "health" }  — tells whether the AI key is configured (no auth needed, returns no secrets)
 // POST { action: "rescan_own" } — cron secret only: re-scans documents where our own store was saved as the supplier
+// POST { action: "rescan_failed", limit? } — cron secret only: re-scans documents whose scan failed on an AI/system
+//                                           error (e.g. API credit ran out); "supplier not found" ones are left alone
 //
 // The system belongs to פלורנטין מרקט — it is always the CUSTOMER on these documents, never the supplier.
 
@@ -185,6 +187,26 @@ serve(async (req) => {
       }
     }
     return json({ ok: true, count: bad.length, results });
+  }
+
+  // re-scan documents that failed because of an AI/system error (cron secret only)
+  if (body.action === "rescan_failed") {
+    const secret = req.headers.get("x-cron-secret");
+    const { data: ok } = secret ? await admin.rpc("check_cron_secret", { p_secret: secret }) : { data: false };
+    if (ok !== true) return json({ error: "Unauthorized" }, 401);
+    const { data: rows } = await admin.from("invoices").select("*").eq("status", "failed")
+      .not("file_path", "is", null).like("scan_error", "Error:%").order("created_at").limit(Number(body.limit) || 5);
+    const results = [];
+    for (const r of rows || []) {
+      try {
+        const s = await scanInvoice(admin, r);
+        results.push({ id: r.id, supplier: s.supplier_name, status: s.status });
+      } catch (e) {
+        await admin.from("invoices").update({ scan_error: String(e).slice(0, 300) }).eq("id", r.id);
+        results.push({ id: r.id, error: String(e).slice(0, 200) });
+      }
+    }
+    return json({ ok: true, count: (rows || []).length, results });
   }
 
   let invoiceId: string | null = null;
