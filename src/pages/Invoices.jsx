@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Receipt, Camera, Upload, ChevronDown, ExternalLink, Pencil, Trash2, RefreshCw, Loader2, AlertTriangle, Search, Eye, X, FileText, Truck, Files, Plus, ArrowUp, ArrowDown, ImagePlus, Undo2, Copy, CalendarDays, Info, Download } from 'lucide-react'
+import { Receipt, Camera, Upload, ChevronDown, ExternalLink, Pencil, Trash2, RefreshCw, Loader2, AlertTriangle, Search, Eye, X, FileText, Truck, Files, Plus, ArrowUp, ArrowDown, ImagePlus, Undo2, Copy, CalendarDays, Info, Download, CheckSquare, Square } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { supabase } from '../lib/supabase'
 import { fetchAll } from '../lib/fetchAll'
@@ -325,6 +325,50 @@ export default function Invoices() {
     } finally { setMonthDl(null) }
   }
 
+  // ── single download + multi-select download ──
+  const [selected, setSelected] = useState(() => new Set())
+  const [selDl, setSelDl] = useState(null) // { done, total } while merging
+  const toggleSel = id => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const safeName = v => String(v || '').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim()
+  const fileNameOf = r => {
+    const ext = (r.file_path?.split('.').pop() || (r.mime_type === 'application/pdf' ? 'pdf' : 'jpg')).toLowerCase()
+    const base = [TYPES[typeOf(r)]?.label, supplierNames[supplierKey(r)] || r.supplier_name, r.invoice_number && `מס ${r.invoice_number}`, r.invoice_date && fmtDate(r.invoice_date)]
+      .map(safeName).filter(Boolean).join(' - ') || 'מסמך'
+    return `${base}.${ext}`
+  }
+  const saveBlob = (blob, name) => {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = name
+    document.body.appendChild(a); a.click(); a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 10000)
+  }
+  async function downloadOne(r) {
+    setBusy('dl:' + r.id)
+    try {
+      const { data: blob, error } = await supabase.storage.from('invoices').download(r.file_path)
+      if (error || !blob) throw error || new Error()
+      saveBlob(blob, fileNameOf(r))
+    } catch { showToast('ההורדה נכשלה', 'error') }
+    setBusy('')
+  }
+  async function downloadSelected() {
+    const list = rows.filter(r => selected.has(r.id) && r.file_path)
+      .sort((a, b) => rowMonth(a).localeCompare(rowMonth(b)) || (supplierNames[supplierKey(a)] || a.supplier_name || '').localeCompare(supplierNames[supplierKey(b)] || b.supplier_name || '', 'he') || (a.invoice_date || '').localeCompare(b.invoice_date || ''))
+    if (!list.length) return
+    if (list.length === 1) return downloadOne(list[0])
+    setSelDl({ done: 0, total: list.length })
+    try {
+      const { bytes, failed } = await mergeInvoicesPdf(list, (done, total) => setSelDl({ done, total }))
+      saveBlob(new Blob([bytes], { type: 'application/pdf' }), `מסמכים נבחרים (${list.length - failed.length}).pdf`)
+      logActivity?.(currentUser?.id, currentUser?.name, currentUser?.email, 'הורדת מסמכים נבחרים', `${list.length - failed.length} מסמכים`)
+      showToast(failed.length ? `הורדו ${list.length - failed.length} מסמכים · ${failed.length} לא נקראו` : `הורדו ${list.length} מסמכים בקובץ PDF אחד`, failed.length ? 'error' : 'success')
+      if (!failed.length) setSelected(new Set())
+    } catch (e) {
+      showToast(e.message || 'ההורדה נכשלה', 'error')
+    } finally { setSelDl(null) }
+  }
+
   const grouped = useMemo(() => {
     const q = search.trim()
     const filtered = rows.filter(r =>
@@ -354,6 +398,8 @@ export default function Invoices() {
       return { month: m, suppliers, invCount: inv.length, noteCount: dn.length, creditCount: cr.length, invTotal: sumOf(inv), noteTotal: sumOf(dn), creditTotal: sumOf(cr) }
     })
   }, [rows, search, typeFilter, supplierNames, uploadRange])
+  const visibleIds = useMemo(() => grouped.flatMap(g => g.suppliers.flatMap(sp => [...sp.invoices, ...sp.notes, ...sp.credits])).filter(r => r.file_path).map(r => r.id), [grouped])
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selected.has(id))
   const uploadCount = useMemo(() => grouped.reduce((t, g) => t + g.invCount + g.noteCount + g.creditCount, 0), [grouped])
 
   const dupRows = useMemo(() => rows.filter(r => r.duplicate_of), [rows])
@@ -374,7 +420,9 @@ export default function Invoices() {
   }
 
   const docRow = r => (
-    <div key={r.id} className={`flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 text-sm ${r.duplicate_of ? 'bg-red-50' : ''}`}>
+    <div key={r.id} className={`flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3 text-sm ${r.duplicate_of ? 'bg-red-50' : selected.has(r.id) ? 'bg-brand-500/[0.07]' : ''}`}>
+      <input type="checkbox" className="w-4 h-4 accent-emerald-600 shrink-0 cursor-pointer" title="סימון להורדה"
+        checked={selected.has(r.id)} disabled={!r.file_path} onChange={() => toggleSel(r.id)} />
       <button className="flex flex-1 min-w-[180px] items-center gap-3 text-right" onClick={() => view(r)} title="לחץ לצפייה במסמך">
         <span className="tabular-nums w-[84px] shrink-0">{r.invoice_date ? fmtDate(r.invoice_date) : '—'}</span>
         <span className="text-xs flex-1" style={{ color: 'var(--text-dim)' }}>
@@ -393,6 +441,9 @@ export default function Invoices() {
         <button className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold text-white shadow-sm active:scale-95 transition"
           style={{ background: 'linear-gradient(135deg, var(--emerald), var(--emerald-light))' }} onClick={() => view(r)}>
           <Eye size={16} />צפייה
+        </button>
+        <button className="btn py-2 px-2.5" title="הורדת המסמך" disabled={!r.file_path || busy === 'dl:' + r.id} onClick={() => downloadOne(r)}>
+          {busy === 'dl:' + r.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
         </button>
         <button className="btn py-2 px-2.5" title="עריכה" onClick={() => openEdit(r)}><Pencil size={14} /></button>
         <button className="btn py-2 px-2.5" title="סריקה מחדש" disabled={busy === r.id || r.status === 'processing'} onClick={() => rescan(r)}><RefreshCw size={14} /></button>
@@ -417,7 +468,7 @@ export default function Invoices() {
   }
 
   return (
-    <div className="p-4 md:px-10 md:py-8">
+    <div className="p-4 pb-24 md:px-10 md:py-8 md:pb-24">
       <PageHeader icon={Receipt} title="חשבוניות ותעודות משלוח" subtitle="מצלמים מסמך בטלפון — המערכת מזהה אם זו חשבונית או תעודת משלוח, את הספק, התאריך והסכום, ומסדרת לפי חודש וספק">
         <button className="btn btn-primary" onClick={() => camRef.current?.click()}><Camera size={15} />צלם מסמך</button>
         <button className="btn" onClick={() => setMulti([])}><Files size={15} />מסמך מרובה דפים</button>
@@ -677,6 +728,27 @@ export default function Invoices() {
         </>}>
         <p className="text-sm">למחוק את ה{removing ? TYPES[typeOf(removing)].label : ''} של <b>{removing?.supplier_name || NO_SUPPLIER}</b>{removing?.invoice_date ? ` מ-${fmtDate(removing.invoice_date)}` : ''}? גם הקובץ יימחק.</p>
       </Modal>
+
+      {visibleIds.length > 0 && (
+        <div className="fixed bottom-4 inset-x-0 z-40 flex justify-center px-4 pointer-events-none">
+          <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-2xl bg-ink-900 text-white shadow-glass-lg px-4 py-2.5 text-sm">
+            <button className="inline-flex items-center gap-1.5 font-medium hover:text-emerald-300"
+              onClick={() => setSelected(allVisibleSelected ? new Set() : new Set(visibleIds))}>
+              {allVisibleSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+              {allVisibleSelected ? 'נקה סימון' : `סמן את כל המוצגים (${visibleIds.length})`}
+            </button>
+            {selected.size > 0 && <>
+              <span className="opacity-40">|</span>
+              <span className="font-semibold">{selected.size} נבחרו</span>
+              <button className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 px-3 py-1.5 font-semibold disabled:opacity-60"
+                disabled={!!selDl} onClick={downloadSelected}>
+                {selDl ? <><Loader2 size={15} className="animate-spin" />{selDl.done}/{selDl.total}</> : <><Download size={15} />{selected.size === 1 ? 'הורד' : 'הורד כ-PDF אחד'}</>}
+              </button>
+              {!allVisibleSelected && <button className="opacity-70 hover:opacity-100" onClick={() => setSelected(new Set())} title="נקה סימון"><X size={16} /></button>}
+            </>}
+          </div>
+        </div>
+      )}
 
       <Toast {...toast} />
     </div>
